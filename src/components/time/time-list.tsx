@@ -38,6 +38,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import { TimeRecordForm } from "./time-record-form";
 import { Stopwatch } from "./stopwatch";
+import { AnomalyBadge, EmployeeAnomalyIndicator } from "./anomaly-badge";
 
 // ---------- Types ----------
 
@@ -143,6 +144,29 @@ export function TimeList() {
   });
 
   const employees = data?.employees ?? [];
+
+  // Fetch anomaly data for the month (managers only)
+  const { data: anomalyData } = useQuery<{
+    anomalies: {
+      type: "long_shift" | "gap" | "overlap" | "deviation";
+      severity: "warning" | "critical";
+      employeeId: string;
+      employeeName: string;
+      date: string;
+      details: string;
+      value: number;
+    }[];
+    summary: { total: number; critical: number; warning: number };
+  }>({
+    queryKey: ["anomalies", monthKey],
+    queryFn: async () => {
+      const res = await fetch(`/api/ai/anomalies?month=${monthKey}`);
+      if (!res.ok) return { anomalies: [], summary: { total: 0, critical: 0, warning: 0 } };
+      return res.json();
+    },
+    enabled: isManager,
+  });
+  const anomalies = anomalyData?.anomalies ?? [];
 
   // Filter by search
   const filteredEmployees = useMemo(() => {
@@ -315,6 +339,11 @@ export function TimeList() {
         )}
       </div>
 
+      {/* Anomaly Badge */}
+      {isManager && (
+        <AnomalyBadge month={monthKey} isManager={isManager} />
+      )}
+
       {/* Search */}
       {isManager && (
         <div className="relative w-full sm:max-w-xs">
@@ -378,6 +407,12 @@ export function TimeList() {
                     {emp.records.length !== 1 ? "en" : ""}
                   </div>
                 </div>
+                {isManager && anomalies.length > 0 && (
+                  <EmployeeAnomalyIndicator
+                    anomalies={anomalies}
+                    employeeId={emp.userId}
+                  />
+                )}
                 <Badge
                   variant="secondary"
                   className="tabular-nums font-mono text-sm"
