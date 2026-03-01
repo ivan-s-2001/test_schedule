@@ -7,7 +7,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { EmployeePicker } from "./employee-picker";
+import { WishRequestButton, WishCountBadge } from "./wish-plan";
 import type { ShiftData, ScheduleLayout } from "@/types/schedule";
+import type { WishRequest } from "./wish-plan";
 
 interface ShiftCardProps {
   shift: ShiftData;
@@ -23,6 +25,8 @@ interface ShiftCardProps {
   showTitle?: boolean;
   /** Whether to show pause information */
   showPauses?: boolean;
+  /** Wish request for this shift by current user (employee view) */
+  userWishRequest?: WishRequest | null;
 }
 
 function getInitials(firstName: string, lastName: string): string {
@@ -38,6 +42,7 @@ export function ShiftCard({
   layout = "LAYOUT_1",
   showTitle = true,
   showPauses = true,
+  userWishRequest,
 }: ShiftCardProps) {
   const queryClient = useQueryClient();
   const bookedCount = shift.bookings.length;
@@ -210,6 +215,20 @@ export function ShiftCard({
             {pauseLabel}
           </div>
         )}
+
+        {/* Wish plan indicators */}
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {isManager && (
+            <WishCountBadge shiftId={shift.id} scheduleId={shift.scheduleId} />
+          )}
+          {!isManager && currentUserId && !bookedUserIds.includes(currentUserId) && (
+            <WishRequestButton
+              shiftId={shift.id}
+              currentUserId={currentUserId}
+              existingRequest={userWishRequest}
+            />
+          )}
+        </div>
       </button>
 
       {/* Content - employee slots */}

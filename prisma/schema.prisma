@@ -234,6 +234,7 @@ model ModRequest {
   shiftId   String
   userId    String
   state     RequestState  @default(OPEN)
+  note      String?
   deadline  DateTime?
   sentAt    DateTime      @default(now())
 

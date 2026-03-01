@@ -15,6 +15,8 @@ import { EmployeeNav } from "./employee-nav";
 import { ScheduleOptions } from "./schedule-options";
 import { LiveMode, LiveBorder } from "./live-mode";
 import { AISuggestButton } from "./ai-suggest-button";
+import { WishFilterToggle } from "./wish-plan";
+import type { WishRequest } from "./wish-plan";
 import type { ScheduleData, ShiftData } from "@/types/schedule";
 
 interface ScheduleGridProps {
@@ -65,11 +67,61 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
   });
   const isLiveActive = liveData?.session?.isActive ?? false;
 
-  // Group shifts by dayOfWeek, applying division filter
+  // Wish filter state
+  const [wishFilterEnabled, setWishFilterEnabled] = useState(false);
+
+  // Query wish requests for this schedule
+  const { data: wishData } = useQuery<{ requests: WishRequest[] }>({
+    queryKey: ["mod-requests", scheduleId],
+    queryFn: async () => {
+      const res = await fetch(`/api/mod-requests?scheduleId=${scheduleId}`);
+      if (!res.ok) return { requests: [] };
+      return res.json();
+    },
+    enabled: !!scheduleId,
+  });
+
+  const wishRequests = wishData?.requests ?? [];
+  const openWishCount = wishRequests.filter((r) => r.state === "OPEN").length;
+
+  // Map wish requests by shiftId for quick lookup
+  const wishByShift = useMemo(() => {
+    const map = new Map<string, WishRequest[]>();
+    for (const req of wishRequests) {
+      const existing = map.get(req.shiftId) ?? [];
+      existing.push(req);
+      map.set(req.shiftId, existing);
+    }
+    return map;
+  }, [wishRequests]);
+
+  // Get the current user's wish requests
+  const userWishMap = useMemo(() => {
+    const map = new Map<string, WishRequest>();
+    const userId = member?.user?.id;
+    if (!userId) return map;
+    for (const req of wishRequests) {
+      if (req.userId === userId) {
+        map.set(req.shiftId, req);
+      }
+    }
+    return map;
+  }, [wishRequests, member?.user?.id]);
+
+  // Group shifts by dayOfWeek, applying division filter and wish filter
   const shiftsByDay = useMemo(() => {
-    const filtered = divisionFilter
+    let filtered = divisionFilter
       ? shifts.filter((s) => s.divisionId === divisionFilter)
       : shifts;
+
+    // Wish filter: only show shifts that have open wish requests
+    if (wishFilterEnabled) {
+      filtered = filtered.filter((s) => {
+        const reqs = wishByShift.get(s.id);
+        return reqs && reqs.some((r) => r.state === "OPEN");
+      });
+    }
+
     const grouped: Record<number, ShiftData[]> = {};
     for (let d = 1; d <= 7; d++) {
       grouped[d] = [];
@@ -84,7 +136,7 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
       grouped[Number(day)].sort((a, b) => a.shiftFrom.localeCompare(b.shiftFrom));
     }
     return grouped;
-  }, [shifts, divisionFilter]);
+  }, [shifts, divisionFilter, wishFilterEnabled, wishByShift]);
 
   // Dialog state
   const [formOpen, setFormOpen] = useState(false);
@@ -119,6 +171,14 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
             onDivisionFilterChange={setDivisionFilter}
           />
           <div className="flex items-center gap-2">
+            {/* Wish filter toggle (manager only) */}
+            {isManager && (
+              <WishFilterToggle
+                enabled={wishFilterEnabled}
+                onToggle={setWishFilterEnabled}
+                wishCount={openWishCount}
+              />
+            )}
             {/* AI Suggest button (manager only) */}
             {isManager && <AISuggestButton scheduleId={scheduleId} />}
             {/* Live Mode controls */}
@@ -197,6 +257,7 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
                       layout={layout}
                       showTitle={showTitle}
                       showPauses={showPauses}
+                      userWishRequest={userWishMap.get(shift.id) ?? null}
                     />
                   ))}
 
@@ -281,6 +342,7 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
                       layout={layout}
                       showTitle={showTitle}
                       showPauses={showPauses}
+                      userWishRequest={userWishMap.get(shift.id) ?? null}
                     />
                   ))}
 
