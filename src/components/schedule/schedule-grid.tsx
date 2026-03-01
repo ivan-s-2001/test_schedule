@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { isToday, getISOWeek, getISOWeekYear } from "date-fns";
+import { isToday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { dayNames, formatDateShort } from "@/lib/utils/calendar";
@@ -11,6 +11,7 @@ import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import { cn } from "@/lib/utils";
 import { ShiftCard } from "./shift-card";
 import { ShiftForm } from "./shift-form";
+import { EmployeeNav } from "./employee-nav";
 import type { ScheduleData, ShiftData } from "@/types/schedule";
 
 interface ScheduleGridProps {
@@ -25,6 +26,9 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
     member?.role === "OWNER" ||
     member?.role === "ADMIN" ||
     member?.role === "MANAGER";
+
+  // Employee filter state
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Fetch schedule with shifts via the schedule endpoint
   const { data, isLoading } = useQuery<{ schedule: ScheduleData }>({
@@ -80,6 +84,17 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
 
   return (
     <>
+      {/* Employee filter bar */}
+      {shifts.length > 0 && (
+        <div className="mb-4">
+          <EmployeeNav
+            shifts={shifts}
+            selectedEmployeeId={selectedEmployeeId}
+            onSelectEmployee={setSelectedEmployeeId}
+          />
+        </div>
+      )}
+
       {/* Desktop: 7-column grid */}
       <div className="hidden md:grid md:grid-cols-7 gap-2">
         {weekDates.map((date, index) => {
@@ -133,6 +148,8 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
                     shift={shift}
                     onEdit={handleEditShift}
                     isManager={isManager}
+                    currentUserId={member?.user?.id}
+                    highlightUserId={selectedEmployeeId}
                   />
                 ))}
 
@@ -210,6 +227,8 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
                     shift={shift}
                     onEdit={handleEditShift}
                     isManager={isManager}
+                    currentUserId={member?.user?.id}
+                    highlightUserId={selectedEmployeeId}
                   />
                 ))}
 
