@@ -15,6 +15,7 @@ import {
   Loader2,
   Trash2,
   Save,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +113,11 @@ export function ScheduleOptions({
         scheduleId={schedule.id}
         isManager={isManager}
       />
+
+      {/* KI-Briefing */}
+      {isManager && (
+        <AiBriefingButton scheduleId={schedule.id} />
+      )}
     </div>
   );
 }
@@ -558,5 +564,60 @@ function BriefingButton({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+// ─── AI Briefing Button ─────────────────────────────────────────────
+
+function AiBriefingButton({ scheduleId }: { scheduleId: string }) {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async (): Promise<{ text: string }> => {
+      const res = await fetch("/api/ai/briefing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduleId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Fehler beim Generieren");
+      }
+      return res.json();
+    },
+    onSuccess: async (data) => {
+      // Save the generated text as the briefing
+      const res = await fetch(`/api/schedules/${scheduleId}/briefing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: data.text }),
+      });
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ["briefing", scheduleId] });
+        toast.success("KI-Briefing erstellt und gespeichert");
+      } else {
+        toast.success("KI-Briefing erstellt (manuell speichern)");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+      className="gap-1.5 border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950"
+    >
+      {mutation.isPending ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : (
+        <Sparkles className="size-3.5" />
+      )}
+      KI-Briefing
+    </Button>
   );
 }
