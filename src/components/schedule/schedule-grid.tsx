@@ -13,6 +13,7 @@ import { ShiftCard } from "./shift-card";
 import { ShiftForm } from "./shift-form";
 import { EmployeeNav } from "./employee-nav";
 import { ScheduleOptions } from "./schedule-options";
+import { LiveMode, LiveBorder } from "./live-mode";
 import type { ScheduleData, ShiftData } from "@/types/schedule";
 
 interface ScheduleGridProps {
@@ -50,6 +51,18 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
   const layout = schedule?.settingsLayout ?? "LAYOUT_1";
   const showTitle = schedule?.showTitle ?? true;
   const showPauses = schedule?.showPauses ?? true;
+
+  // Query live session state for the purple border
+  const { data: liveData } = useQuery<{ session: { isActive: boolean } | null }>({
+    queryKey: ["live-session", scheduleId],
+    queryFn: async () => {
+      const res = await fetch(`/api/live?scheduleId=${scheduleId}`);
+      if (!res.ok) return { session: null };
+      return res.json();
+    },
+    enabled: !!scheduleId,
+  });
+  const isLiveActive = liveData?.session?.isActive ?? false;
 
   // Group shifts by dayOfWeek, applying division filter
   const shiftsByDay = useMemo(() => {
@@ -97,13 +110,15 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
     <>
       {/* Schedule Options toolbar */}
       {schedule && (
-        <div className="mb-4">
+        <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
           <ScheduleOptions
             schedule={schedule}
             isManager={isManager}
             divisionFilter={divisionFilter}
             onDivisionFilterChange={setDivisionFilter}
           />
+          {/* Live Mode controls */}
+          <LiveMode scheduleId={scheduleId} isManager={isManager} />
         </div>
       )}
 
@@ -119,164 +134,168 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
       )}
 
       {/* Desktop: 7-column grid */}
-      <div className="hidden md:grid md:grid-cols-7 gap-2">
-        {weekDates.map((date, index) => {
-          const dayOfWeek = index + 1; // 1=Mon..7=Sun
-          const dayShifts = shiftsByDay[dayOfWeek] ?? [];
-          const todayHighlight = isToday(date);
+      <LiveBorder isActive={isLiveActive}>
+        <div className="hidden md:grid md:grid-cols-7 gap-2">
+          {weekDates.map((date, index) => {
+            const dayOfWeek = index + 1; // 1=Mon..7=Sun
+            const dayShifts = shiftsByDay[dayOfWeek] ?? [];
+            const todayHighlight = isToday(date);
 
-          return (
-            <div
-              key={dayOfWeek}
-              className={cn(
-                "min-h-[200px] rounded-lg border bg-card flex flex-col",
-                todayHighlight && "ring-2 ring-primary/50 bg-primary/[0.02]"
-              )}
-            >
-              {/* Day Header */}
+            return (
               <div
+                key={dayOfWeek}
                 className={cn(
-                  "border-b px-3 py-2 rounded-t-lg",
-                  todayHighlight ? "bg-primary/10" : "bg-muted/30"
+                  "min-h-[200px] rounded-lg border bg-card flex flex-col",
+                  todayHighlight && "ring-2 ring-primary/50 bg-primary/[0.02]"
                 )}
               >
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">
-                    {dayNames[index]}
+                {/* Day Header */}
+                <div
+                  className={cn(
+                    "border-b px-3 py-2 rounded-t-lg",
+                    todayHighlight ? "bg-primary/10" : "bg-muted/30"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">
+                      {dayNames[index]}
+                    </div>
+                    {todayHighlight && (
+                      <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                        Heute
+                      </span>
+                    )}
                   </div>
-                  {todayHighlight && (
-                    <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                      Heute
-                    </span>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDateShort(date)}
+                  </div>
+                </div>
+
+                {/* Day Content */}
+                <div className="flex-1 p-2 space-y-2">
+                  {dayShifts.length === 0 && (
+                    <div className="flex items-center justify-center py-4">
+                      <span className="text-xs text-muted-foreground">
+                        Keine Schichten
+                      </span>
+                    </div>
+                  )}
+
+                  {dayShifts.map((shift) => (
+                    <ShiftCard
+                      key={shift.id}
+                      shift={shift}
+                      onEdit={handleEditShift}
+                      isManager={isManager}
+                      currentUserId={member?.user?.id}
+                      highlightUserId={selectedEmployeeId}
+                      layout={layout}
+                      showTitle={showTitle}
+                      showPauses={showPauses}
+                    />
+                  ))}
+
+                  {/* Add shift button */}
+                  {isManager && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full border border-dashed text-muted-foreground hover:text-foreground"
+                      onClick={() => handleAddShift(dayOfWeek)}
+                    >
+                      <Plus className="size-3.5" />
+                      Schicht
+                    </Button>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {formatDateShort(date)}
-                </div>
               </div>
-
-              {/* Day Content */}
-              <div className="flex-1 p-2 space-y-2">
-                {dayShifts.length === 0 && (
-                  <div className="flex items-center justify-center py-4">
-                    <span className="text-xs text-muted-foreground">
-                      Keine Schichten
-                    </span>
-                  </div>
-                )}
-
-                {dayShifts.map((shift) => (
-                  <ShiftCard
-                    key={shift.id}
-                    shift={shift}
-                    onEdit={handleEditShift}
-                    isManager={isManager}
-                    currentUserId={member?.user?.id}
-                    highlightUserId={selectedEmployeeId}
-                    layout={layout}
-                    showTitle={showTitle}
-                    showPauses={showPauses}
-                  />
-                ))}
-
-                {/* Add shift button */}
-                {isManager && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full border border-dashed text-muted-foreground hover:text-foreground"
-                    onClick={() => handleAddShift(dayOfWeek)}
-                  >
-                    <Plus className="size-3.5" />
-                    Schicht
-                  </Button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </LiveBorder>
 
       {/* Mobile: day-by-day vertical cards */}
-      <div className="md:hidden space-y-3">
-        {weekDates.map((date, index) => {
-          const dayOfWeek = index + 1;
-          const dayShifts = shiftsByDay[dayOfWeek] ?? [];
-          const todayHighlight = isToday(date);
+      <LiveBorder isActive={isLiveActive}>
+        <div className="md:hidden space-y-3">
+          {weekDates.map((date, index) => {
+            const dayOfWeek = index + 1;
+            const dayShifts = shiftsByDay[dayOfWeek] ?? [];
+            const todayHighlight = isToday(date);
 
-          return (
-            <div
-              key={dayOfWeek}
-              className={cn(
-                "rounded-lg border bg-card",
-                todayHighlight && "ring-2 ring-primary/50 bg-primary/[0.02]"
-              )}
-            >
-              {/* Day Header */}
+            return (
               <div
+                key={dayOfWeek}
                 className={cn(
-                  "border-b px-4 py-2.5 rounded-t-lg flex items-center justify-between",
-                  todayHighlight ? "bg-primary/10" : "bg-muted/30"
+                  "rounded-lg border bg-card",
+                  todayHighlight && "ring-2 ring-primary/50 bg-primary/[0.02]"
                 )}
               >
-                <div>
-                  <span className="text-sm font-semibold">{dayNames[index]}</span>
-                  <span className="text-xs text-muted-foreground ml-2">
-                    {formatDateShort(date)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {todayHighlight && (
-                    <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                      Heute
-                    </span>
+                {/* Day Header */}
+                <div
+                  className={cn(
+                    "border-b px-4 py-2.5 rounded-t-lg flex items-center justify-between",
+                    todayHighlight ? "bg-primary/10" : "bg-muted/30"
                   )}
-                  {dayShifts.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      {dayShifts.length} {dayShifts.length === 1 ? "Schicht" : "Schichten"}
+                >
+                  <div>
+                    <span className="text-sm font-semibold">{dayNames[index]}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {formatDateShort(date)}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {todayHighlight && (
+                      <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                        Heute
+                      </span>
+                    )}
+                    {dayShifts.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {dayShifts.length} {dayShifts.length === 1 ? "Schicht" : "Schichten"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Day Content */}
+                <div className="p-3 space-y-2">
+                  {dayShifts.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      Keine Schichten
+                    </p>
+                  )}
+
+                  {dayShifts.map((shift) => (
+                    <ShiftCard
+                      key={shift.id}
+                      shift={shift}
+                      onEdit={handleEditShift}
+                      isManager={isManager}
+                      currentUserId={member?.user?.id}
+                      highlightUserId={selectedEmployeeId}
+                      layout={layout}
+                      showTitle={showTitle}
+                      showPauses={showPauses}
+                    />
+                  ))}
+
+                  {isManager && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full border border-dashed text-muted-foreground hover:text-foreground"
+                      onClick={() => handleAddShift(dayOfWeek)}
+                    >
+                      <Plus className="size-3.5" />
+                      Schicht hinzufuegen
+                    </Button>
                   )}
                 </div>
               </div>
-
-              {/* Day Content */}
-              <div className="p-3 space-y-2">
-                {dayShifts.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-2">
-                    Keine Schichten
-                  </p>
-                )}
-
-                {dayShifts.map((shift) => (
-                  <ShiftCard
-                    key={shift.id}
-                    shift={shift}
-                    onEdit={handleEditShift}
-                    isManager={isManager}
-                    currentUserId={member?.user?.id}
-                    highlightUserId={selectedEmployeeId}
-                    layout={layout}
-                    showTitle={showTitle}
-                    showPauses={showPauses}
-                  />
-                ))}
-
-                {isManager && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full border border-dashed text-muted-foreground hover:text-foreground"
-                    onClick={() => handleAddShift(dayOfWeek)}
-                  >
-                    <Plus className="size-3.5" />
-                    Schicht hinzufuegen
-                  </Button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </LiveBorder>
 
       {/* Shift Form Dialog */}
       {scheduleId && (
