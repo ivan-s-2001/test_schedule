@@ -10,8 +10,10 @@ import {
   UserCog,
   AlertTriangle,
   UserX,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -137,7 +139,17 @@ export function EmployeeList() {
             Verwalte dein Team und weise Rollen zu
           </p>
         </div>
-        {isAdmin && <EmployeeForm />}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/employees/absences")}
+          >
+            <CalendarDays className="size-4" />
+            <span className="hidden sm:inline">Abwesenheiten</span>
+          </Button>
+          {isAdmin && <EmployeeForm />}
+        </div>
       </div>
 
       {/* Search + Filter Tabs */}
