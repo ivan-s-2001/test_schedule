@@ -7,7 +7,6 @@ import {
   CalendarDays,
   Clock,
   Users,
-  Building2,
   MessageSquare,
   BarChart3,
   Settings,
@@ -19,10 +18,9 @@ import { MobileNav } from "./mobile-nav";
 import { ConnectionStatus } from "./connection-status";
 
 const navItems = [
-  { key: "schedule", icon: CalendarDays, href: "/schedule/flexible", label: "Графики смен" },
+  { key: "schedule", icon: CalendarDays, href: "/schedule/employee", label: "График" },
   { key: "time", icon: Clock, href: "/time", label: "Учёт времени" },
   { key: "employees", icon: Users, href: "/employees", label: "Сотрудники" },
-  { key: "divisions", icon: Building2, href: "/divisions", label: "Подразделения" },
   { key: "portal", icon: MessageSquare, href: "/portal/inbox", label: "Портал" },
   { key: "reporting", icon: BarChart3, href: "/reporting", label: "Отчёты" },
   { key: "settings", icon: Settings, href: "/settings", label: "Настройки" },
@@ -48,20 +46,17 @@ export function TopNav() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-white dark:bg-slate-900 dark:border-slate-800">
-      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-4">
-        {/* Mobile hamburger */}
+      <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-2 px-4">
         <MobileNav />
 
-        {/* Logo */}
         <Link
-          href="/schedule/flexible"
+          href="/schedule/employee"
           className="mr-4 flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400"
         >
           <CalendarDays className="size-5" />
-          <span className="hidden sm:inline">График смен</span>
+          <span className="hidden sm:inline">График службы заботы</span>
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden md:flex md:items-center md:gap-1">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -89,9 +84,7 @@ export function TopNav() {
           })}
         </nav>
 
-        {/* Right side */}
         <div className="ml-auto flex items-center gap-2">
-          {/* AI button */}
           <Link
             href="/ai/chat"
             className={cn(
