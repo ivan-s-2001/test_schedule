@@ -51,7 +51,7 @@ export default function RegisterPage() {
       redirect: false,
     });
 
-    router.push("/schedule/flexible");
+    router.push("/schedule/employee");
   }
 
   return (
@@ -103,7 +103,7 @@ export default function RegisterPage() {
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Уже зарегистрированы?{" "}
             <Link href="/login" className="text-primary hover:underline">
-              Anmelden
+              Войти
             </Link>
           </p>
         </CardContent>
