@@ -2,56 +2,81 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 
+const ADMIN_EMAIL = "admin@qksr.ru";
+
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email().transform((value) => value.trim().toLowerCase()),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: {
-    signIn: "/login",
+    signIn: "/",
   },
   providers: [
     Credentials({
+      name: "Email access",
+      credentials: {
+        email: { label: "Email", type: "email" },
+      },
       async authorize(credentials) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const user = await db.user.findUnique({
-          where: { email: parsed.data.email },
+        const email = parsed.data.email;
+        let membership = await db.organizationMember.findFirst({
+          where: {
+            isActive: true,
+            isActivated: true,
+            user: { email },
+          },
+          include: { user: true },
+          orderBy: { joinedAt: "asc" },
         });
-        if (!user || !user.passwordHash) return null;
 
-        const valid = await bcrypt.compare(
-          parsed.data.password,
-          user.passwordHash
-        );
-        if (!valid) return null;
+        // Preserve access after older seeds that created admin@demo.de.
+        if (!membership && email === ADMIN_EMAIL) {
+          const owner = await db.organizationMember.findFirst({
+            where: {
+              role: "OWNER",
+              isActive: true,
+              isActivated: true,
+            },
+            include: { user: true },
+            orderBy: { joinedAt: "asc" },
+          });
+
+          if (owner) {
+            const adminUser = await db.user.update({
+              where: { id: owner.userId },
+              data: { email: ADMIN_EMAIL },
+            });
+            membership = { ...owner, user: adminUser };
+          }
+        }
+
+        if (!membership) return null;
 
         return {
-          id: user.id,
-          email: user.email,
-          name: `${user.firstName} ${user.lastName}`,
+          id: membership.user.id,
+          email: membership.user.email,
+          name:
+            `${membership.user.firstName} ${membership.user.lastName}`.trim() ||
+            membership.user.email,
         };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
+      if (user) token.id = user.id;
       return token;
     },
     async session({ session, token }) {
-      if (token.id) {
-        session.user.id = token.id as string;
-      }
+      if (token.id) session.user.id = token.id as string;
       return session;
     },
   },
