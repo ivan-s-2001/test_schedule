@@ -54,3 +54,4 @@ node_modules/
 # Private company data
 *.xlsx
 scripts/migration/care-schedule-2026-01-07.json
+scripts/migration/care-day-notes-2026.json
