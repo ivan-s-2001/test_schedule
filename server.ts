@@ -6,6 +6,7 @@ import { Server as SocketIOServer } from "socket.io";
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
+const browserUrl = process.env.APP_URL || `http://localhost:${port}`;
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -51,9 +52,17 @@ app.prepare().then(() => {
       socket.to(`schedule:${data.scheduleId}`).emit("live:stopped", data);
     });
 
-    socket.on("live:booking", (data: { scheduleId: string; shiftId: string; userId: string; action: string }) => {
-      socket.to(`schedule:${data.scheduleId}`).emit("live:booking", data);
-    });
+    socket.on(
+      "live:booking",
+      (data: {
+        scheduleId: string;
+        shiftId: string;
+        userId: string;
+        action: string;
+      }) => {
+        socket.to(`schedule:${data.scheduleId}`).emit("live:booking", data);
+      }
+    );
 
     // ---- Disconnect ----
 
@@ -65,6 +74,7 @@ app.prepare().then(() => {
   (globalThis as any).__socketIO = io;
 
   httpServer.listen(port, hostname, () => {
-    console.log(`> Ready on http://${hostname}:${port}`);
+    console.log(`> Ready on ${browserUrl}`);
+    console.log(`> Listening on http://${hostname}:${port}`);
   });
 });
