@@ -25,37 +25,37 @@ if /I not "%CONFIRM%"=="DELETE" (
 )
 
 echo.
-echo [1/10] Переключение на develop...
+echo [1/11] Переключение на develop...
 git switch develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [2/10] Получение изменений...
+echo [2/11] Получение изменений...
 git pull --ff-only origin develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [3/10] Установка зависимостей...
+echo [3/11] Установка зависимостей...
 call npm install
 if errorlevel 1 goto :fail
 
 echo.
-echo [4/10] Полное удаление данных и повтор всех миграций...
+echo [4/11] Полное удаление данных и повтор всех миграций...
 call npx prisma migrate reset --force
 if errorlevel 1 goto :fail
 
 echo.
-echo [5/10] Обновление Prisma Client...
+echo [5/11] Обновление Prisma Client...
 call npx prisma generate
 if errorlevel 1 goto :fail
 
 echo.
-echo [6/10] Первоначальное заполнение базы...
+echo [6/11] Первоначальное заполнение базы...
 call npx prisma db seed
 if errorlevel 1 goto :fail
 
 echo.
-echo [7/10] Повторный импорт графика службы заботы...
+echo [7/11] Повторный импорт графика службы заботы...
 if exist "scripts\migration\care-schedule-2026-01-07.json" (
   call npx tsx --env-file=.env scripts/migration/import-care-schedule.ts --apply
   if errorlevel 1 goto :fail
@@ -65,7 +65,7 @@ if exist "scripts\migration\care-schedule-2026-01-07.json" (
 )
 
 echo.
-echo [8/10] Импорт пометок и статусов из Excel...
+echo [8/11] Импорт пометок и статусов из Excel...
 if exist "scripts\migration\care-day-notes-2026.json" (
   call npx tsx --env-file=.env scripts/migration/import-care-day-notes.ts --apply
   if errorlevel 1 goto :fail
@@ -75,12 +75,33 @@ if exist "scripts\migration\care-day-notes-2026.json" (
 )
 
 echo.
-echo [9/10] Пересборка приложения на порту %APP_PORT%...
+echo [9/11] Остановка предыдущего сервера на порту %APP_PORT%...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ids = Get-NetTCPConnection -LocalPort %APP_PORT% -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($id in $ids) { if ($id) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } }"
+if errorlevel 1 goto :fail
+
+set "PORT_FREE=0"
+for /L %%I in (1,1,15) do (
+  powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort %APP_PORT% -State Listen -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }" >nul 2>&1
+  if not errorlevel 1 (
+    set "PORT_FREE=1"
+    goto :port_free
+  )
+  timeout /t 1 /nobreak >nul
+)
+
+:port_free
+if not "%PORT_FREE%"=="1" (
+  echo Порт %APP_PORT% не освободился.
+  goto :fail
+)
+
+echo.
+echo [10/11] Пересборка приложения на порту %APP_PORT%...
 call npm run build
 if errorlevel 1 goto :fail
 
 echo.
-echo [10/10] Запуск собранного приложения...
+echo [11/11] Запуск собранного приложения...
 start "Schichtplaner" cmd /k "set NODE_ENV=production&& set PORT=%APP_PORT%&& set APP_URL=%APP_URL%&& set NEXTAUTH_URL=%NEXTAUTH_URL%&& npx tsx --env-file=.env server.ts"
 if errorlevel 1 goto :fail
 
