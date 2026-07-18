@@ -33,7 +33,7 @@ if errorlevel 1 goto :fail
 
 echo.
 echo [4/7] Полное удаление данных и повтор всех миграций...
-call npx prisma migrate reset --force --skip-seed
+call npx prisma migrate reset --force
 if errorlevel 1 goto :fail
 
 echo.
