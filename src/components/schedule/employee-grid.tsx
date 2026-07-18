@@ -1,28 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, isToday } from "date-fns";
 import { ru } from "date-fns/locale";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DayNotesEditor } from "@/components/schedule/day-notes-editor";
+import {
+  ShiftAssignmentEditor,
+  type ShiftAssignment,
+  type ShiftAssignmentTarget,
+} from "@/components/schedule/shift-assignment-editor";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import {
-  SHIFT_POOL,
   findShiftTemplate,
   type ShiftTemplate,
 } from "@/lib/schedule/shift-pool";
@@ -31,8 +23,6 @@ import type {
   BookingUser,
   ScheduleData,
   ScheduleDayNote,
-  ShiftBooking,
-  ShiftData,
 } from "@/types/schedule";
 
 interface EmployeeGridProps {
@@ -52,21 +42,9 @@ type EmployeesResponse = {
   members: EmployeeMember[];
 };
 
-type Assignment = {
-  shift: ShiftData;
-  booking: ShiftBooking;
-};
-
 type EmployeeRow = {
   user: EmployeeMember["user"];
-  assignments: Record<number, Assignment | null>;
-  totalHours: number;
-};
-
-type CellEditorState = {
-  user: EmployeeMember["user"];
-  dayOfWeek: number;
-  assignment: Assignment | null;
+  assignments: Record<number, ShiftAssignment | null>;
 };
 
 const CARE_EMAIL_SUFFIX = "@care.qt.local";
@@ -76,18 +54,6 @@ function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
-function timeToMinutes(value: string): number {
-  const [hours, minutes] = value.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function shiftDurationHours(shift: ShiftData): number {
-  const from = timeToMinutes(shift.shiftFrom);
-  let to = timeToMinutes(shift.shiftTo);
-  if (to <= from) to += 24 * 60;
-  return (to - from) / 60;
-}
-
 function formatHours(value: number): string {
   return value.toLocaleString("ru-RU", {
     minimumFractionDigits: value % 1 === 0 ? 0 : 1,
@@ -95,12 +61,14 @@ function formatHours(value: number): string {
   });
 }
 
-function isLegacyOvertime(shift: ShiftData): boolean {
+function isLegacyOvertime(shift: ShiftAssignment["shift"]): boolean {
   const text = `${shift.title ?? ""} ${shift.description ?? ""}`;
   return /переработ|(?:^|\s)П(?:\s|$)/i.test(text);
 }
 
-function getTemplate(shift: ShiftData): ShiftTemplate | undefined {
+function getTemplate(
+  shift: ShiftAssignment["shift"]
+): ShiftTemplate | undefined {
   return findShiftTemplate(shift.shiftFrom, shift.shiftTo, shift.title);
 }
 
@@ -112,9 +80,8 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
     currentMember?.role === "ADMIN" ||
     currentMember?.role === "MANAGER";
 
-  const [cellEditor, setCellEditor] = useState<CellEditorState | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [overtimeHours, setOvertimeHours] = useState("0");
+  const [editorTarget, setEditorTarget] =
+    useState<ShiftAssignmentTarget | null>(null);
 
   const {
     data: scheduleData,
@@ -158,7 +125,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
   }, [employeesData]);
 
   const rows = useMemo<EmployeeRow[]>(() => {
-    const assignments = new Map<string, Assignment>();
+    const assignments = new Map<string, ShiftAssignment>();
 
     for (const shift of shifts) {
       for (const booking of shift.bookings) {
@@ -168,23 +135,16 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
     }
 
     return visibleMembers.map((member) => {
-      const dayAssignments = {} as Record<number, Assignment | null>;
-      let totalHours = 0;
+      const dayAssignments = {} as Record<number, ShiftAssignment | null>;
 
       for (let day = 1; day <= 7; day += 1) {
-        const assignment = assignments.get(`${member.user.id}:${day}`) ?? null;
-        dayAssignments[day] = assignment;
-
-        if (assignment) {
-          totalHours += shiftDurationHours(assignment.shift);
-          totalHours += assignment.booking.overtimeMinutes / 60;
-        }
+        dayAssignments[day] =
+          assignments.get(`${member.user.id}:${day}`) ?? null;
       }
 
       return {
         user: member.user,
         assignments: dayAssignments,
-        totalHours,
       };
     });
   }, [shifts, visibleMembers]);
@@ -201,82 +161,26 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
     return result;
   }, [schedule?.dayNotes]);
 
-  const invalidateSchedule = () =>
-    queryClient.invalidateQueries({
+  async function invalidateSchedule() {
+    await queryClient.invalidateQueries({
       queryKey: ["schedule", weekNumber, year],
     });
-
-  const assignmentMutation = useMutation({
-    mutationFn: async (payload: {
-      userId: string;
-      dayOfWeek: number;
-      templateId: string;
-      overtimeHours: number;
-    }) => {
-      if (!schedule) throw new Error("График ещё не загружен");
-
-      const response = await fetch("/api/schedule-assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleId: schedule.id, ...payload }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Не удалось сохранить смену");
-      return data;
-    },
-    onSuccess: async () => {
-      await invalidateSchedule();
-      setCellEditor(null);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: async (payload: { userId: string; dayOfWeek: number }) => {
-      if (!schedule) throw new Error("График ещё не загружен");
-
-      const response = await fetch("/api/schedule-assignments", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleId: schedule.id, ...payload }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Не удалось удалить смену");
-      return data;
-    },
-    onSuccess: async () => {
-      await invalidateSchedule();
-      setCellEditor(null);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  function openCellEditor(
-    user: EmployeeMember["user"],
-    dayOfWeek: number,
-    assignment: Assignment | null
-  ) {
-    if (!canEdit) return;
-
-    const template = assignment ? getTemplate(assignment.shift) : undefined;
-    setSelectedTemplateId(template?.id ?? "");
-    setOvertimeHours(
-      assignment ? String(assignment.booking.overtimeMinutes / 60) : "0"
-    );
-    setCellEditor({ user, dayOfWeek, assignment });
   }
 
-  function saveAssignment() {
-    if (!cellEditor || !selectedTemplateId) return;
-    const parsedOvertime = Number(overtimeHours.replace(",", "."));
+  function openCell(
+    user: EmployeeMember["user"],
+    dayOfWeek: number,
+    assignment: ShiftAssignment | null
+  ) {
+    if (!schedule) return;
+    if (!assignment && !canEdit) return;
 
-    assignmentMutation.mutate({
-      userId: cellEditor.user.id,
-      dayOfWeek: cellEditor.dayOfWeek,
-      templateId: selectedTemplateId,
-      overtimeHours: Number.isFinite(parsedOvertime) ? parsedOvertime : 0,
+    setEditorTarget({
+      scheduleId: schedule.id,
+      user,
+      date: weekDates[dayOfWeek - 1],
+      dayOfWeek,
+      assignment,
     });
   }
 
@@ -304,7 +208,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
   return (
     <>
       <div className="overflow-x-auto rounded-md border border-slate-400 bg-white shadow-sm">
-        <table className="w-full min-w-[1180px] border-collapse text-xs">
+        <table className="w-full min-w-[1080px] border-collapse text-xs">
           <thead>
             <tr>
               <th className="sticky left-0 z-20 w-52 min-w-52 border-b border-r border-slate-400 bg-[#0000FF] px-3 py-3 text-left font-semibold text-white">
@@ -338,9 +242,6 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                   </th>
                 );
               })}
-              <th className="w-20 border-b border-slate-400 bg-[#0000FF] px-2 py-2 text-center font-semibold text-white">
-                Часы
-              </th>
             </tr>
           </thead>
 
@@ -377,6 +278,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                     assignment?.booking.overtimeMinutes ?? 0;
                   const legacyOvertime =
                     assignment && isLegacyOvertime(assignment.shift);
+                  const clickable = Boolean(assignment) || canEdit;
 
                   return (
                     <td
@@ -388,16 +290,14 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                     >
                       <button
                         type="button"
-                        disabled={!canEdit}
-                        onClick={() =>
-                          openCellEditor(row.user, dayOfWeek, assignment)
-                        }
+                        disabled={!clickable}
+                        onClick={() => openCell(row.user, dayOfWeek, assignment)}
                         className={cn(
                           "relative flex min-h-11 w-full items-center justify-center rounded-sm border px-1.5 py-1 text-[11px] font-semibold leading-tight transition",
                           assignment
                             ? "shadow-sm"
                             : "border-transparent bg-transparent text-slate-300",
-                          canEdit && "hover:ring-2 hover:ring-indigo-400"
+                          clickable && "hover:ring-2 hover:ring-indigo-400"
                         )}
                         style={
                           assignment
@@ -437,127 +337,18 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                     </td>
                   );
                 })}
-
-                <td className="border-b border-slate-300 px-2 py-2 text-center font-bold text-slate-700">
-                  {formatHours(row.totalHours)}
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <Dialog
-        open={cellEditor !== null}
-        onOpenChange={(open) => !open && setCellEditor(null)}
-      >
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Назначить смену</DialogTitle>
-            <DialogDescription>
-              {cellEditor && (
-                <>
-                  {cellEditor.user.nickname || cellEditor.user.firstName} ·{" "}
-                  {DAY_NAMES[cellEditor.dayOfWeek - 1]},{" "}
-                  {format(weekDates[cellEditor.dayOfWeek - 1], "d MMMM", {
-                    locale: ru,
-                  })}
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-2 gap-2 py-2 sm:grid-cols-3">
-            {SHIFT_POOL.map((template) => {
-              const selected = selectedTemplateId === template.id;
-              return (
-                <button
-                  type="button"
-                  key={template.id}
-                  onClick={() => setSelectedTemplateId(template.id)}
-                  className={cn(
-                    "min-h-12 rounded-md border-2 px-2 py-2 text-sm font-bold transition",
-                    selected
-                      ? "ring-2 ring-indigo-500 ring-offset-2"
-                      : "hover:scale-[1.02]"
-                  )}
-                  style={{
-                    backgroundColor: template.color,
-                    color: template.textColor,
-                    borderColor:
-                      template.color === "#FFFFFF"
-                        ? "#94A3B8"
-                        : template.color,
-                  }}
-                >
-                  {template.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="overtime-hours">Переработка, часов</Label>
-            <Input
-              id="overtime-hours"
-              type="number"
-              min="0"
-              max="24"
-              step="0.5"
-              value={overtimeHours}
-              onChange={(event) => setOvertimeHours(event.target.value)}
-              placeholder="0"
-            />
-            <p className="text-xs text-muted-foreground">
-              Можно указать 0,5; 1; 1,5; 2 часа и далее.
-            </p>
-          </div>
-
-          <DialogFooter className="gap-2 sm:justify-between">
-            <div>
-              {cellEditor?.assignment && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={removeMutation.isPending}
-                  onClick={() =>
-                    removeMutation.mutate({
-                      userId: cellEditor.user.id,
-                      dayOfWeek: cellEditor.dayOfWeek,
-                    })
-                  }
-                >
-                  {removeMutation.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="size-4" />
-                  )}
-                  Удалить смену
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCellEditor(null)}
-              >
-                Отмена
-              </Button>
-              <Button
-                type="button"
-                disabled={!selectedTemplateId || assignmentMutation.isPending}
-                onClick={saveAssignment}
-              >
-                {assignmentMutation.isPending && (
-                  <Loader2 className="size-4 animate-spin" />
-                )}
-                Сохранить
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShiftAssignmentEditor
+        target={editorTarget}
+        canEdit={canEdit}
+        onClose={() => setEditorTarget(null)}
+        onChanged={invalidateSchedule}
+      />
     </>
   );
 }
