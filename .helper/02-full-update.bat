@@ -5,6 +5,11 @@ setlocal EnableExtensions
 cd /d "%~dp0.."
 if errorlevel 1 goto :fail
 
+set "APP_PORT=41873"
+set "PORT=%APP_PORT%"
+set "APP_URL=http://localhost:%APP_PORT%"
+set "NEXTAUTH_URL=%APP_URL%"
+
 echo.
 echo ВНИМАНИЕ: БАЗА ДАННЫХ БУДЕТ ПОЛНОСТЬЮ ОЧИЩЕНА.
 echo Все локальные изменения графика, пометок и сотрудников будут удалены.
@@ -57,20 +62,23 @@ if exist "scripts\migration\care-schedule-2026-01-07.json" (
 )
 
 echo.
-echo [8/9] Пересборка приложения...
+echo [8/9] Пересборка приложения на порту %APP_PORT%...
 call npm run build
 if errorlevel 1 goto :fail
 
 echo.
 echo [9/9] Запуск собранного приложения...
-start "Schichtplaner" cmd /k "set NODE_ENV=production&& npx tsx --env-file=.env server.ts"
+start "Schichtplaner" cmd /k "set NODE_ENV=production&& set PORT=%APP_PORT%&& set APP_URL=%APP_URL%&& set NEXTAUTH_URL=%NEXTAUTH_URL%&& npx tsx --env-file=.env server.ts"
 if errorlevel 1 goto :fail
+
+timeout /t 3 /nobreak >nul
+start "" "%APP_URL%"
 
 echo.
 echo ============================================================
 echo ПОЛНОЕ ОБНОВЛЕНИЕ ЗАВЕРШЕНО.
 echo БАЗА ПЕРЕСОЗДАНА, ВСЕ МИГРАЦИИ ВЫПОЛНЕНЫ.
-echo ПРИЛОЖЕНИЕ СОБРАНО И ЗАПУЩЕНО В ОТДЕЛЬНОМ ОКНЕ.
+echo ПРИЛОЖЕНИЕ ЗАПУЩЕНО: %APP_URL%
 echo ============================================================
 pause
 exit /b 0
