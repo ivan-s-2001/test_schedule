@@ -6,7 +6,6 @@ import {
   getWeekDates,
 } from "@/lib/utils/calendar";
 import { WeekNav } from "@/components/schedule/week-nav";
-import { ViewSwitcher } from "@/components/schedule/view-switcher";
 import { EmployeeGridWrapper } from "@/components/schedule/employee-grid-wrapper";
 
 interface EmployeeKWPageProps {
@@ -24,14 +23,23 @@ export default async function EmployeeKWPage({ params }: EmployeeKWPageProps) {
 
   const { weekNumber, year } = parsed;
   const weekDates = getWeekDates(weekNumber, year);
-  const weekDateStrings = weekDates.map((d) => d.toISOString());
+  const weekDateStrings = weekDates.map((date) => date.toISOString());
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <ViewSwitcher kw={kw} />
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold">График службы заботы</h1>
+        <p className="text-sm text-muted-foreground">
+          Недельная таблица сотрудников и смен из фиксированного пула
+        </p>
       </div>
-      <WeekNav weekNumber={weekNumber} year={year} baseUrl="/schedule/employee" />
+
+      <WeekNav
+        weekNumber={weekNumber}
+        year={year}
+        baseUrl="/schedule/employee"
+      />
+
       <EmployeeGridWrapper
         weekNumber={weekNumber}
         year={year}
