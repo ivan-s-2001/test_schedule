@@ -17,37 +17,37 @@ if /I not "%CONFIRM%"=="DELETE" (
 )
 
 echo.
-echo [1/7] Переключение на develop...
+echo [1/9] Переключение на develop...
 git switch develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [2/7] Получение изменений...
+echo [2/9] Получение изменений...
 git pull --ff-only origin develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [3/7] Установка зависимостей...
+echo [3/9] Установка зависимостей...
 call npm install
 if errorlevel 1 goto :fail
 
 echo.
-echo [4/7] Полное удаление данных и повтор всех миграций...
+echo [4/9] Полное удаление данных и повтор всех миграций...
 call npx prisma migrate reset --force
 if errorlevel 1 goto :fail
 
 echo.
-echo [5/7] Обновление Prisma Client...
+echo [5/9] Обновление Prisma Client...
 call npx prisma generate
 if errorlevel 1 goto :fail
 
 echo.
-echo [6/7] Первоначальное заполнение базы...
+echo [6/9] Первоначальное заполнение базы...
 call npx prisma db seed
 if errorlevel 1 goto :fail
 
 echo.
-echo [7/7] Повторный импорт графика службы заботы...
+echo [7/9] Повторный импорт графика службы заботы...
 if exist "scripts\migration\care-schedule-2026-01-07.json" (
   call npx tsx --env-file=.env scripts/migration/import-care-schedule.ts --apply
   if errorlevel 1 goto :fail
@@ -57,9 +57,20 @@ if exist "scripts\migration\care-schedule-2026-01-07.json" (
 )
 
 echo.
+echo [8/9] Пересборка приложения...
+call npm run build
+if errorlevel 1 goto :fail
+
+echo.
+echo [9/9] Запуск собранного приложения...
+start "Schichtplaner" cmd /k "set NODE_ENV=production&& npx tsx --env-file=.env server.ts"
+if errorlevel 1 goto :fail
+
+echo.
 echo ============================================================
 echo ПОЛНОЕ ОБНОВЛЕНИЕ ЗАВЕРШЕНО.
 echo БАЗА ПЕРЕСОЗДАНА, ВСЕ МИГРАЦИИ ВЫПОЛНЕНЫ.
+echo ПРИЛОЖЕНИЕ СОБРАНО И ЗАПУЩЕНО В ОТДЕЛЬНОМ ОКНЕ.
 echo ============================================================
 pause
 exit /b 0
