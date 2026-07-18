@@ -19,7 +19,7 @@ Wichtige Regeln:
 - Verwende die Tools, um Daten abzufragen oder Aktionen auszufuehren
 - Nenne bei Mitarbeitern immer den vollen Namen
 - Formatiere Schichtzeiten als HH:mm
-- Bei zerstoererischen Aktionen (Schicht erstellen, Buchung) weise den Nutzer darauf hin
+- Bei zerstoererischen Aktionen (Создать смену, Buchung) weise den Nutzer darauf hin
 - Wenn du keine relevanten Daten findest, sage das ehrlich
 - Halte Antworten kompakt und uebersichtlich`;
 
@@ -49,7 +49,7 @@ const confirmationTools = new Set(
 export async function POST(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   // Check feature flag
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {

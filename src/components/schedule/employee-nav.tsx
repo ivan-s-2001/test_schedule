@@ -61,7 +61,7 @@ export function EmployeeNav({
     queryKey: ["employees", "active"],
     queryFn: async () => {
       const res = await fetch("/api/employees?status=active");
-      if (!res.ok) throw new Error("Fehler beim Laden");
+      if (!res.ok) throw new Error("Ошибка загрузки");
       return res.json();
     },
   });
@@ -129,7 +129,7 @@ export function EmployeeNav({
               </>
             ) : (
               <>
-                Alle Mitarbeiter
+                Все сотрудники
                 <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1">
                   {totalHours.toFixed(1)}H
                 </Badge>
@@ -145,7 +145,7 @@ export function EmployeeNav({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Mitarbeiter suchen..."
+              placeholder="Найти сотрудника..."
               className="h-7 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 shadow-none"
             />
           </div>
@@ -169,7 +169,7 @@ export function EmployeeNav({
               <div className="size-6 rounded-full bg-muted flex items-center justify-center">
                 <Users className="size-3" />
               </div>
-              <span className="flex-1 text-left">Alle Mitarbeiter</span>
+              <span className="flex-1 text-left">Все сотрудники</span>
               <Badge variant="secondary" className="text-[9px] px-1 py-0">
                 {totalHours.toFixed(1)}H
               </Badge>

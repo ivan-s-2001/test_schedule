@@ -19,7 +19,7 @@ import {
   startOfYear,
   endOfYear,
 } from "date-fns";
-import { de } from "date-fns/locale";
+import { ru } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -107,7 +107,7 @@ export function AbsenceCalendar() {
     queryKey: ["absences", "year", year],
     queryFn: async () => {
       const res = await fetch(`/api/absences?year=${year}`);
-      if (!res.ok) throw new Error("Fehler beim Laden der Abwesenheiten");
+      if (!res.ok) throw new Error("Ошибка загрузки der Abwesenheiten");
       return res.json();
     },
   });
@@ -117,7 +117,7 @@ export function AbsenceCalendar() {
     queryKey: ["holidays", year],
     queryFn: async () => {
       const res = await fetch(`/api/holidays?year=${year}`);
-      if (!res.ok) throw new Error("Fehler beim Laden der Feiertage");
+      if (!res.ok) throw new Error("Ошибка загрузки der Feiertage");
       return res.json();
     },
   });
@@ -286,7 +286,7 @@ function MonthGrid({
   // We want Mon=0, so: (firstDayOfWeek + 6) % 7
   const offset = (firstDayOfWeek + 6) % 7;
 
-  const monthLabel = format(monthDate, "MMMM", { locale: de });
+  const monthLabel = format(monthDate, "MMMM", { locale: ru });
 
   return (
     <Card className="p-3">

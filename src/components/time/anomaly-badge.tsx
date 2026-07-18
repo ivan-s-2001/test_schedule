@@ -76,7 +76,7 @@ export function AnomalyBadge({ month, isManager }: AnomalyBadgeProps) {
       if (!res.ok) {
         // If forbidden or feature disabled, return empty
         if (res.status === 403) return { anomalies: [], summary: { total: 0, critical: 0, warning: 0 } };
-        throw new Error("Fehler beim Laden der Anomalien");
+        throw new Error("Ошибка загрузки der Anomalien");
       }
       return res.json();
     },

@@ -9,8 +9,8 @@ const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 const updateShiftSchema = z.object({
   divisionId: z.string().optional().nullable(),
   dayOfWeek: z.number().int().min(1).max(7).optional(),
-  shiftFrom: z.string().regex(TIME_REGEX, "Ungueltige Startzeit (HH:MM)").optional(),
-  shiftTo: z.string().regex(TIME_REGEX, "Ungueltige Endzeit (HH:MM)").optional(),
+  shiftFrom: z.string().regex(TIME_REGEX, "Некорректное время начала (ЧЧ:ММ)").optional(),
+  shiftTo: z.string().regex(TIME_REGEX, "Некорректное время окончания (ЧЧ:ММ)").optional(),
   maxEmployees: z.number().int().min(1).optional(),
   pauseOption: z.enum(["PER_HOUR", "PER_SHIFT"]).optional(),
   pauseValue: z.number().int().min(0).optional(),
@@ -30,11 +30,11 @@ interface RouteContext {
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isManagerOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -43,13 +43,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   const parsed = updateShiftSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
+      { error: "Ошибка проверки данных", details: parsed.error.issues },
       { status: 400 }
     );
   }
@@ -64,7 +64,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   if (!existing || existing.schedule.organizationId !== member.organizationId) {
     return NextResponse.json(
-      { error: "Schicht nicht gefunden" },
+      { error: "Смена не найдена" },
       { status: 404 }
     );
   }
@@ -76,7 +76,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const effectiveTo = updateData.shiftTo ?? existing.shiftTo;
   if (effectiveFrom >= effectiveTo) {
     return NextResponse.json(
-      { error: "Startzeit muss vor Endzeit liegen" },
+      { error: "Время начала должно быть раньше времени окончания" },
       { status: 400 }
     );
   }
@@ -92,7 +92,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
     if (!division) {
       return NextResponse.json(
-        { error: "Arbeitsbereich nicht gefunden" },
+        { error: "Подразделение не найдено" },
         { status: 404 }
       );
     }
@@ -144,11 +144,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isManagerOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -163,7 +163,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
   if (!existing || existing.schedule.organizationId !== member.organizationId) {
     return NextResponse.json(
-      { error: "Schicht nicht gefunden" },
+      { error: "Смена не найдена" },
       { status: 404 }
     );
   }

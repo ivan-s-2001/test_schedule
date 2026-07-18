@@ -16,7 +16,7 @@ import { generateForecast } from "@/lib/ai/forecast";
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isManagerOrAbove(member.role)) {

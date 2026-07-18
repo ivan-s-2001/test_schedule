@@ -39,7 +39,7 @@ export default function RegisterPage() {
       setError(
         typeof err.error === "string"
           ? err.error
-          : "Registrierung fehlgeschlagen"
+          : "Не удалось зарегистрироваться"
       );
       setLoading(false);
       return;
@@ -59,34 +59,34 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
-            Firma registrieren
+            Регистрация компании
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Erstelle deinen Schichtplaner-Account
+            Создайте учётную запись
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Vorname</Label>
+                <Label htmlFor="firstName">Имя</Label>
                 <Input id="firstName" name="firstName" required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Nachname</Label>
+                <Label htmlFor="lastName">Фамилия</Label>
                 <Input id="lastName" name="lastName" required />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyName">Firmenname</Label>
+              <Label htmlFor="companyName">Название компании</Label>
               <Input id="companyName" name="companyName" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
+              <Label htmlFor="email">Электронная почта</Label>
               <Input id="email" name="email" type="email" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Passwort (min. 6 Zeichen)</Label>
+              <Label htmlFor="password">Пароль (не менее 6 символов)</Label>
               <Input
                 id="password"
                 name="password"
@@ -97,11 +97,11 @@ export default function RegisterPage() {
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Wird erstellt..." : "Registrieren"}
+              {loading ? "Создание..." : "Зарегистрироваться"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Bereits registriert?{" "}
+            Уже зарегистрированы?{" "}
             <Link href="/login" className="text-primary hover:underline">
               Anmelden
             </Link>

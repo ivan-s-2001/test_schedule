@@ -65,11 +65,11 @@ const tabs: {
   label: string;
   icon: React.ElementType;
 }[] = [
-  { key: "all", label: "Alle", icon: Users },
-  { key: "admin", label: "Admins", icon: ShieldCheck },
-  { key: "manager", label: "Manager", icon: UserCog },
-  { key: "not_activated", label: "Nicht freigeschaltet", icon: AlertTriangle },
-  { key: "inactive", label: "Inaktiv", icon: UserX },
+  { key: "all", label: "Все", icon: Users },
+  { key: "admin", label: "Администраторы", icon: ShieldCheck },
+  { key: "manager", label: "Руководитель", icon: UserCog },
+  { key: "not_activated", label: "Не активированы", icon: AlertTriangle },
+  { key: "inactive", label: "Неактивен", icon: UserX },
 ];
 
 function getInitials(firstName: string, lastName: string) {
@@ -97,7 +97,7 @@ function getRoleBadge(role: string) {
         </Badge>
       );
     default:
-      return <Badge variant="secondary">Mitarbeiter</Badge>;
+      return <Badge variant="secondary">Сотрудники</Badge>;
   }
 }
 
@@ -124,7 +124,7 @@ export function EmployeeList() {
     queryKey: ["employees", activeTab, search],
     queryFn: async () => {
       const res = await fetch(`/api/employees?${queryParams.toString()}`);
-      if (!res.ok) throw new Error("Fehler beim Laden der Mitarbeiter");
+      if (!res.ok) throw new Error("Ошибка загрузки сотрудников");
       return res.json();
     },
   });
@@ -134,9 +134,9 @@ export function EmployeeList() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Mitarbeiter</h1>
+          <h1 className="text-2xl font-bold">Сотрудники</h1>
           <p className="text-sm text-muted-foreground">
-            Verwalte dein Team und weise Rollen zu
+            Управляйте сотрудниками и назначайте роли
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -146,7 +146,7 @@ export function EmployeeList() {
             onClick={() => router.push("/employees/absences")}
           >
             <CalendarDays className="size-4" />
-            <span className="hidden sm:inline">Abwesenheiten</span>
+            <span className="hidden sm:inline">Отсутствия</span>
           </Button>
           {isAdmin && <EmployeeForm />}
         </div>
@@ -159,7 +159,7 @@ export function EmployeeList() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Suche nach Name oder E-Mail..."
+            placeholder="Поиск по имени или электронной почте..."
             className="pl-9"
           />
         </div>
@@ -194,7 +194,7 @@ export function EmployeeList() {
       {/* Error */}
       {error && (
         <Card className="p-6 text-center text-destructive">
-          Fehler beim Laden der Mitarbeiter. Bitte versuche es erneut.
+          Не удалось загрузить сотрудников. Повторите попытку.
         </Card>
       )}
 
@@ -205,11 +205,11 @@ export function EmployeeList() {
       {!isLoading && !error && data?.members?.length === 0 && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <Users className="size-12 text-muted-foreground/50 mb-3" />
-          <p className="text-lg font-medium">Keine Mitarbeiter gefunden</p>
+          <p className="text-lg font-medium">Сотрудники не найдены</p>
           <p className="text-sm text-muted-foreground mt-1">
             {search
-              ? "Versuche eine andere Suche."
-              : "Lege deinen ersten Mitarbeiter an."}
+              ? "Попробуйте изменить запрос."
+              : "Добавьте первого сотрудника."}
           </p>
         </Card>
       )}
@@ -221,10 +221,10 @@ export function EmployeeList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>E-Mail</TableHead>
-                  <TableHead>Rolle</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Имя</TableHead>
+                  <TableHead>Электронная почта</TableHead>
+                  <TableHead>Роль</TableHead>
+                  <TableHead>Статус</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -265,14 +265,14 @@ export function EmployeeList() {
                     <TableCell>{getRoleBadge(emp.role)}</TableCell>
                     <TableCell>
                       {!emp.isActive ? (
-                        <Badge variant="destructive">Inaktiv</Badge>
+                        <Badge variant="destructive">Неактивен</Badge>
                       ) : !emp.isActivated ? (
                         <Badge
                           variant="outline"
                           className="border-amber-500 text-amber-600"
                         >
                           <AlertTriangle className="size-3" />
-                          Nicht freigeschaltet
+                          Не активированы
                         </Badge>
                       ) : (
                         <Badge
@@ -319,7 +319,7 @@ export function EmployeeList() {
                   </div>
                   <div>
                     {!emp.isActive ? (
-                      <Badge variant="destructive">Inaktiv</Badge>
+                      <Badge variant="destructive">Неактивен</Badge>
                     ) : !emp.isActivated ? (
                       <AlertTriangle className="size-4 text-amber-500" />
                     ) : null}

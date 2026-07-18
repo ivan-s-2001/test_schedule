@@ -143,7 +143,7 @@ export function ForecastChart({ dataPoints, summary }: ForecastChartProps) {
               tickLine={false}
               axisLine={false}
               label={{
-                value: "Stunden",
+                value: "Часы",
                 angle: -90,
                 position: "insideLeft",
                 style: { fontSize: 12, fill: "#94a3b8" },
@@ -161,7 +161,7 @@ export function ForecastChart({ dataPoints, summary }: ForecastChartProps) {
                 stroke="#94a3b8"
                 strokeDasharray="3 3"
                 label={{
-                  value: "Prognose",
+                  value: "Прогноз",
                   position: "top",
                   fill: "#94a3b8",
                   fontSize: 11,
@@ -213,7 +213,7 @@ export function ForecastChart({ dataPoints, summary }: ForecastChartProps) {
               strokeWidth={2}
               strokeDasharray="8 4"
               dot={{ r: 3, fill: "#f59e0b" }}
-              name="Prognose"
+              name="Прогноз"
               connectNulls={false}
             />
           </ComposedChart>

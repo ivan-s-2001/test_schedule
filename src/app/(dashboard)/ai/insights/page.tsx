@@ -55,7 +55,7 @@ export default function AiInsightsPage() {
       const res = await fetch("/api/ai/forecast?summary=true");
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Laden der Prognose");
+        throw new Error(data.error || "Ошибка загрузки der Prognose");
       }
       return res.json();
     },
@@ -117,7 +117,7 @@ export default function AiInsightsPage() {
       {error && !isLoading && (
         <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800 p-6 text-center">
           <p className="text-sm text-red-600 dark:text-red-400">
-            {error instanceof Error ? error.message : "Fehler beim Laden"}
+            {error instanceof Error ? error.message : "Ошибка загрузки"}
           </p>
           <Button
             variant="outline"
@@ -199,7 +199,7 @@ export default function AiInsightsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-slate-50 dark:bg-slate-800/50">
-                    <th className="text-left px-4 py-2 font-medium">Woche</th>
+                    <th className="text-left px-4 py-2 font-medium">Неделя</th>
                     <th className="text-right px-4 py-2 font-medium">
                       Stunden
                     </th>

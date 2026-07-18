@@ -40,7 +40,7 @@ export function UserMenu() {
             </AvatarFallback>
           </Avatar>
           <span className="hidden text-sm font-medium lg:inline">
-            {fullName || "Laden..."}
+            {fullName || "Загрузка..."}
           </span>
         </Button>
       </DropdownMenuTrigger>
@@ -69,7 +69,7 @@ export function UserMenu() {
           ) : (
             <Moon className="mr-2 size-4" />
           )}
-          {theme === "dark" ? "Hellmodus" : "Dunkelmodus"}
+          {theme === "dark" ? "Светлая тема" : "Тёмная тема"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

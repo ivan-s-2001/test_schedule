@@ -59,7 +59,7 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
     queryKey: ["division-members", division.id],
     queryFn: async () => {
       const res = await fetch(`/api/divisions/${division.id}/members`);
-      if (!res.ok) throw new Error("Fehler beim Laden");
+      if (!res.ok) throw new Error("Ошибка загрузки");
       return res.json();
     },
     enabled: expanded,
@@ -73,7 +73,7 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Loeschen");
+        throw new Error(data.error || "Ошибка удаления");
       }
       return res.json();
     },
@@ -115,7 +115,7 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
   function handleDelete() {
     if (
       !window.confirm(
-        `Arbeitsbereich "${division.title}" wirklich loeschen?`
+        `Arbeitsbereich "${division.title}" действительно удалить?`
       )
     ) {
       return;
@@ -178,7 +178,7 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
             <Users className="size-4" />
             <span>
               {division.memberCount}{" "}
-              {division.memberCount === 1 ? "Mitarbeiter" : "Mitarbeiter"}
+              {division.memberCount === 1 ? "Сотрудники" : "Сотрудники"}
             </span>
           </div>
 

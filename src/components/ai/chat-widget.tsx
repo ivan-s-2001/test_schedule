@@ -154,7 +154,7 @@ export function ChatWidget() {
           <div className="flex items-center justify-between px-4 py-3 bg-indigo-600 text-white">
             <div className="flex items-center gap-2">
               <Sparkles className="size-5" />
-              <span className="font-semibold text-sm">KI-Assistent</span>
+              <span className="font-semibold text-sm">ИИ-помощник</span>
             </div>
             <div className="flex items-center gap-1">
               <Link

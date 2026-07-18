@@ -14,14 +14,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Schichtplaner 2.0",
-    template: "%s | Schichtplaner 2.0",
+    default: "График смен",
+    template: "%s | График смен",
   },
-  description: "Moderne Schichtplanung mit KI",
+  description: "Удобное планирование рабочих смен",
   metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   openGraph: {
-    title: "Schichtplaner 2.0",
-    description: "Moderne Schichtplanung mit KI",
+    title: "График смен",
+    description: "Удобное планирование рабочих смен",
     type: "website",
   },
 };
@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de">
+    <html lang="ru">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

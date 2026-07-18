@@ -14,14 +14,14 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 const messageLinks = [
-  { key: "inbox", label: "Posteingang", href: "/portal/inbox", icon: Inbox },
-  { key: "sent", label: "Gesendete", href: "/portal/sent", icon: Send },
-  { key: "trash", label: "Papierkorb", href: "/portal/trash", icon: Trash2 },
+  { key: "inbox", label: "Входящие", href: "/portal/inbox", icon: Inbox },
+  { key: "sent", label: "Отправленные", href: "/portal/sent", icon: Send },
+  { key: "trash", label: "Корзина", href: "/portal/trash", icon: Trash2 },
 ];
 
 const portalLinks = [
-  { key: "files", label: "Dateien", href: "/portal/files", icon: FolderOpen },
-  { key: "topics", label: "Themen", href: "/portal/topics", icon: MessageCircle },
+  { key: "files", label: "Файлы", href: "/portal/files", icon: FolderOpen },
+  { key: "topics", label: "Обсуждения", href: "/portal/topics", icon: MessageCircle },
 ];
 
 export function PortalSidebar() {

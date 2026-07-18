@@ -10,8 +10,8 @@ const createShiftSchema = z.object({
   scheduleId: z.string().min(1, "scheduleId ist erforderlich"),
   divisionId: z.string().optional().nullable(),
   dayOfWeek: z.number().int().min(1).max(7),
-  shiftFrom: z.string().regex(TIME_REGEX, "Ungueltige Startzeit (HH:MM)"),
-  shiftTo: z.string().regex(TIME_REGEX, "Ungueltige Endzeit (HH:MM)"),
+  shiftFrom: z.string().regex(TIME_REGEX, "Некорректное время начала (ЧЧ:ММ)"),
+  shiftTo: z.string().regex(TIME_REGEX, "Некорректное время окончания (ЧЧ:ММ)"),
   maxEmployees: z.number().int().min(1, "Mindestens 1 Mitarbeiter"),
   pauseOption: z.enum(["PER_HOUR", "PER_SHIFT"]).optional(),
   pauseValue: z.number().int().min(0).optional(),
@@ -29,24 +29,24 @@ const createShiftSchema = z.object({
 export async function POST(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isManagerOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   const parsed = createShiftSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
+      { error: "Ошибка проверки данных", details: parsed.error.issues },
       { status: 400 }
     );
   }
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   // Validate shiftFrom < shiftTo
   if (data.shiftFrom >= data.shiftTo) {
     return NextResponse.json(
-      { error: "Startzeit muss vor Endzeit liegen" },
+      { error: "Время начала должно быть раньше времени окончания" },
       { status: 400 }
     );
   }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     });
     if (!division) {
       return NextResponse.json(
-        { error: "Arbeitsbereich nicht gefunden" },
+        { error: "Подразделение не найдено" },
         { status: 404 }
       );
     }

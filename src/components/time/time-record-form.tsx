@@ -167,12 +167,12 @@ export function TimeRecordForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Erstellen");
+        throw new Error(data.error || "Ошибка создания");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Zeiterfassung gespeichert");
+      toast.success("Запись сохранена");
       queryClient.invalidateQueries({ queryKey: ["time-records"] });
       onOpenChange(false);
     },
@@ -207,12 +207,12 @@ export function TimeRecordForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Speichern");
+        throw new Error(data.error || "Ошибка сохранения");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Zeiterfassung aktualisiert");
+      toast.success("Запись обновлена");
       queryClient.invalidateQueries({ queryKey: ["time-records"] });
       onOpenChange(false);
     },
@@ -226,7 +226,7 @@ export function TimeRecordForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (entryType === "MANUAL" && timeFrom >= timeTo) {
-      toast.error("Startzeit muss vor Endzeit liegen");
+      toast.error("Время начала должно быть раньше времени окончания");
       return;
     }
     if (
@@ -250,7 +250,7 @@ export function TimeRecordForm({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {isEdit ? "Erfassung bearbeiten" : "Zeit erfassen"}
+              {isEdit ? "Изменить запись" : "Добавить время"}
             </DialogTitle>
             <DialogDescription>
               {isEdit
@@ -263,7 +263,7 @@ export function TimeRecordForm({
             {/* Employee select (only for managers in create mode) */}
             {!isEdit && isManager && employees.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Mitarbeiter</Label>
+                <Label>Сотрудники</Label>
                 <Select value={userId} onValueChange={setUserId}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Mitarbeiter waehlen" />
@@ -281,7 +281,7 @@ export function TimeRecordForm({
 
             {/* Date picker */}
             <div className="space-y-1.5">
-              <Label htmlFor="record-date">Datum</Label>
+              <Label htmlFor="record-date">Дата</Label>
               <Input
                 id="record-date"
                 type="date"
@@ -293,7 +293,7 @@ export function TimeRecordForm({
 
             {/* Type toggle */}
             <div className="space-y-1.5">
-              <Label>Erfassungsart</Label>
+              <Label>Способ учёта</Label>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -306,7 +306,7 @@ export function TimeRecordForm({
                   )}
                 >
                   <Clock className="size-4" />
-                  Von / Bis
+                  Начало / окончание
                 </button>
                 <button
                   type="button"
@@ -328,7 +328,7 @@ export function TimeRecordForm({
             {entryType === "MANUAL" ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="time-from">Von</Label>
+                  <Label htmlFor="time-from">С</Label>
                   <Input
                     id="time-from"
                     type="time"
@@ -338,7 +338,7 @@ export function TimeRecordForm({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="time-to">Bis</Label>
+                  <Label htmlFor="time-to">До</Label>
                   <Input
                     id="time-to"
                     type="time"
@@ -351,7 +351,7 @@ export function TimeRecordForm({
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="duration-hours">Stunden</Label>
+                  <Label htmlFor="duration-hours">Часы</Label>
                   <Input
                     id="duration-hours"
                     type="number"
@@ -364,7 +364,7 @@ export function TimeRecordForm({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="duration-minutes">Minuten</Label>
+                  <Label htmlFor="duration-minutes">Минуты</Label>
                   <Input
                     id="duration-minutes"
                     type="number"
@@ -382,15 +382,15 @@ export function TimeRecordForm({
             {/* Category select */}
             {categories.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Kategorie</Label>
+                <Label>Категория</Label>
                 <Select value={categoryId} onValueChange={setCategoryId}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Keine Kategorie" />
+                    <SelectValue placeholder="Без категории" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">
                       <span className="text-muted-foreground">
-                        Keine Kategorie
+                        Без категории
                       </span>
                     </SelectItem>
                     {categories.map((cat) => (
@@ -429,7 +429,7 @@ export function TimeRecordForm({
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                {isEdit ? "Speichern" : "Erfassen"}
+                {isEdit ? "Сохранить" : "Добавить запись"}
               </Button>
             </div>
           </DialogFooter>

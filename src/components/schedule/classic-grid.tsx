@@ -25,7 +25,7 @@ export function ClassicGrid({ weekNumber, year, weekDates }: ClassicGridProps) {
     queryKey: ["schedule", weekNumber, year],
     queryFn: async () => {
       const res = await fetch(`/api/schedules?kw=${weekNumber}&year=${year}`);
-      if (!res.ok) throw new Error("Fehler beim Laden der Schichten");
+      if (!res.ok) throw new Error("Ошибка загрузки der Schichten");
       return res.json();
     },
   });

@@ -43,7 +43,7 @@ export function TimeSettings({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">Zeiterfassung</h2>
+        <h2 className="text-xl font-semibold">Учёт времени</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Einstellungen fuer die Zeiterfassung
         </p>
@@ -64,8 +64,8 @@ export function TimeSettings({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">Alle Mitarbeiter</SelectItem>
-              <SelectItem value="CHOOSE">Auswaehlen</SelectItem>
+              <SelectItem value="ALL">Все сотрудники</SelectItem>
+              <SelectItem value="CHOOSE">Выбрать</SelectItem>
             </SelectContent>
           </Select>
         </div>

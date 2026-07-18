@@ -14,11 +14,11 @@ interface RouteContext {
 export async function POST(_request: NextRequest, context: RouteContext) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isManagerOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -33,7 +33,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
 
   if (!existing || existing.schedule.organizationId !== member.organizationId) {
     return NextResponse.json(
-      { error: "Schicht nicht gefunden" },
+      { error: "Смена не найдена" },
       { status: 404 }
     );
   }
@@ -56,11 +56,11 @@ export async function POST(_request: NextRequest, context: RouteContext) {
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isManagerOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -76,7 +76,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
   if (!existing || existing.schedule.organizationId !== member.organizationId) {
     return NextResponse.json(
-      { error: "Schicht nicht gefunden" },
+      { error: "Смена не найдена" },
       { status: 404 }
     );
   }

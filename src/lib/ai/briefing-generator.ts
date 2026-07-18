@@ -22,13 +22,13 @@ export interface GeneratedBriefing {
 
 const DAY_NAMES = [
   "",
-  "Montag",
-  "Dienstag",
-  "Mittwoch",
-  "Donnerstag",
-  "Freitag",
-  "Samstag",
-  "Sonntag",
+  "Понедельник",
+  "Вторник",
+  "Среда",
+  "Четверг",
+  "Пятница",
+  "Суббота",
+  "Воскресенье",
 ];
 
 /** Estimate hours between two HH:mm strings. */

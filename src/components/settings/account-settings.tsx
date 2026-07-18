@@ -41,7 +41,7 @@ export function AccountSettings({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">Account</h2>
+        <h2 className="text-xl font-semibold">Учётная запись</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Firmendaten und Account-Verwaltung
         </p>
@@ -53,7 +53,7 @@ export function AccountSettings({
 
         <div className="space-y-4 max-w-md">
           <div className="space-y-2">
-            <Label>Firmenname</Label>
+            <Label>Название компании</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}

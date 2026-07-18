@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { de } from "date-fns/locale";
+import { ru } from "date-fns/locale";
 import {
   ArrowLeft,
   Send,
@@ -71,7 +71,7 @@ export function TopicDetail({ topicId }: Props) {
       toast.success("Beitrag hinzugefuegt");
     },
     onError: () => {
-      toast.error("Fehler beim Erstellen");
+      toast.error("Ошибка создания");
     },
   });
 
@@ -89,7 +89,7 @@ export function TopicDetail({ topicId }: Props) {
       router.push("/portal/topics");
     },
     onError: (error: Error) => {
-      toast.error(error.message === "Forbidden" ? "Nur Admins koennen Themen loeschen" : "Fehler beim Loeschen");
+      toast.error(error.message === "Недостаточно прав" ? "Nur Admins koennen Themen loeschen" : "Ошибка удаления");
     },
   });
 
@@ -139,7 +139,7 @@ export function TopicDetail({ topicId }: Props) {
                 </span>
               )}
               <span>
-                am {format(new Date(topic.createdAt), "dd. MMMM yyyy", { locale: de })}
+                am {format(new Date(topic.createdAt), "dd. MMMM yyyy", { locale: ru })}
               </span>
             </div>
           </div>
@@ -174,7 +174,7 @@ export function TopicDetail({ topicId }: Props) {
                       {post.user.firstName} {post.user.lastName}
                     </span>
                     <time className="text-xs text-slate-400">
-                      {format(new Date(post.createdAt), "dd. MMM yyyy, HH:mm", { locale: de })}
+                      {format(new Date(post.createdAt), "dd. MMM yyyy, HH:mm", { locale: ru })}
                     </time>
                   </div>
                   <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">

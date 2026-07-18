@@ -19,13 +19,13 @@ import { MobileNav } from "./mobile-nav";
 import { ConnectionStatus } from "./connection-status";
 
 const navItems = [
-  { key: "schedule", icon: CalendarDays, href: "/schedule/flexible", label: "Schichtplaene" },
-  { key: "time", icon: Clock, href: "/time", label: "Zeiterfassung" },
-  { key: "employees", icon: Users, href: "/employees", label: "Mitarbeiter" },
-  { key: "divisions", icon: Building2, href: "/divisions", label: "Arbeitsbereiche" },
-  { key: "portal", icon: MessageSquare, href: "/portal/inbox", label: "Portal" },
-  { key: "reporting", icon: BarChart3, href: "/reporting", label: "Auswertung" },
-  { key: "settings", icon: Settings, href: "/settings", label: "Einstellungen" },
+  { key: "schedule", icon: CalendarDays, href: "/schedule/flexible", label: "Графики смен" },
+  { key: "time", icon: Clock, href: "/time", label: "Учёт времени" },
+  { key: "employees", icon: Users, href: "/employees", label: "Сотрудники" },
+  { key: "divisions", icon: Building2, href: "/divisions", label: "Подразделения" },
+  { key: "portal", icon: MessageSquare, href: "/portal/inbox", label: "Портал" },
+  { key: "reporting", icon: BarChart3, href: "/reporting", label: "Отчёты" },
+  { key: "settings", icon: Settings, href: "/settings", label: "Настройки" },
 ] as const;
 
 export { navItems };
@@ -58,7 +58,7 @@ export function TopNav() {
           className="mr-4 flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400"
         >
           <CalendarDays className="size-5" />
-          <span className="hidden sm:inline">Schichtplaner</span>
+          <span className="hidden sm:inline">График смен</span>
         </Link>
 
         {/* Desktop nav */}
@@ -102,7 +102,7 @@ export function TopNav() {
             )}
           >
             <Sparkles className="size-4" />
-            <span className="hidden lg:inline">KI</span>
+            <span className="hidden lg:inline">ИИ</span>
           </Link>
 
           <ConnectionStatus />

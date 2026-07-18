@@ -52,7 +52,7 @@ export function EmployeeForm() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Anlegen");
+        throw new Error(data.error || "Ошибка добавления");
       }
       return res.json();
     },
@@ -60,8 +60,8 @@ export function EmployeeForm() {
       const count = data.members?.length ?? 0;
       toast.success(
         count === 1
-          ? "Mitarbeiter wurde angelegt"
-          : `${count} Mitarbeiter wurden angelegt`
+          ? "Сотрудник добавлен"
+          : `${count} сотрудников добавлено`
       );
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       setOpen(false);
@@ -97,7 +97,7 @@ export function EmployeeForm() {
       (r) => r.firstName.trim() && r.lastName.trim() && r.email.trim()
     );
     if (!valid) {
-      toast.error("Bitte alle Pflichtfelder ausfuellen");
+      toast.error("Заполните все обязательные поля");
       return;
     }
 
@@ -109,15 +109,15 @@ export function EmployeeForm() {
       <DialogTrigger asChild>
         <Button>
           <Plus className="size-4" />
-          Neue Mitarbeiter anlegen
+          Добавить сотрудников
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Neue Mitarbeiter anlegen</DialogTitle>
+            <DialogTitle>Добавить сотрудников</DialogTitle>
             <DialogDescription>
-              Lege einen oder mehrere Mitarbeiter gleichzeitig an.
+              Добавьте одного или нескольких сотрудников.
             </DialogDescription>
           </DialogHeader>
 
@@ -159,7 +159,7 @@ export function EmployeeForm() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Rolle</Label>
+                  <Label>Роль</Label>
                   <Select
                     value={row.role}
                     onValueChange={(v) =>
@@ -170,9 +170,9 @@ export function EmployeeForm() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="EMPLOYEE">Mitarbeiter</SelectItem>
-                      <SelectItem value="MANAGER">Manager</SelectItem>
-                      <SelectItem value="ADMIN">Admin</SelectItem>
+                      <SelectItem value="EMPLOYEE">Сотрудники</SelectItem>
+                      <SelectItem value="MANAGER">Руководитель</SelectItem>
+                      <SelectItem value="ADMIN">Администратор</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -198,7 +198,7 @@ export function EmployeeForm() {
             onClick={addRow}
           >
             <Plus className="size-4" />
-            Weiteren hinzufuegen
+            Добавить ещё
           </Button>
 
           <DialogFooter className="mt-6">
@@ -214,8 +214,8 @@ export function EmployeeForm() {
                 <Loader2 className="size-4 animate-spin" />
               )}
               {rows.length === 1
-                ? "Mitarbeiter anlegen"
-                : `${rows.length} Mitarbeiter anlegen`}
+                ? "Добавить сотрудника"
+                : `${rows.length} Добавить сотрудника`}
             </Button>
           </DialogFooter>
         </form>

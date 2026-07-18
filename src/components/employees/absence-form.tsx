@@ -176,7 +176,7 @@ export function AbsenceForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Erstellen");
+        throw new Error(data.error || "Ошибка создания");
       }
       return res.json();
     },
@@ -201,7 +201,7 @@ export function AbsenceForm({
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "Fehler beim Speichern");
+        throw new Error(d.error || "Ошибка сохранения");
       }
       return res.json();
     },
@@ -256,7 +256,7 @@ export function AbsenceForm({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {isEdit ? "Abwesenheit bearbeiten" : "Abwesenheit beantragen"}
+              {isEdit ? "Изменить отсутствие" : "Abwesenheit beantragen"}
             </DialogTitle>
             <DialogDescription>
               {isEdit
@@ -282,7 +282,7 @@ export function AbsenceForm({
             {/* Employee select (only for admins in create mode) */}
             {!isEdit && isAdmin && employees.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Mitarbeiter</Label>
+                <Label>Сотрудники</Label>
                 <Select value={userId} onValueChange={setUserId}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Mitarbeiter waehlen" />
@@ -300,7 +300,7 @@ export function AbsenceForm({
 
             {/* Category select */}
             <div className="space-y-1.5">
-              <Label>Kategorie</Label>
+              <Label>Категория</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Kategorie waehlen" />
@@ -329,7 +329,7 @@ export function AbsenceForm({
             {/* Date range */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="absence-from">Von</Label>
+                <Label htmlFor="absence-from">С</Label>
                 <Input
                   id="absence-from"
                   type="date"
@@ -339,7 +339,7 @@ export function AbsenceForm({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="absence-to">Bis</Label>
+                <Label htmlFor="absence-to">До</Label>
                 <Input
                   id="absence-to"
                   type="date"
@@ -411,7 +411,7 @@ export function AbsenceForm({
                 </Button>
                 <Button type="submit" disabled={isPending}>
                   {isPending && <Loader2 className="size-4 animate-spin" />}
-                  {isEdit ? "Speichern" : "Beantragen"}
+                  {isEdit ? "Сохранить" : "Beantragen"}
                 </Button>
               </div>
             </div>

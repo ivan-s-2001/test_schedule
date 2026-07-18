@@ -129,7 +129,7 @@ export function AbsenceSettings({
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "Fehler beim Erstellen");
+        throw new Error(d.error || "Ошибка создания");
       }
       return res.json();
     },
@@ -161,7 +161,7 @@ export function AbsenceSettings({
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "Fehler beim Aktualisieren");
+        throw new Error(d.error || "Ошибка обновления");
       }
       return res.json();
     },
@@ -183,7 +183,7 @@ export function AbsenceSettings({
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "Fehler beim Loeschen");
+        throw new Error(d.error || "Ошибка удаления");
       }
       return res.json();
     },
@@ -223,7 +223,7 @@ export function AbsenceSettings({
   }
 
   function handleDelete(id: string) {
-    if (confirm("Kategorie wirklich loeschen?")) {
+    if (confirm("Kategorie действительно удалить?")) {
       deleteMutation.mutate(id);
     }
   }
@@ -231,7 +231,7 @@ export function AbsenceSettings({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">Abwesenheiten</h2>
+        <h2 className="text-xl font-semibold">Отсутствия</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Abwesenheitskategorien und Feiertage verwalten
         </p>
@@ -268,7 +268,7 @@ export function AbsenceSettings({
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   className="flex-1 h-8"
-                  placeholder="Name"
+                  placeholder="Имя"
                 />
                 <div className="flex items-center gap-2">
                   {COLORS.map((c) => (
@@ -286,7 +286,7 @@ export function AbsenceSettings({
                   ))}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Label className="text-xs">Bezahlt</Label>
+                  <Label className="text-xs">Оплачивается</Label>
                   <Switch
                     checked={editIsPaid}
                     onCheckedChange={setEditIsPaid}
@@ -301,7 +301,7 @@ export function AbsenceSettings({
                   {updateMutation.isPending ? (
                     <Loader2 className="size-3 animate-spin" />
                   ) : (
-                    "Speichern"
+                    "Сохранить"
                   )}
                 </Button>
                 <Button
@@ -324,7 +324,7 @@ export function AbsenceSettings({
                 />
                 <span className="flex-1 text-sm font-medium">{cat.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  {cat.isPaid ? "Bezahlt" : "Unbezahlt"}
+                  {cat.isPaid ? "Оплачивается" : "Unbezahlt"}
                 </span>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
@@ -380,7 +380,7 @@ export function AbsenceSettings({
               ))}
             </div>
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs">Bezahlt</Label>
+              <Label className="text-xs">Оплачивается</Label>
               <Switch
                 checked={newIsPaid}
                 onCheckedChange={setNewIsPaid}
@@ -395,7 +395,7 @@ export function AbsenceSettings({
               {createMutation.isPending ? (
                 <Loader2 className="size-3 animate-spin" />
               ) : (
-                "Erstellen"
+                "Создать"
               )}
             </Button>
             <Button

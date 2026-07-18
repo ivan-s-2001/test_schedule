@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         },
         divisions: {
           create: {
-            title: "Alle",
+            title: "Все",
             description: "Standard-Arbeitsbereich",
             isSystem: true,
           },

@@ -27,7 +27,7 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
-      setError("Ungültige Anmeldedaten");
+      setError("Неверная электронная почта или пароль");
       setLoading(false);
     } else {
       router.push("/schedule/flexible");
@@ -38,26 +38,26 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Schichtplaner</CardTitle>
-          <p className="text-sm text-muted-foreground">Anmelden</p>
+          <CardTitle className="text-2xl font-bold">График смен</CardTitle>
+          <p className="text-sm text-muted-foreground">Войти</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
+              <Label htmlFor="email">Электронная почта</Label>
               <Input id="email" name="email" type="email" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Passwort</Label>
+              <Label htmlFor="password">Пароль</Label>
               <Input id="password" name="password" type="password" required />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Wird angemeldet..." : "Anmelden"}
+              {loading ? "Вход..." : "Войти"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Noch kein Konto?{" "}
+            Нет учётной записи?{" "}
             <Link href="/register" className="text-primary hover:underline">
               Registrieren
             </Link>

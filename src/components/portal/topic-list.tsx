@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { de } from "date-fns/locale";
+import { ru } from "date-fns/locale";
 import {
   MessageCircle,
   Plus,
@@ -70,7 +70,7 @@ export function TopicList() {
       }
     },
     onError: () => {
-      toast.error("Fehler beim Erstellen");
+      toast.error("Ошибка создания");
     },
   });
 
@@ -78,10 +78,10 @@ export function TopicList() {
     <div className="flex-1">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Themen</h1>
+        <h1 className="text-2xl font-bold">Обсуждения</h1>
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="size-4" />
-          Neues Thema
+          Новое обсуждение
         </Button>
       </div>
 
@@ -97,7 +97,7 @@ export function TopicList() {
           <MessageCircle className="mb-3 size-10 text-slate-300" />
           <p className="text-sm">Noch keine Themen vorhanden</p>
           <Button variant="outline" className="mt-4" onClick={() => setCreateOpen(true)}>
-            Erstes Thema erstellen
+            Erstes Создать обсуждение
           </Button>
         </div>
       ) : (
@@ -123,7 +123,7 @@ export function TopicList() {
                   )}
                   <span className="flex items-center gap-1">
                     <Clock className="size-3" />
-                    {format(new Date(topic.createdAt), "dd. MMM yyyy", { locale: de })}
+                    {format(new Date(topic.createdAt), "dd. MMM yyyy", { locale: ru })}
                   </span>
                 </div>
               </div>
@@ -138,7 +138,7 @@ export function TopicList() {
                     Letzte Aktivitaet
                   </div>
                   <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                    {format(new Date(topic.lastActivity), "dd. MMM yyyy, HH:mm", { locale: de })}
+                    {format(new Date(topic.lastActivity), "dd. MMM yyyy, HH:mm", { locale: ru })}
                   </div>
                 </div>
               </div>
@@ -151,11 +151,11 @@ export function TopicList() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Neues Thema erstellen</DialogTitle>
+            <DialogTitle>Neues Создать обсуждение</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Titel</Label>
+              <Label>Название</Label>
               <Input
                 className="mt-1.5"
                 value={title}
@@ -174,7 +174,7 @@ export function TopicList() {
                 onClick={() => createMutation.mutate()}
                 disabled={!title.trim() || createMutation.isPending}
               >
-                {createMutation.isPending ? "Erstelle..." : "Erstellen"}
+                {createMutation.isPending ? "Erstelle..." : "Создать"}
               </Button>
             </div>
           </div>

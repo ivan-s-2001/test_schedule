@@ -67,7 +67,7 @@ export default function SettingsPage() {
     queryKey: ["settings"],
     queryFn: async () => {
       const res = await fetch("/api/settings");
-      if (!res.ok) throw new Error("Fehler beim Laden der Einstellungen");
+      if (!res.ok) throw new Error("Ошибка загрузки настроек");
       return res.json();
     },
     enabled: isAdmin,
@@ -83,12 +83,12 @@ export default function SettingsPage() {
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "Fehler beim Speichern");
+        throw new Error(d.error || "Ошибка сохранения");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Einstellungen gespeichert");
+      toast.success("Настройки сохранены");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: (err: Error) => {
@@ -114,9 +114,9 @@ export default function SettingsPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
         <ShieldAlert className="size-12 text-muted-foreground/50" />
-        <h2 className="text-xl font-semibold">Zugriff verweigert</h2>
+        <h2 className="text-xl font-semibold">Доступ запрещён</h2>
         <p className="text-sm text-muted-foreground">
-          Nur Administratoren und Inhaber koennen die Einstellungen bearbeiten.
+          Изменять настройки могут только администраторы и владелец.
         </p>
       </div>
     );
@@ -147,7 +147,7 @@ export default function SettingsPage() {
         />
         <div className="flex-1">
           <Card className="p-6 text-center text-destructive">
-            Fehler beim Laden der Einstellungen. Bitte versuche es erneut.
+            Не удалось загрузить настройки. Повторите попытку.
           </Card>
         </div>
       </div>
@@ -163,9 +163,9 @@ export default function SettingsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Einstellungen</h1>
+        <h1 className="text-2xl font-bold">Настройки</h1>
         <p className="text-sm text-muted-foreground">
-          Organisation und Systemeinstellungen verwalten
+          Управление организацией и системными настройками
         </p>
       </div>
 
@@ -187,12 +187,12 @@ export default function SettingsPage() {
             }
             className="w-full rounded-md border bg-background px-3 py-2 text-sm mb-4"
           >
-            <option value="schedule">Schichtplan</option>
-            <option value="time">Zeiterfassung</option>
-            <option value="wishplan">Wunschplaene</option>
-            <option value="employees">Mitarbeiter</option>
-            <option value="absences">Abwesenheiten</option>
-            <option value="account">Account</option>
+            <option value="schedule">График смен</option>
+            <option value="time">Учёт времени</option>
+            <option value="wishplan">Пожелания по сменам</option>
+            <option value="employees">Сотрудники</option>
+            <option value="absences">Отсутствия</option>
+            <option value="account">Учётная запись</option>
           </select>
         </div>
 
@@ -218,16 +218,15 @@ export default function SettingsPage() {
           {activeSection === "wishplan" && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold">Wunschplaene</h2>
+                <h2 className="text-xl font-semibold">Пожелания по сменам</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Einstellungen fuer Wunschplaene
+                  Настройки пожеланий по сменам
                 </p>
               </div>
               <Card className="flex flex-col items-center justify-center p-12 text-center">
-                <p className="text-lg font-medium">Bald verfuegbar</p>
+                <p className="text-lg font-medium">Скоро будет доступно</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Die Einstellungen fuer Wunschplaene werden in einem zukuenftigen
-                  Update hinzugefuegt.
+                  Настройки пожеланий будут добавлены в одном из следующих обновлений.
                 </p>
               </Card>
             </div>
@@ -236,16 +235,15 @@ export default function SettingsPage() {
           {activeSection === "employees" && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold">Mitarbeiter</h2>
+                <h2 className="text-xl font-semibold">Сотрудники</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Mitarbeiter-Einstellungen
                 </p>
               </div>
               <Card className="flex flex-col items-center justify-center p-12 text-center">
-                <p className="text-lg font-medium">Bald verfuegbar</p>
+                <p className="text-lg font-medium">Скоро будет доступно</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Weitere Mitarbeiter-Einstellungen werden in einem zukuenftigen
-                  Update hinzugefuegt.
+                  Дополнительные настройки сотрудников появятся в одном из следующих обновлений.
                 </p>
               </Card>
             </div>

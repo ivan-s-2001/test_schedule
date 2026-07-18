@@ -37,13 +37,13 @@ interface ShiftFormProps {
 }
 
 const DAY_CHECKBOXES = [
-  { day: 1, label: "Mo" },
-  { day: 2, label: "Di" },
-  { day: 3, label: "Mi" },
-  { day: 4, label: "Do" },
-  { day: 5, label: "Fr" },
-  { day: 6, label: "Sa" },
-  { day: 7, label: "So" },
+  { day: 1, label: "Пн" },
+  { day: 2, label: "Вт" },
+  { day: 3, label: "Ср" },
+  { day: 4, label: "Чт" },
+  { day: 5, label: "Пт" },
+  { day: 6, label: "Сб" },
+  { day: 7, label: "Вс" },
 ];
 
 export function ShiftForm({
@@ -139,15 +139,15 @@ export function ShiftForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Erstellen");
+        throw new Error(data.error || "Ошибка создания");
       }
       return res.json();
     },
     onSuccess: () => {
       toast.success(
         repeatDays.length > 1
-          ? `${repeatDays.length} Schichten erstellt`
-          : "Schicht erstellt"
+          ? `${repeatDays.length} смен создано`
+          : "Смена создана"
       );
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
       onOpenChange(false);
@@ -178,12 +178,12 @@ export function ShiftForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Speichern");
+        throw new Error(data.error || "Ошибка сохранения");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Schicht aktualisiert");
+      toast.success("Смена обновлена");
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
       onOpenChange(false);
     },
@@ -201,12 +201,12 @@ export function ShiftForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Loeschen");
+        throw new Error(data.error || "Ошибка удаления");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Schicht geloescht");
+      toast.success("Смена удалена");
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
       onOpenChange(false);
     },
@@ -223,11 +223,11 @@ export function ShiftForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (shiftFrom >= shiftTo) {
-      toast.error("Startzeit muss vor Endzeit liegen");
+      toast.error("Время начала должно быть раньше времени окончания");
       return;
     }
     if (!isEdit && repeatDays.length === 0) {
-      toast.error("Mindestens ein Tag muss ausgewaehlt sein");
+      toast.error("Выберите хотя бы один день");
       return;
     }
     if (isEdit) {
@@ -238,7 +238,7 @@ export function ShiftForm({
   }
 
   function handleDelete() {
-    if (confirm("Schicht wirklich loeschen? Alle Buchungen werden entfernt.")) {
+    if (confirm("Удалить смену? Все назначения будут удалены.")) {
       deleteMutation.mutate();
     }
   }
@@ -249,12 +249,12 @@ export function ShiftForm({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {isEdit ? "Schicht bearbeiten" : "Neue Schicht erstellen"}
+              {isEdit ? "Изменить смену" : "Создать смену"}
             </DialogTitle>
             <DialogDescription>
               {isEdit
-                ? "Bearbeite die Details der Schicht."
-                : "Erstelle eine neue Schicht im Schichtplan."}
+                ? "Измените параметры смены."
+                : "Добавьте новую смену в график."}
             </DialogDescription>
           </DialogHeader>
 
@@ -262,7 +262,7 @@ export function ShiftForm({
             {/* Time pickers */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="shift-from">Von</Label>
+                <Label htmlFor="shift-from">С</Label>
                 <Input
                   id="shift-from"
                   type="time"
@@ -272,7 +272,7 @@ export function ShiftForm({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="shift-to">Bis</Label>
+                <Label htmlFor="shift-to">До</Label>
                 <Input
                   id="shift-to"
                   type="time"
@@ -285,17 +285,17 @@ export function ShiftForm({
 
             {/* Division select */}
             <div className="space-y-1.5">
-              <Label>Arbeitsbereich</Label>
+              <Label>Подразделение</Label>
               <Select
                 value={divisionId}
                 onValueChange={setDivisionId}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Kein Arbeitsbereich" />
+                  <SelectValue placeholder="Без подразделения" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">
-                    <span className="text-muted-foreground">Kein Arbeitsbereich</span>
+                    <span className="text-muted-foreground">Без подразделения</span>
                   </SelectItem>
                   {divisions.map((div) => (
                     <SelectItem key={div.id} value={div.id}>
@@ -314,7 +314,7 @@ export function ShiftForm({
 
             {/* Max employees */}
             <div className="space-y-1.5">
-              <Label htmlFor="max-employees">Max. Mitarbeiter</Label>
+              <Label htmlFor="max-employees">Максимум сотрудников</Label>
               <Input
                 id="max-employees"
                 type="number"
@@ -328,19 +328,19 @@ export function ShiftForm({
 
             {/* Title */}
             <div className="space-y-1.5">
-              <Label htmlFor="shift-title">Titel (optional)</Label>
+              <Label htmlFor="shift-title">Название (необязательно)</Label>
               <Input
                 id="shift-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="z.B. Fruehschicht, Spaetschicht..."
+                placeholder="Например: утренняя, вечерняя..."
                 maxLength={100}
               />
             </div>
 
             {/* Pause options */}
             <div className="space-y-1.5">
-              <Label>Pause</Label>
+              <Label>Перерыв</Label>
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
@@ -351,7 +351,7 @@ export function ShiftForm({
                   className="w-20"
                   placeholder="Min"
                 />
-                <span className="text-sm text-muted-foreground">Minuten</span>
+                <span className="text-sm text-muted-foreground">Минуты</span>
               </div>
               <div className="flex items-center gap-4 mt-1.5">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -362,7 +362,7 @@ export function ShiftForm({
                     onChange={() => setPauseOption("PER_HOUR")}
                     className="accent-primary"
                   />
-                  <span className="text-sm">Pro Stunde</span>
+                  <span className="text-sm">На каждый час</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -372,7 +372,7 @@ export function ShiftForm({
                     onChange={() => setPauseOption("PER_SHIFT")}
                     className="accent-primary"
                   />
-                  <span className="text-sm">Pro Schicht</span>
+                  <span className="text-sm">На всю смену</span>
                 </label>
               </div>
             </div>
@@ -380,7 +380,7 @@ export function ShiftForm({
             {/* Repeat days - only for CREATE mode */}
             {!isEdit && (
               <div className="space-y-1.5">
-                <Label>Tage wiederholen</Label>
+                <Label>Повторить по дням</Label>
                 <div className="flex items-center gap-1.5">
                   {DAY_CHECKBOXES.map(({ day, label }) => (
                     <button
@@ -399,19 +399,19 @@ export function ShiftForm({
                   ))}
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  Die Schicht wird fuer alle ausgewaehlten Tage erstellt.
+                  Смена будет создана для всех выбранных дней.
                 </p>
               </div>
             )}
 
             {/* Description */}
             <div className="space-y-1.5">
-              <Label htmlFor="shift-description">Beschreibung (optional)</Label>
+              <Label htmlFor="shift-description">Описание (необязательно)</Label>
               <Textarea
                 id="shift-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Zusaetzliche Hinweise..."
+                placeholder="Дополнительная информация..."
                 rows={2}
                 maxLength={500}
               />
@@ -451,7 +451,7 @@ export function ShiftForm({
                   {(createMutation.isPending || updateMutation.isPending) && (
                     <Loader2 className="size-4 animate-spin" />
                   )}
-                  {isEdit ? "Speichern" : "Erstellen"}
+                  {isEdit ? "Сохранить" : "Создать"}
                 </Button>
               </div>
             </div>

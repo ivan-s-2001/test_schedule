@@ -129,7 +129,7 @@ export function HoursTable({ month, year }: HoursTableProps) {
     queryKey: ["reporting", month, year],
     queryFn: async () => {
       const res = await fetch(`/api/reporting?month=${month}&year=${year}`);
-      if (!res.ok) throw new Error("Fehler beim Laden der Auswertung");
+      if (!res.ok) throw new Error("Ошибка загрузки der Auswertung");
       return res.json();
     },
   });
@@ -223,7 +223,7 @@ export function HoursTable({ month, year }: HoursTableProps) {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Auswertung</h1>
+          <h1 className="text-2xl font-bold">Отчёты</h1>
           <p className="text-sm text-muted-foreground">
             Monatliche Stundenauswertung und Export
           </p>
@@ -292,7 +292,7 @@ export function HoursTable({ month, year }: HoursTableProps) {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Mitarbeiter suchen..."
+          placeholder="Найти сотрудника..."
           className="pl-9"
         />
       </div>
@@ -303,7 +303,7 @@ export function HoursTable({ month, year }: HoursTableProps) {
       {/* Error */}
       {error && (
         <Card className="p-6 text-center text-destructive">
-          Fehler beim Laden der Auswertung. Bitte versuche es erneut.
+          Ошибка загрузки der Auswertung. Повторите попытку.
         </Card>
       )}
 
@@ -311,7 +311,7 @@ export function HoursTable({ month, year }: HoursTableProps) {
       {!isLoading && !error && employees.length === 0 && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <BarChart3 className="size-12 text-muted-foreground/50 mb-3" />
-          <p className="text-lg font-medium">Keine Daten</p>
+          <p className="text-lg font-medium">Нет данных</p>
           <p className="text-sm text-muted-foreground mt-1">
             Fuer diesen Monat sind noch keine Zeiterfassungen vorhanden.
           </p>
@@ -431,7 +431,7 @@ export function HoursTable({ month, year }: HoursTableProps) {
         employees.length > 0 &&
         filteredEmployees.length === 0 && (
           <p className="text-center text-sm text-muted-foreground py-8">
-            Keine Mitarbeiter gefunden fuer &quot;{search}&quot;
+            Сотрудники не найдены fuer &quot;{search}&quot;
           </p>
         )}
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { de } from "date-fns/locale";
+import { ru } from "date-fns/locale";
 import {
   Folder,
   FileText,
@@ -104,7 +104,7 @@ export function FileBrowser() {
       setCreateFolderOpen(false);
     },
     onError: (error: Error) => {
-      toast.error(error.message === "Forbidden" ? "Keine Berechtigung" : "Fehler beim Erstellen");
+      toast.error(error.message === "Недостаточно прав" ? "Keine Berechtigung" : "Ошибка создания");
     },
   });
 
@@ -137,7 +137,7 @@ export function FileBrowser() {
       toast.success("Geloescht");
     },
     onError: () => {
-      toast.error("Fehler beim Loeschen");
+      toast.error("Ошибка удаления");
     },
   });
 
@@ -151,7 +151,7 @@ export function FileBrowser() {
     <div className="flex-1">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dateien</h1>
+        <h1 className="text-2xl font-bold">Файлы</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -160,11 +160,11 @@ export function FileBrowser() {
             title="Datei-Upload kommt bald"
           >
             <Upload className="size-4" />
-            Datei hochladen
+            Загрузить файл
           </Button>
           <Button onClick={() => setCreateFolderOpen(true)} className="gap-2">
             <Plus className="size-4" />
-            Neuer Ordner
+            Новая папка
           </Button>
         </div>
       </div>
@@ -294,7 +294,7 @@ export function FileBrowser() {
                       <div className="text-xs text-slate-500">
                         {formatSize(file.size)} &middot;{" "}
                         {file.uploadedBy.firstName} {file.uploadedBy.lastName} &middot;{" "}
-                        {format(new Date(file.createdAt), "dd. MMM yyyy", { locale: de })}
+                        {format(new Date(file.createdAt), "dd. MMM yyyy", { locale: ru })}
                       </div>
                     </div>
 
@@ -337,7 +337,7 @@ export function FileBrowser() {
       <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Neuer Ordner</DialogTitle>
+            <DialogTitle>Новая папка</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -360,7 +360,7 @@ export function FileBrowser() {
                 onClick={() => createFolderMutation.mutate()}
                 disabled={!folderName.trim() || createFolderMutation.isPending}
               >
-                {createFolderMutation.isPending ? "Erstelle..." : "Erstellen"}
+                {createFolderMutation.isPending ? "Erstelle..." : "Создать"}
               </Button>
             </div>
           </div>
@@ -372,7 +372,7 @@ export function FileBrowser() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {renameTarget?.type === "folder" ? "Ordner" : "Datei"} umbenennen
+              {renameTarget?.type === "folder" ? "Папка" : "Datei"} umbenennen
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -395,7 +395,7 @@ export function FileBrowser() {
                 onClick={() => renameMutation.mutate()}
                 disabled={!renameName.trim() || renameMutation.isPending}
               >
-                {renameMutation.isPending ? "Speichere..." : "Speichern"}
+                {renameMutation.isPending ? "Speichere..." : "Сохранить"}
               </Button>
             </div>
           </div>

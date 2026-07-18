@@ -293,7 +293,7 @@ export function ShiftCard({
                     <Plus className="size-3 text-muted-foreground/50" />
                   </div>
                   <span className="text-xs text-muted-foreground/50 italic hover:text-muted-foreground transition-colors">
-                    Mitarbeiter zuweisen
+                    Назначить сотрудников
                   </span>
                 </button>
               </EmployeePicker>

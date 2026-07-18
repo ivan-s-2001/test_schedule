@@ -29,7 +29,7 @@ export function MobileNav() {
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden">
           <Menu className="size-5" />
-          <span className="sr-only">Navigation</span>
+          <span className="sr-only">Навигация</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0">

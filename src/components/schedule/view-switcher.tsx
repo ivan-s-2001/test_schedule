@@ -20,25 +20,25 @@ const views: {
 }[] = [
   {
     key: "flexible",
-    label: "Flexibel",
+    label: "Гибкий",
     icon: LayoutGrid,
     getHref: (kw: string, _month: string) => `/schedule/flexible/${kw}`,
   },
   {
     key: "classic",
-    label: "Klassisch",
+    label: "Таблица",
     icon: Table2,
     getHref: (kw: string, _month: string) => `/schedule/classic/${kw}`,
   },
   {
     key: "employee",
-    label: "Mitarbeiter",
+    label: "Сотрудники",
     icon: User,
     getHref: (kw: string, _month: string) => `/schedule/employee/${kw}`,
   },
   {
     key: "month",
-    label: "Monat",
+    label: "Месяц",
     icon: CalendarDays,
     getHref: (_kw: string, month: string) => `/schedule/month/${month}`,
   },

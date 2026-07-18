@@ -27,7 +27,7 @@ export function ScheduleSettings({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">Schichtplan</h2>
+        <h2 className="text-xl font-semibold">График смен</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Einstellungen fuer den Schichtplan
         </p>
@@ -36,7 +36,7 @@ export function ScheduleSettings({
       <Card className="p-6 space-y-6">
         {/* Name format */}
         <div className="space-y-2">
-          <Label>Namensformat</Label>
+          <Label>Формат имени</Label>
           <p className="text-xs text-muted-foreground">
             Wie sollen Mitarbeiternamen im Schichtplan angezeigt werden?
           </p>
@@ -66,7 +66,7 @@ export function ScheduleSettings({
 
         {/* Schedule visibility */}
         <div className="space-y-2">
-          <Label>Sichtbarkeit</Label>
+          <Label>Видимость</Label>
           <p className="text-xs text-muted-foreground">
             Welche Schichten koennen Mitarbeiter sehen?
           </p>

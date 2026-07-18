@@ -1,7 +1,16 @@
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const db = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not configured");
+}
+
+const adapter = new PrismaPg({ connectionString });
+const db = new PrismaClient({ adapter });
 
 async function main() {
   console.log("Seeding database...");
@@ -29,7 +38,7 @@ async function main() {
         firstName: "Anna",
         lastName: "Weber",
         phone: "+49 151 12345678",
-        locale: "de",
+        locale: "ru",
       },
     }),
     // Managers
@@ -40,7 +49,7 @@ async function main() {
         firstName: "Markus",
         lastName: "Müller",
         phone: "+49 151 22345678",
-        locale: "de",
+        locale: "ru",
       },
     }),
     db.user.create({
@@ -50,7 +59,7 @@ async function main() {
         firstName: "Sabine",
         lastName: "Schmidt",
         phone: "+49 151 32345678",
-        locale: "de",
+        locale: "ru",
       },
     }),
     // Employees
@@ -60,7 +69,7 @@ async function main() {
         passwordHash,
         firstName: "Thomas",
         lastName: "Bauer",
-        locale: "de",
+        locale: "ru",
       },
     }),
     db.user.create({
@@ -69,7 +78,7 @@ async function main() {
         passwordHash,
         firstName: "Lisa",
         lastName: "Fischer",
-        locale: "de",
+        locale: "ru",
       },
     }),
     db.user.create({
@@ -78,7 +87,7 @@ async function main() {
         passwordHash,
         firstName: "Stefan",
         lastName: "Wagner",
-        locale: "de",
+        locale: "ru",
       },
     }),
     db.user.create({
@@ -87,7 +96,7 @@ async function main() {
         passwordHash,
         firstName: "Julia",
         lastName: "Hoffmann",
-        locale: "de",
+        locale: "ru",
       },
     }),
     db.user.create({
@@ -96,7 +105,7 @@ async function main() {
         passwordHash,
         firstName: "Daniel",
         lastName: "Koch",
-        locale: "de",
+        locale: "ru",
       },
     }),
     db.user.create({
@@ -105,7 +114,7 @@ async function main() {
         passwordHash,
         firstName: "Nina",
         lastName: "Schulz",
-        locale: "de",
+        locale: "ru",
       },
     }),
     db.user.create({
@@ -114,7 +123,7 @@ async function main() {
         passwordHash,
         firstName: "Max",
         lastName: "Braun",
-        locale: "de",
+        locale: "ru",
       },
     }),
     db.user.create({
@@ -123,7 +132,7 @@ async function main() {
         passwordHash,
         firstName: "Sarah",
         lastName: "Richter",
-        locale: "de",
+        locale: "ru",
       },
     }),
   ]);
@@ -176,24 +185,24 @@ async function main() {
   const divKasse = await db.division.create({
     data: {
       organizationId: org.id,
-      title: "Kasse",
-      description: "Kassenbereich und Kundenservice",
+      title: "Касса",
+      description: "Касса и работа с клиентами",
       color: "#6366f1",
     },
   });
   const divLager = await db.division.create({
     data: {
       organizationId: org.id,
-      title: "Lager",
-      description: "Wareneingang, Lagerung und Kommissionierung",
+      title: "Склад",
+      description: "Приём, хранение и комплектация товаров",
       color: "#f59e0b",
     },
   });
   const divService = await db.division.create({
     data: {
       organizationId: org.id,
-      title: "Service",
-      description: "Beratung und Kundenbetreuung",
+      title: "Обслуживание",
+      description: "Консультации и обслуживание клиентов",
       color: "#10b981",
     },
   });
@@ -225,13 +234,13 @@ async function main() {
 
   // --- Time Categories ---
   const timeCatNormal = await db.timeCategory.create({
-    data: { organizationId: org.id, name: "Normal", enabled: true },
+    data: { organizationId: org.id, name: "Обычное время", enabled: true },
   });
   await db.timeCategory.create({
-    data: { organizationId: org.id, name: "Überstunden", enabled: true },
+    data: { organizationId: org.id, name: "Сверхурочные", enabled: true },
   });
   await db.timeCategory.create({
-    data: { organizationId: org.id, name: "Nachtarbeit", enabled: true },
+    data: { organizationId: org.id, name: "Ночная работа", enabled: true },
   });
   console.log("  Created 3 time categories");
 
@@ -239,7 +248,7 @@ async function main() {
   const absUrlaub = await db.absenceCategory.create({
     data: {
       organizationId: org.id,
-      name: "Urlaub",
+      name: "Отпуск",
       color: "#22c55e",
       isPaid: true,
     },
@@ -247,7 +256,7 @@ async function main() {
   const absKrank = await db.absenceCategory.create({
     data: {
       organizationId: org.id,
-      name: "Krank",
+      name: "Больничный",
       color: "#ef4444",
       isPaid: true,
     },
@@ -255,7 +264,7 @@ async function main() {
   await db.absenceCategory.create({
     data: {
       organizationId: org.id,
-      name: "Fortbildung",
+      name: "Обучение",
       color: "#3b82f6",
       isPaid: true,
     },
@@ -286,25 +295,25 @@ async function main() {
   // --- Shifts ---
   const shiftTemplates = [
     // Monday
-    { dayOfWeek: 1, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 2, title: "Frühschicht" },
-    { dayOfWeek: 1, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divKasse.id, maxEmployees: 2, title: "Spätschicht" },
-    { dayOfWeek: 1, shiftFrom: "08:00", shiftTo: "16:00", divisionId: divLager.id, maxEmployees: 2, title: "Tagschicht" },
+    { dayOfWeek: 1, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 2, title: "Утренняя смена" },
+    { dayOfWeek: 1, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divKasse.id, maxEmployees: 2, title: "Вечерняя смена" },
+    { dayOfWeek: 1, shiftFrom: "08:00", shiftTo: "16:00", divisionId: divLager.id, maxEmployees: 2, title: "Дневная смена" },
     // Tuesday
-    { dayOfWeek: 2, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 2, title: "Frühschicht" },
-    { dayOfWeek: 2, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divService.id, maxEmployees: 2, title: "Spätschicht" },
+    { dayOfWeek: 2, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 2, title: "Утренняя смена" },
+    { dayOfWeek: 2, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divService.id, maxEmployees: 2, title: "Вечерняя смена" },
     // Wednesday
-    { dayOfWeek: 3, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 2, title: "Frühschicht" },
-    { dayOfWeek: 3, shiftFrom: "08:00", shiftTo: "16:00", divisionId: divLager.id, maxEmployees: 3, title: "Tagschicht" },
-    { dayOfWeek: 3, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divService.id, maxEmployees: 2, title: "Spätschicht" },
+    { dayOfWeek: 3, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 2, title: "Утренняя смена" },
+    { dayOfWeek: 3, shiftFrom: "08:00", shiftTo: "16:00", divisionId: divLager.id, maxEmployees: 3, title: "Дневная смена" },
+    { dayOfWeek: 3, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divService.id, maxEmployees: 2, title: "Вечерняя смена" },
     // Thursday
-    { dayOfWeek: 4, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 2, title: "Frühschicht" },
-    { dayOfWeek: 4, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divKasse.id, maxEmployees: 2, title: "Spätschicht" },
+    { dayOfWeek: 4, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 2, title: "Утренняя смена" },
+    { dayOfWeek: 4, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divKasse.id, maxEmployees: 2, title: "Вечерняя смена" },
     // Friday
-    { dayOfWeek: 5, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divService.id, maxEmployees: 2, title: "Frühschicht" },
-    { dayOfWeek: 5, shiftFrom: "08:00", shiftTo: "16:00", divisionId: divLager.id, maxEmployees: 2, title: "Tagschicht" },
-    { dayOfWeek: 5, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divKasse.id, maxEmployees: 2, title: "Spätschicht" },
+    { dayOfWeek: 5, shiftFrom: "06:00", shiftTo: "14:00", divisionId: divService.id, maxEmployees: 2, title: "Утренняя смена" },
+    { dayOfWeek: 5, shiftFrom: "08:00", shiftTo: "16:00", divisionId: divLager.id, maxEmployees: 2, title: "Дневная смена" },
+    { dayOfWeek: 5, shiftFrom: "14:00", shiftTo: "22:00", divisionId: divKasse.id, maxEmployees: 2, title: "Вечерняя смена" },
     // Saturday
-    { dayOfWeek: 6, shiftFrom: "08:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 1, title: "Samstagsschicht" },
+    { dayOfWeek: 6, shiftFrom: "08:00", shiftTo: "14:00", divisionId: divKasse.id, maxEmployees: 1, title: "Субботняя смена" },
   ];
 
   const shifts = await Promise.all(
@@ -360,7 +369,7 @@ async function main() {
       dateFrom: nextWeekStart,
       dateTo: new Date(nextWeekStart.getTime() + 4 * 86400000),
       status: "APPROVED",
-      note: "Familienurlaub",
+      note: "Семейный отпуск",
     },
   });
   await db.absence.create({

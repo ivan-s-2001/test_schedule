@@ -154,7 +154,7 @@ export function ExportModal({
           {/* Month + Year selection */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Monat</label>
+              <label className="text-sm font-medium">Месяц</label>
               <Select value={month} onValueChange={setMonth}>
                 <SelectTrigger>
                   <SelectValue />
