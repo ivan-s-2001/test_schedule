@@ -7,6 +7,8 @@ type DayNoteRow = {
   scheduleId: string;
   dayOfWeek: number;
   note: string;
+  status: "PLANNED" | "DONE" | "PARTIAL" | "POSTPONED" | "SENT" | "ATTENTION";
+  sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -20,7 +22,7 @@ type OvertimeRow = {
  * GET /api/schedules?kw=09&year=2026
  *
  * Get or auto-create a schedule for the given calendar week + year.
- * Returns shifts, employee bookings, overtime and date-level notes.
+ * Returns shifts, employee bookings, overtime and structured date-level notes.
  */
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
@@ -115,11 +117,13 @@ export async function GET(request: NextRequest) {
         "scheduleId",
         "dayOfWeek",
         "note",
+        "status",
+        "sortOrder",
         "createdAt",
         "updatedAt"
       FROM "schedule_day_notes"
       WHERE "scheduleId" = ${schedule.id}
-      ORDER BY "dayOfWeek" ASC
+      ORDER BY "dayOfWeek" ASC, "sortOrder" ASC, "createdAt" ASC
     `,
     db.$queryRaw<OvertimeRow[]>`
       SELECT
