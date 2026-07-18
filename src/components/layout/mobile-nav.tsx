@@ -36,7 +36,7 @@ export function MobileNav() {
         <SheetHeader className="border-b px-4 py-3">
           <SheetTitle className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
             <CalendarDays className="size-5" />
-            Schichtplaner
+            График службы заботы
           </SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col gap-1 p-3">
@@ -60,7 +60,6 @@ export function MobileNav() {
               </Link>
             );
           })}
-          {/* AI link */}
           <Link
             href="/ai/chat"
             onClick={() => setOpen(false)}
@@ -72,7 +71,7 @@ export function MobileNav() {
             )}
           >
             <Sparkles className="size-5" />
-            KI-Assistent
+            ИИ-ассистент
           </Link>
         </nav>
       </SheetContent>
