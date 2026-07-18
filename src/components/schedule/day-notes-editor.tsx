@@ -87,7 +87,10 @@ export function DayNotesEditor({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const sortedNotes = useMemo(
-    () => [...notes].sort((a, b) => a.sortOrder - b.sortOrder),
+    () =>
+      [...notes].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt)
+      ),
     [notes]
   );
 
@@ -121,7 +124,9 @@ export function DayNotesEditor({
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Не удалось сохранить пометку");
+      if (!response.ok) {
+        throw new Error(data.error || "Не удалось сохранить пометку");
+      }
 
       await onChanged();
       resetForm();
@@ -142,7 +147,9 @@ export function DayNotesEditor({
         body: JSON.stringify({ id, scheduleId }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Не удалось удалить пометку");
+      if (!response.ok) {
+        throw new Error(data.error || "Не удалось удалить пометку");
+      }
 
       await onChanged();
       if (editingId === id) resetForm();
@@ -153,11 +160,6 @@ export function DayNotesEditor({
       setDeletingId(null);
     }
   }
-
-  const firstNote = sortedNotes[0];
-  const firstStatus = firstNote ? statusConfig(firstNote.status) : null;
-  const allDone =
-    sortedNotes.length > 0 && sortedNotes.every((note) => note.status === "DONE");
 
   return (
     <>
@@ -181,31 +183,30 @@ export function DayNotesEditor({
               <Plus className="size-3" /> пометка
             </span>
           ) : null
-        ) : sortedNotes.length === 1 ? (
-          <span className="block">
-            <span
-              className={cn(
-                "mx-auto mb-1 block w-fit rounded-full border px-1.5 py-0.5 text-[9px] font-semibold",
-                firstStatus?.className
-              )}
-            >
-              {firstStatus?.label}
-            </span>
-            <span className="line-clamp-2">{firstNote.note}</span>
-          </span>
         ) : (
-          <span className="block">
-            <span
-              className={cn(
-                "mx-auto mb-1 block w-fit rounded-full border px-1.5 py-0.5 text-[9px] font-semibold",
-                allDone
-                  ? "border-green-300 bg-green-100 text-green-800"
-                  : "border-slate-300 bg-slate-100 text-slate-700"
-              )}
-            >
-              {allDone ? "Все выполнены" : `${sortedNotes.length} пометки`}
-            </span>
-            <span className="line-clamp-1">{firstNote.note}</span>
+          <span className="block max-h-32 space-y-1 overflow-y-auto text-left">
+            {sortedNotes.map((note) => {
+              const config = statusConfig(note.status);
+
+              return (
+                <span
+                  key={note.id}
+                  className="block rounded border border-slate-200 bg-white px-1.5 py-1"
+                >
+                  <span
+                    className={cn(
+                      "inline-flex rounded-full border px-1.5 py-0.5 text-[8px] font-semibold",
+                      config.className
+                    )}
+                  >
+                    {config.label}
+                  </span>
+                  <span className="mt-0.5 block line-clamp-2 text-[9px] leading-tight text-slate-800">
+                    {note.note}
+                  </span>
+                </span>
+              );
+            })}
           </span>
         )}
       </button>
@@ -219,7 +220,9 @@ export function DayNotesEditor({
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Пометки дня</DialogTitle>
+            <DialogTitle>
+              Пометки дня{sortedNotes.length > 0 ? ` · ${sortedNotes.length}` : ""}
+            </DialogTitle>
             <DialogDescription>
               {dayName}, {format(date, "d MMMM yyyy", { locale: ru })}
             </DialogDescription>
@@ -233,6 +236,7 @@ export function DayNotesEditor({
             ) : (
               sortedNotes.map((note) => {
                 const config = statusConfig(note.status);
+
                 return (
                   <div key={note.id} className="rounded-md border bg-white p-3">
                     <div className="flex items-start justify-between gap-3">
@@ -288,7 +292,12 @@ export function DayNotesEditor({
                   {editingId ? "Изменить пометку" : "Новая пометка"}
                 </h3>
                 {editingId && (
-                  <Button type="button" size="sm" variant="ghost" onClick={resetForm}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={resetForm}
+                  >
                     Отменить изменение
                   </Button>
                 )}
@@ -299,7 +308,9 @@ export function DayNotesEditor({
                 <select
                   id={`day-note-status-${dayOfWeek}`}
                   value={status}
-                  onChange={(event) => setStatus(event.target.value as DayNoteStatus)}
+                  onChange={(event) =>
+                    setStatus(event.target.value as DayNoteStatus)
+                  }
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   {STATUS_OPTIONS.map((option) => (
