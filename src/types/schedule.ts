@@ -55,11 +55,21 @@ export type BriefingData = {
   updatedAt: string;
 };
 
+export type DayNoteStatus =
+  | "PLANNED"
+  | "DONE"
+  | "PARTIAL"
+  | "POSTPONED"
+  | "SENT"
+  | "ATTENTION";
+
 export type ScheduleDayNote = {
   id: string;
   scheduleId: string;
   dayOfWeek: number;
   note: string;
+  status: DayNoteStatus;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 };
