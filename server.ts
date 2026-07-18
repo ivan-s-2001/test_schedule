@@ -5,9 +5,42 @@ import { Server as SocketIOServer } from "socket.io";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "0.0.0.0";
-const port = parseInt(process.env.PORT || "3000", 10);
-const browserUrl = process.env.APP_URL || `http://localhost:${port}`;
+const configuredUrl =
+  process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:41873";
 
+function resolvePort(): number {
+  const explicitPort = Number.parseInt(process.env.PORT ?? "", 10);
+  if (Number.isInteger(explicitPort) && explicitPort > 0 && explicitPort <= 65535) {
+    return explicitPort;
+  }
+
+  try {
+    const url = new URL(configuredUrl);
+    const urlPort = Number.parseInt(url.port, 10);
+
+    if (Number.isInteger(urlPort) && urlPort > 0 && urlPort <= 65535) {
+      return urlPort;
+    }
+
+    return url.protocol === "https:" ? 443 : 80;
+  } catch {
+    return 41873;
+  }
+}
+
+const port = resolvePort();
+
+function resolveBrowserUrl(): string {
+  try {
+    const url = new URL(configuredUrl);
+    url.port = String(port);
+    return url.origin;
+  } catch {
+    return `http://localhost:${port}`;
+  }
+}
+
+const browserUrl = resolveBrowserUrl();
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -71,7 +104,7 @@ app.prepare().then(() => {
     });
   });
 
-  (globalThis as any).__socketIO = io;
+  (globalThis as { __socketIO?: SocketIOServer }).__socketIO = io;
 
   httpServer.listen(port, hostname, () => {
     console.log(`> Ready on ${browserUrl}`);
