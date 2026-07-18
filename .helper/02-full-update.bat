@@ -25,37 +25,37 @@ if /I not "%CONFIRM%"=="DELETE" (
 )
 
 echo.
-echo [1/9] Переключение на develop...
+echo [1/10] Переключение на develop...
 git switch develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [2/9] Получение изменений...
+echo [2/10] Получение изменений...
 git pull --ff-only origin develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [3/9] Установка зависимостей...
+echo [3/10] Установка зависимостей...
 call npm install
 if errorlevel 1 goto :fail
 
 echo.
-echo [4/9] Полное удаление данных и повтор всех миграций...
+echo [4/10] Полное удаление данных и повтор всех миграций...
 call npx prisma migrate reset --force
 if errorlevel 1 goto :fail
 
 echo.
-echo [5/9] Обновление Prisma Client...
+echo [5/10] Обновление Prisma Client...
 call npx prisma generate
 if errorlevel 1 goto :fail
 
 echo.
-echo [6/9] Первоначальное заполнение базы...
+echo [6/10] Первоначальное заполнение базы...
 call npx prisma db seed
 if errorlevel 1 goto :fail
 
 echo.
-echo [7/9] Повторный импорт графика службы заботы...
+echo [7/10] Повторный импорт графика службы заботы...
 if exist "scripts\migration\care-schedule-2026-01-07.json" (
   call npx tsx --env-file=.env scripts/migration/import-care-schedule.ts --apply
   if errorlevel 1 goto :fail
@@ -65,12 +65,22 @@ if exist "scripts\migration\care-schedule-2026-01-07.json" (
 )
 
 echo.
-echo [8/9] Пересборка приложения на порту %APP_PORT%...
+echo [8/10] Импорт пометок и статусов из Excel...
+if exist "scripts\migration\care-day-notes-2026.json" (
+  call npx tsx --env-file=.env scripts/migration/import-care-day-notes.ts --apply
+  if errorlevel 1 goto :fail
+) else (
+  echo Файл scripts\migration\care-day-notes-2026.json не найден.
+  echo Пометки Excel не импортированы.
+)
+
+echo.
+echo [9/10] Пересборка приложения на порту %APP_PORT%...
 call npm run build
 if errorlevel 1 goto :fail
 
 echo.
-echo [9/9] Запуск собранного приложения...
+echo [10/10] Запуск собранного приложения...
 start "Schichtplaner" cmd /k "set NODE_ENV=production&& set PORT=%APP_PORT%&& set APP_URL=%APP_URL%&& set NEXTAUTH_URL=%NEXTAUTH_URL%&& npx tsx --env-file=.env server.ts"
 if errorlevel 1 goto :fail
 
