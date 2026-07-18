@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentMember, isManagerOrAbove } from "@/lib/auth-helpers";
@@ -23,18 +24,22 @@ async function requireManager() {
   const member = await getCurrentMember();
 
   if (!member) {
-    return { error: NextResponse.json({ error: "Не авторизован" }, { status: 401 }) };
+    return {
+      error: NextResponse.json({ error: "Не авторизован" }, { status: 401 }),
+    };
   }
 
   if (!isManagerOrAbove(member.role)) {
-    return { error: NextResponse.json({ error: "Недостаточно прав" }, { status: 403 }) };
+    return {
+      error: NextResponse.json({ error: "Недостаточно прав" }, { status: 403 }),
+    };
   }
 
   return { member };
 }
 
 async function removeExistingAssignment(
-  tx: Parameters<Parameters<typeof db.$transaction>[0]>[0],
+  tx: Prisma.TransactionClient,
   scheduleId: string,
   userId: string,
   dayOfWeek: number
