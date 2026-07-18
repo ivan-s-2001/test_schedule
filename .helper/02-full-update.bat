@@ -9,6 +9,8 @@ set "APP_PORT=41873"
 set "PORT=%APP_PORT%"
 set "APP_URL=http://localhost:%APP_PORT%"
 set "NEXTAUTH_URL=%APP_URL%"
+set "ADMIN_EMAIL=admin@qksr.ru"
+set "OPEN_URL=%APP_URL%/?email=admin%%40qksr.ru"
 
 echo.
 echo ВНИМАНИЕ: БАЗА ДАННЫХ БУДЕТ ПОЛНОСТЬЮ ОЧИЩЕНА.
@@ -72,13 +74,14 @@ start "Schichtplaner" cmd /k "set NODE_ENV=production&& set PORT=%APP_PORT%&& se
 if errorlevel 1 goto :fail
 
 timeout /t 3 /nobreak >nul
-start "" "%APP_URL%"
+start "" "%OPEN_URL%"
 
 echo.
 echo ============================================================
 echo ПОЛНОЕ ОБНОВЛЕНИЕ ЗАВЕРШЕНО.
 echo БАЗА ПЕРЕСОЗДАНА, ВСЕ МИГРАЦИИ ВЫПОЛНЕНЫ.
 echo ПРИЛОЖЕНИЕ ЗАПУЩЕНО: %APP_URL%
+echo АВТОВХОД: %ADMIN_EMAIL%
 echo ============================================================
 pause
 exit /b 0
