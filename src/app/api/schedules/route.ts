@@ -2,12 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentMember } from "@/lib/auth-helpers";
 
+type DayNoteRow = {
+  id: string;
+  scheduleId: string;
+  dayOfWeek: number;
+  note: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type OvertimeRow = {
+  bookingId: string;
+  overtimeMinutes: number;
+};
+
 /**
  * GET /api/schedules?kw=09&year=2026
  *
  * Get or auto-create a schedule for the given calendar week + year.
- * Returns the schedule with shifts (including bookings + user details)
- * and division info.
+ * Returns shifts, employee bookings, overtime and date-level notes.
  */
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
@@ -21,7 +34,7 @@ export async function GET(request: NextRequest) {
 
   if (!kwParam || !yearParam) {
     return NextResponse.json(
-      { error: "Missing query parameters: kw and year are required" },
+      { error: "Обязательны параметры kw и year" },
       { status: 400 }
     );
   }
@@ -30,22 +43,49 @@ export async function GET(request: NextRequest) {
   const year = parseInt(yearParam, 10);
 
   if (
-    isNaN(weekNumber) ||
-    isNaN(year) ||
+    Number.isNaN(weekNumber) ||
+    Number.isNaN(year) ||
     weekNumber < 1 ||
     weekNumber > 53 ||
     year < 2000 ||
     year > 2100
   ) {
     return NextResponse.json(
-      { error: "Invalid kw or year values" },
+      { error: "Некорректная неделя или год" },
       { status: 400 }
     );
   }
 
   const orgId = member.organizationId;
+  const include = {
+    shifts: {
+      where: { deletedAt: null },
+      include: {
+        division: {
+          select: {
+            id: true,
+            title: true,
+            color: true,
+          },
+        },
+        bookings: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                nickname: true,
+                profileImage: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ dayOfWeek: "asc" as const }, { shiftFrom: "asc" as const }],
+    },
+  };
 
-  // Try to find existing schedule
   let schedule = await db.schedule.findFirst({
     where: {
       organizationId: orgId,
@@ -54,37 +94,9 @@ export async function GET(request: NextRequest) {
       branchId: null,
       deletedAt: null,
     },
-    include: {
-      shifts: {
-        where: { deletedAt: null },
-        include: {
-          division: {
-            select: {
-              id: true,
-              title: true,
-              color: true,
-            },
-          },
-          bookings: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  nickname: true,
-                  profileImage: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: [{ dayOfWeek: "asc" }, { shiftFrom: "asc" }],
-      },
-    },
+    include,
   });
 
-  // Auto-create if not found
   if (!schedule) {
     schedule = await db.schedule.create({
       data: {
@@ -92,36 +104,45 @@ export async function GET(request: NextRequest) {
         weekNumber,
         year,
       },
-      include: {
-        shifts: {
-          where: { deletedAt: null },
-          include: {
-            division: {
-              select: {
-                id: true,
-                title: true,
-                color: true,
-              },
-            },
-            bookings: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    nickname: true,
-                    profileImage: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: [{ dayOfWeek: "asc" }, { shiftFrom: "asc" }],
-        },
-      },
+      include,
     });
   }
+
+  const [dayNotes, overtimeRows] = await Promise.all([
+    db.$queryRaw<DayNoteRow[]>`
+      SELECT
+        "id",
+        "scheduleId",
+        "dayOfWeek",
+        "note",
+        "createdAt",
+        "updatedAt"
+      FROM "schedule_day_notes"
+      WHERE "scheduleId" = ${schedule.id}
+      ORDER BY "dayOfWeek" ASC
+    `,
+    db.$queryRaw<OvertimeRow[]>`
+      SELECT
+        b."id" AS "bookingId",
+        b."overtimeMinutes" AS "overtimeMinutes"
+      FROM "bookings" b
+      INNER JOIN "shifts" s ON s."id" = b."shiftId"
+      WHERE s."scheduleId" = ${schedule.id}
+        AND s."deletedAt" IS NULL
+    `,
+  ]);
+
+  const overtimeByBooking = new Map(
+    overtimeRows.map((row) => [row.bookingId, row.overtimeMinutes])
+  );
+
+  const shifts = schedule.shifts.map((shift) => ({
+    ...shift,
+    bookings: shift.bookings.map((booking) => ({
+      ...booking,
+      overtimeMinutes: overtimeByBooking.get(booking.id) ?? 0,
+    })),
+  }));
 
   return NextResponse.json({
     schedule: {
@@ -133,7 +154,8 @@ export async function GET(request: NextRequest) {
       settingsLayout: schedule.settingsLayout,
       showTitle: schedule.showTitle,
       showPauses: schedule.showPauses,
-      shifts: schedule.shifts,
+      shifts,
+      dayNotes,
     },
   });
 }
