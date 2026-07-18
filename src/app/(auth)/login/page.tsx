@@ -30,7 +30,7 @@ export default function LoginPage() {
       setError("Неверная электронная почта или пароль");
       setLoading(false);
     } else {
-      router.push("/schedule/flexible");
+      router.push("/schedule/employee");
     }
   }
 
@@ -38,7 +38,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">График смен</CardTitle>
+          <CardTitle className="text-2xl font-bold">График службы заботы</CardTitle>
           <p className="text-sm text-muted-foreground">Войти</p>
         </CardHeader>
         <CardContent>
@@ -59,7 +59,7 @@ export default function LoginPage() {
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Нет учётной записи?{" "}
             <Link href="/register" className="text-primary hover:underline">
-              Registrieren
+              Зарегистрироваться
             </Link>
           </p>
         </CardContent>
