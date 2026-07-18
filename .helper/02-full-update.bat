@@ -49,7 +49,7 @@ if errorlevel 1 goto :fail
 echo.
 echo [7/7] Повторный импорт графика службы заботы...
 if exist "scripts\migration\care-schedule-2026-01-07.json" (
-  call npx tsx scripts/migration/import-care-schedule.ts --apply
+  call npx tsx --env-file=.env scripts/migration/import-care-schedule.ts --apply
   if errorlevel 1 goto :fail
 ) else (
   echo Файл scripts\migration\care-schedule-2026-01-07.json не найден.
