@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, isToday } from "date-fns";
 import { ru } from "date-fns/locale";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
+import { DayNotesEditor } from "@/components/schedule/day-notes-editor";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import {
   SHIFT_POOL,
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import type {
   BookingUser,
   ScheduleData,
+  ScheduleDayNote,
   ShiftBooking,
   ShiftData,
 } from "@/types/schedule";
@@ -66,11 +67,6 @@ type CellEditorState = {
   user: EmployeeMember["user"];
   dayOfWeek: number;
   assignment: Assignment | null;
-};
-
-type DayNoteEditorState = {
-  dayOfWeek: number;
-  note: string;
 };
 
 const CARE_EMAIL_SUFFIX = "@care.qt.local";
@@ -119,8 +115,6 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
   const [cellEditor, setCellEditor] = useState<CellEditorState | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [overtimeHours, setOvertimeHours] = useState("0");
-  const [dayNoteEditor, setDayNoteEditor] =
-    useState<DayNoteEditorState | null>(null);
 
   const {
     data: scheduleData,
@@ -195,13 +189,22 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
     });
   }, [shifts, visibleMembers]);
 
-  const dayNotes = useMemo(
-    () =>
-      new Map(
-        (schedule?.dayNotes ?? []).map((item) => [item.dayOfWeek, item.note])
-      ),
-    [schedule]
-  );
+  const dayNotesByDay = useMemo(() => {
+    const result = new Map<number, ScheduleDayNote[]>();
+
+    for (const note of schedule?.dayNotes ?? []) {
+      const list = result.get(note.dayOfWeek) ?? [];
+      list.push(note);
+      result.set(note.dayOfWeek, list);
+    }
+
+    return result;
+  }, [schedule?.dayNotes]);
+
+  const invalidateSchedule = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["schedule", weekNumber, year],
+    });
 
   const assignmentMutation = useMutation({
     mutationFn: async (payload: {
@@ -222,10 +225,8 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
       if (!response.ok) throw new Error(data.error || "Не удалось сохранить смену");
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["schedule", weekNumber, year],
-      });
+    onSuccess: async () => {
+      await invalidateSchedule();
       setCellEditor(null);
     },
     onError: (error: Error) => toast.error(error.message),
@@ -245,34 +246,9 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
       if (!response.ok) throw new Error(data.error || "Не удалось удалить смену");
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["schedule", weekNumber, year],
-      });
+    onSuccess: async () => {
+      await invalidateSchedule();
       setCellEditor(null);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const dayNoteMutation = useMutation({
-    mutationFn: async (payload: { dayOfWeek: number; note: string }) => {
-      if (!schedule) throw new Error("График ещё не загружен");
-
-      const response = await fetch("/api/schedule-day-notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduleId: schedule.id, ...payload }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Не удалось сохранить пометку");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["schedule", weekNumber, year],
-      });
-      setDayNoteEditor(null);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -287,9 +263,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
     const template = assignment ? getTemplate(assignment.shift) : undefined;
     setSelectedTemplateId(template?.id ?? "");
     setOvertimeHours(
-      assignment
-        ? String(assignment.booking.overtimeMinutes / 60)
-        : "0"
+      assignment ? String(assignment.booking.overtimeMinutes / 60) : "0"
     );
     setCellEditor({ user, dayOfWeek, assignment });
   }
@@ -311,7 +285,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
 
   if (isLoading) return <EmployeeGridSkeleton />;
 
-  if (error) {
+  if (error || !schedule) {
     return (
       <div className="rounded-lg border p-8 text-center text-destructive">
         Не удалось загрузить недельный график.
@@ -338,14 +312,13 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
               </th>
               {weekDates.map((date, index) => {
                 const dayOfWeek = index + 1;
-                const note = dayNotes.get(dayOfWeek) ?? "";
                 const today = isToday(date);
 
                 return (
                   <th
                     key={date.toISOString()}
                     className={cn(
-                      "min-w-32 border-b border-r border-slate-400 bg-[#0000FF] px-2 py-2 text-center align-top text-white",
+                      "min-w-36 border-b border-r border-slate-400 bg-[#0000FF] px-2 py-2 text-center align-top text-white",
                       today && "ring-2 ring-inset ring-yellow-300"
                     )}
                   >
@@ -353,22 +326,15 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                     <div className="mt-0.5 text-[11px] font-normal">
                       {format(date, "d MMMM", { locale: ru })}
                     </div>
-                    <button
-                      type="button"
-                      title={note || "Добавить пометку дня"}
-                      onClick={() =>
-                        canEdit && setDayNoteEditor({ dayOfWeek, note })
-                      }
-                      className={cn(
-                        "mt-2 min-h-9 w-full rounded border px-1.5 py-1 text-[10px] font-normal leading-tight",
-                        note
-                          ? "border-white/50 bg-white/95 text-slate-900"
-                          : "border-dashed border-white/50 text-white/70",
-                        canEdit && "cursor-pointer hover:bg-white hover:text-slate-900"
-                      )}
-                    >
-                      {note || (canEdit ? "+ пометка" : "")}
-                    </button>
+                    <DayNotesEditor
+                      scheduleId={schedule.id}
+                      dayOfWeek={dayOfWeek}
+                      date={date}
+                      dayName={DAY_NAMES[index]}
+                      notes={dayNotesByDay.get(dayOfWeek) ?? []}
+                      canEdit={canEdit}
+                      onChanged={invalidateSchedule}
+                    />
                   </th>
                 );
               })}
@@ -589,64 +555,6 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                 Сохранить
               </Button>
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={dayNoteEditor !== null}
-        onOpenChange={(open) => !open && setDayNoteEditor(null)}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="size-4" />
-              Пометка дня
-            </DialogTitle>
-            <DialogDescription>
-              {dayNoteEditor && (
-                <>
-                  {DAY_NAMES[dayNoteEditor.dayOfWeek - 1]},{" "}
-                  {format(weekDates[dayNoteEditor.dayOfWeek - 1], "d MMMM", {
-                    locale: ru,
-                  })}
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-
-          <Textarea
-            rows={5}
-            maxLength={1000}
-            value={dayNoteEditor?.note ?? ""}
-            onChange={(event) =>
-              setDayNoteEditor((current) =>
-                current ? { ...current, note: event.target.value } : current
-              )
-            }
-            placeholder="Например: замена ФН, обучение, важное событие..."
-          />
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDayNoteEditor(null)}
-            >
-              Отмена
-            </Button>
-            <Button
-              type="button"
-              disabled={!dayNoteEditor || dayNoteMutation.isPending}
-              onClick={() =>
-                dayNoteEditor && dayNoteMutation.mutate(dayNoteEditor)
-              }
-            >
-              {dayNoteMutation.isPending && (
-                <Loader2 className="size-4 animate-spin" />
-              )}
-              Сохранить
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
