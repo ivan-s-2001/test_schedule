@@ -1,5 +1,5 @@
 /**
- * Shared types for schedule, shift, and booking data
+ * Shared types for schedule, shift, booking and day-note data
  * as returned by the API.
  */
 
@@ -17,6 +17,7 @@ export type ShiftBooking = {
   userId: string;
   bookedAt: string;
   bookedBy: string | null;
+  overtimeMinutes: number;
   user: BookingUser;
 };
 
@@ -54,6 +55,15 @@ export type BriefingData = {
   updatedAt: string;
 };
 
+export type ScheduleDayNote = {
+  id: string;
+  scheduleId: string;
+  dayOfWeek: number;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ScheduleData = {
   id: string;
   organizationId: string;
@@ -64,6 +74,7 @@ export type ScheduleData = {
   showTitle: boolean;
   showPauses: boolean;
   shifts: ShiftData[];
+  dayNotes: ScheduleDayNote[];
 };
 
 export type DivisionOption = {
