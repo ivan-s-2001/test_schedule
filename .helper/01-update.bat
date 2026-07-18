@@ -5,6 +5,11 @@ setlocal EnableExtensions
 cd /d "%~dp0.."
 if errorlevel 1 goto :fail
 
+set "APP_PORT=41873"
+set "PORT=%APP_PORT%"
+set "APP_URL=http://localhost:%APP_PORT%"
+set "NEXTAUTH_URL=%APP_URL%"
+
 echo.
 echo [1/7] Переключение на develop...
 git switch develop
@@ -31,19 +36,22 @@ call npx prisma migrate deploy
 if errorlevel 1 goto :fail
 
 echo.
-echo [6/7] Пересборка приложения...
+echo [6/7] Пересборка приложения на порту %APP_PORT%...
 call npm run build
 if errorlevel 1 goto :fail
 
 echo.
 echo [7/7] Запуск собранного приложения...
-start "Schichtplaner" cmd /k "set NODE_ENV=production&& npx tsx --env-file=.env server.ts"
+start "Schichtplaner" cmd /k "set NODE_ENV=production&& set PORT=%APP_PORT%&& set APP_URL=%APP_URL%&& set NEXTAUTH_URL=%NEXTAUTH_URL%&& npx tsx --env-file=.env server.ts"
 if errorlevel 1 goto :fail
+
+timeout /t 3 /nobreak >nul
+start "" "%APP_URL%"
 
 echo.
 echo ============================================================
 echo ОБНОВЛЕНИЕ ЗАВЕРШЕНО. ДАННЫЕ БАЗЫ СОХРАНЕНЫ.
-echo ПРИЛОЖЕНИЕ ЗАПУЩЕНО В ОТДЕЛЬНОМ ОКНЕ.
+echo ПРИЛОЖЕНИЕ ЗАПУЩЕНО: %APP_URL%
 echo ============================================================
 pause
 exit /b 0
