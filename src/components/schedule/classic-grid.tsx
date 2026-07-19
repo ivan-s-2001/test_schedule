@@ -15,31 +15,35 @@ interface ClassicGridProps {
   weekDates: Date[];
 }
 
-/**
- * Traditional table-style schedule layout.
- * Rows = time-based shift groups, Columns = Mo-So.
- * Each cell shows booked employees for that shift on that day.
- */
-export function ClassicGrid({ weekNumber, year, weekDates }: ClassicGridProps) {
+export function ClassicGrid({
+  weekNumber,
+  year,
+  weekDates,
+}: ClassicGridProps) {
   const { data, isLoading } = useQuery<{ schedule: ScheduleData }>({
     queryKey: ["schedule", weekNumber, year],
     queryFn: async () => {
-      const res = await fetch(`/api/schedules?kw=${weekNumber}&year=${year}`);
-      if (!res.ok) throw new Error("Ошибка загрузки der Schichten");
-      return res.json();
+      const response = await fetch(
+        `/api/schedules?kw=${weekNumber}&year=${year}`
+      );
+      if (!response.ok) throw new Error("Не удалось загрузить смены");
+      return response.json();
     },
   });
 
-  const schedule = data?.schedule ?? null;
-  const shifts = schedule?.shifts ?? [];
+  const shifts = data?.schedule?.shifts ?? [];
 
-  // Group shifts into unique time slots (shiftFrom-shiftTo)
   const { timeSlots, grid } = useMemo(() => {
-    // Collect unique time slots
     const slotMap = new Map<
       string,
-      { from: string; to: string; divisionColor: string; divisionTitle: string }
+      {
+        from: string;
+        to: string;
+        divisionColor: string;
+        divisionTitle: string;
+      }
     >();
+
     for (const shift of shifts) {
       const key = `${shift.shiftFrom}-${shift.shiftTo}`;
       if (!slotMap.has(key)) {
@@ -52,37 +56,33 @@ export function ClassicGrid({ weekNumber, year, weekDates }: ClassicGridProps) {
       }
     }
 
-    // Sort by start time
-    const sortedSlots = Array.from(slotMap.entries()).sort(([, a], [, b]) =>
-      a.from.localeCompare(b.from)
+    const sortedSlots = Array.from(slotMap.entries()).sort(([, left], [, right]) =>
+      left.from.localeCompare(right.from)
     );
-
-    // Build grid: for each slot+day, find matching shifts
     const gridData: Record<string, ShiftData[]> = {};
+
     for (const [key] of sortedSlots) {
       for (let day = 1; day <= 7; day++) {
-        const cellKey = `${key}:${day}`;
-        gridData[cellKey] = shifts.filter((s) => {
-          const slotKey = `${s.shiftFrom}-${s.shiftTo}`;
-          return slotKey === key && s.dayOfWeek === day;
-        });
+        gridData[`${key}:${day}`] = shifts.filter(
+          (shift) =>
+            `${shift.shiftFrom}-${shift.shiftTo}` === key &&
+            shift.dayOfWeek === day
+        );
       }
     }
 
     return {
-      timeSlots: sortedSlots.map(([key, val]) => ({ key, ...val })),
+      timeSlots: sortedSlots.map(([key, value]) => ({ key, ...value })),
       grid: gridData,
     };
   }, [shifts]);
 
-  if (isLoading) {
-    return <ClassicGridSkeleton />;
-  }
+  if (isLoading) return <ClassicGridSkeleton />;
 
   if (timeSlots.length === 0) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
-        Keine Schichten in dieser Woche
+        На этой неделе смен нет
       </div>
     );
   }
@@ -92,21 +92,21 @@ export function ClassicGrid({ weekNumber, year, weekDates }: ClassicGridProps) {
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-muted/30">
-            <th className="border-r px-3 py-2 text-left text-xs font-semibold text-muted-foreground w-32">
-              Schicht
+            <th className="w-32 border-r px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
+              Смена
             </th>
-            {weekDates.map((date, idx) => {
+            {weekDates.map((date, index) => {
               const today = isToday(date);
               return (
                 <th
-                  key={idx}
+                  key={date.toISOString()}
                   className={cn(
-                    "border-r last:border-r-0 px-3 py-2 text-center text-xs font-semibold min-w-[120px]",
+                    "min-w-[120px] border-r px-3 py-2 text-center text-xs font-semibold last:border-r-0",
                     today && "bg-primary/10 text-primary"
                   )}
                 >
-                  <div>{dayNames[idx]}</div>
-                  <div className="text-[10px] text-muted-foreground font-normal">
+                  <div>{dayNames[index]}</div>
+                  <div className="text-[10px] font-normal text-muted-foreground">
                     {formatDateShort(date)}
                   </div>
                 </th>
@@ -116,21 +116,23 @@ export function ClassicGrid({ weekNumber, year, weekDates }: ClassicGridProps) {
         </thead>
         <tbody>
           {timeSlots.map((slot) => (
-            <tr key={slot.key} className="border-t hover:bg-muted/10 transition-colors">
-              {/* Time slot label */}
+            <tr
+              key={slot.key}
+              className="border-t transition-colors hover:bg-muted/10"
+            >
               <td className="border-r px-3 py-2 align-top">
                 <div className="flex items-center gap-2">
                   <span
-                    className="size-2 rounded-full shrink-0"
+                    className="size-2 shrink-0 rounded-full"
                     style={{ backgroundColor: slot.divisionColor }}
                   />
                   <div>
                     <div className="text-xs font-medium">
-                      {slot.from} - {slot.to}
+                      {slot.from} — {slot.to}
                     </div>
                     {slot.divisionTitle && (
                       <div
-                        className="text-[10px] truncate max-w-[100px]"
+                        className="max-w-[100px] truncate text-[10px]"
                         style={{ color: slot.divisionColor }}
                       >
                         {slot.divisionTitle}
@@ -140,23 +142,21 @@ export function ClassicGrid({ weekNumber, year, weekDates }: ClassicGridProps) {
                 </div>
               </td>
 
-              {/* Day cells */}
-              {Array.from({ length: 7 }, (_, dayIdx) => {
-                const day = dayIdx + 1;
-                const cellKey = `${slot.key}:${day}`;
-                const cellShifts = grid[cellKey] ?? [];
-                const today = isToday(weekDates[dayIdx]);
+              {Array.from({ length: 7 }, (_, dayIndex) => {
+                const day = dayIndex + 1;
+                const cellShifts = grid[`${slot.key}:${day}`] ?? [];
+                const today = isToday(weekDates[dayIndex]);
 
                 return (
                   <td
                     key={day}
                     className={cn(
-                      "border-r last:border-r-0 px-2 py-1.5 align-top min-w-[120px]",
+                      "min-w-[120px] border-r px-2 py-1.5 align-top last:border-r-0",
                       today && "bg-primary/[0.03]"
                     )}
                   >
                     {cellShifts.length === 0 ? (
-                      <span className="text-[10px] text-muted-foreground/40">--</span>
+                      <span className="text-[10px] text-muted-foreground/40">—</span>
                     ) : (
                       <div className="space-y-0.5">
                         {cellShifts.flatMap((shift) =>
@@ -164,15 +164,21 @@ export function ClassicGrid({ weekNumber, year, weekDates }: ClassicGridProps) {
                             shift.bookings.map((booking) => (
                               <div
                                 key={booking.id}
-                                className="text-[11px] truncate"
+                                className="truncate text-[11px]"
                               >
                                 {booking.user.firstName} {booking.user.lastName}
                               </div>
                             ))
                           ) : (
-                            <div key={shift.id} className="text-[10px] text-muted-foreground italic">
-                              <Badge variant="secondary" className="text-[9px] px-1 py-0">
-                                {shift.bookings.length}/{shift.maxEmployees}
+                            <div
+                              key={shift.id}
+                              className="text-[10px] italic text-muted-foreground"
+                            >
+                              <Badge
+                                variant="secondary"
+                                className="px-1 py-0 text-[9px]"
+                              >
+                                Свободно мест: {shift.maxEmployees}
                               </Badge>
                             </div>
                           )
@@ -192,18 +198,18 @@ export function ClassicGrid({ weekNumber, year, weekDates }: ClassicGridProps) {
 
 function ClassicGridSkeleton() {
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <div className="bg-muted/30 px-3 py-2 flex gap-4">
+    <div className="overflow-hidden rounded-lg border">
+      <div className="flex gap-4 bg-muted/30 px-3 py-2">
         <Skeleton className="h-4 w-20" />
-        {Array.from({ length: 7 }).map((_, i) => (
-          <Skeleton key={i} className="h-4 w-16" />
+        {Array.from({ length: 7 }).map((_, index) => (
+          <Skeleton key={index} className="h-4 w-16" />
         ))}
       </div>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="border-t px-3 py-2 flex gap-4">
+      {Array.from({ length: 4 }).map((_, rowIndex) => (
+        <div key={rowIndex} className="flex gap-4 border-t px-3 py-2">
           <Skeleton className="h-4 w-20" />
-          {Array.from({ length: 7 }).map((_, j) => (
-            <Skeleton key={j} className="h-8 w-16" />
+          {Array.from({ length: 7 }).map((_, columnIndex) => (
+            <Skeleton key={columnIndex} className="h-8 w-16" />
           ))}
         </div>
       ))}
