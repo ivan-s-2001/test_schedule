@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  Download,
   ArrowUpDown,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,8 +26,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ExportModal } from "./export-modal";
-
-// ---------- Types ----------
 
 type KWHeader = {
   weekNumber: number;
@@ -61,55 +59,35 @@ type ReportingResponse = {
   };
 };
 
-// ---------- Helpers ----------
-
 const MONTH_NAMES = [
-  "JANUAR",
-  "FEBRUAR",
-  "MAERZ",
-  "APRIL",
-  "MAI",
-  "JUNI",
-  "JULI",
-  "AUGUST",
-  "SEPTEMBER",
-  "OKTOBER",
-  "NOVEMBER",
-  "DEZEMBER",
-];
-
-const MONTH_NAMES_DISPLAY = [
-  "Januar",
-  "Februar",
-  "Maerz",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
 ];
 
 function formatMinutes(totalMinutes: number): string {
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  return `${h}H${m > 0 ? ` ${m}M` : ""}`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes > 0 ? `${hours} ч ${minutes} мин` : `${hours} ч`;
 }
 
 function formatMinutesCompact(totalMinutes: number): string {
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  if (m === 0) return `${h}H`;
-  return `${h}H${String(m).padStart(2, "0")}M`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes > 0 ? `${hours}:${String(minutes).padStart(2, "0")}` : `${hours}:00`;
 }
 
 type SortField = "name" | "total";
 type SortDir = "asc" | "desc";
-
-// ---------- Component ----------
 
 interface HoursTableProps {
   month: number;
@@ -118,19 +96,17 @@ interface HoursTableProps {
 
 export function HoursTable({ month, year }: HoursTableProps) {
   const router = useRouter();
-
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [showExport, setShowExport] = useState(false);
 
-  // Fetch reporting data
   const { data, isLoading, error } = useQuery<ReportingResponse>({
     queryKey: ["reporting", month, year],
     queryFn: async () => {
-      const res = await fetch(`/api/reporting?month=${month}&year=${year}`);
-      if (!res.ok) throw new Error("Ошибка загрузки der Auswertung");
-      return res.json();
+      const response = await fetch(`/api/reporting?month=${month}&year=${year}`);
+      if (!response.ok) throw new Error("Ошибка загрузки отчёта");
+      return response.json();
     },
   });
 
@@ -138,304 +114,257 @@ export function HoursTable({ month, year }: HoursTableProps) {
   const kwHeaders = data?.kwHeaders ?? [];
   const totals = data?.totals ?? { totalMinutes: 0, totalShifts: 0 };
 
-  // Filter
   const filteredEmployees = useMemo(() => {
-    let filtered = employees;
+    let result = employees;
+
     if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(
-        (emp) =>
-          emp.firstName.toLowerCase().includes(q) ||
-          emp.lastName.toLowerCase().includes(q)
+      const query = search.toLowerCase();
+      result = result.filter(
+        (employee) =>
+          employee.firstName.toLowerCase().includes(query) ||
+          employee.lastName.toLowerCase().includes(query)
       );
     }
 
-    // Sort
-    filtered = [...filtered].sort((a, b) => {
-      if (sortField === "name") {
-        const cmp = a.lastName.localeCompare(b.lastName);
-        return sortDir === "asc" ? cmp : -cmp;
-      }
-      const cmp = a.totalMinutes - b.totalMinutes;
-      return sortDir === "asc" ? cmp : -cmp;
+    return [...result].sort((left, right) => {
+      const comparison =
+        sortField === "name"
+          ? left.lastName.localeCompare(right.lastName)
+          : left.totalMinutes - right.totalMinutes;
+      return sortDir === "asc" ? comparison : -comparison;
     });
+  }, [employees, search, sortDir, sortField]);
 
-    return filtered;
-  }, [employees, search, sortField, sortDir]);
-
-  // KW totals
   const kwTotals = useMemo(() => {
-    const map = new Map<number, { minutes: number; shifts: number }>();
-    for (const kw of kwHeaders) {
-      map.set(kw.weekNumber, { minutes: 0, shifts: 0 });
+    const result = new Map<number, { minutes: number; shifts: number }>();
+
+    for (const header of kwHeaders) {
+      result.set(header.weekNumber, { minutes: 0, shifts: 0 });
     }
-    for (const emp of employees) {
-      for (const kw of emp.kwBreakdown) {
-        const existing = map.get(kw.weekNumber);
-        if (existing) {
-          existing.minutes += kw.totalMinutes;
-          existing.shifts += kw.shiftCount;
+
+    for (const employee of employees) {
+      for (const week of employee.kwBreakdown) {
+        const total = result.get(week.weekNumber);
+        if (total) {
+          total.minutes += week.totalMinutes;
+          total.shifts += week.shiftCount;
         }
       }
     }
-    return map;
+
+    return result;
   }, [employees, kwHeaders]);
 
-  // Navigation
   const navigatePrev = useCallback(() => {
-    let newMonth = month - 1;
-    let newYear = year;
-    if (newMonth < 1) {
-      newMonth = 12;
-      newYear--;
-    }
-    router.push(`/reporting/${newMonth}-${newYear}`);
-  }, [month, year, router]);
+    const previousMonth = month === 1 ? 12 : month - 1;
+    const previousYear = month === 1 ? year - 1 : year;
+    router.push(`/reporting/${previousMonth}-${previousYear}`);
+  }, [month, router, year]);
 
   const navigateNext = useCallback(() => {
-    let newMonth = month + 1;
-    let newYear = year;
-    if (newMonth > 12) {
-      newMonth = 1;
-      newYear++;
-    }
-    router.push(`/reporting/${newMonth}-${newYear}`);
-  }, [month, year, router]);
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    router.push(`/reporting/${nextMonth}-${nextYear}`);
+  }, [month, router, year]);
 
-  // Sort toggle
   function toggleSort(field: SortField) {
     if (sortField === field) {
-      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDir("asc");
+      setSortDir((previous) => (previous === "asc" ? "desc" : "asc"));
+      return;
     }
+
+    setSortField(field);
+    setSortDir("asc");
   }
 
-  // Get KW value for an employee
-  function getKWMinutes(emp: EmployeeReport, weekNumber: number): number {
-    const kw = emp.kwBreakdown.find((k) => k.weekNumber === weekNumber);
-    return kw?.totalMinutes ?? 0;
+  function getWeekMinutes(employee: EmployeeReport, weekNumber: number) {
+    return (
+      employee.kwBreakdown.find((week) => week.weekNumber === weekNumber)
+        ?.totalMinutes ?? 0
+    );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5">
+      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Отчёты</h1>
-          <p className="text-sm text-muted-foreground">
-            Monatliche Stundenauswertung und Export
+          <h1>Отчёты</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Рабочее время и смены сотрудников по месяцам
           </p>
         </div>
         <Button size="sm" onClick={() => setShowExport(true)}>
           <Download className="size-4" />
-          Export
+          Экспорт
         </Button>
-      </div>
+      </header>
 
-      {/* Month navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon-sm" onClick={navigatePrev}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={navigatePrev}
+            aria-label="Предыдущий месяц"
+          >
             <ChevronLeft className="size-4" />
           </Button>
-          <span className="text-lg font-semibold min-w-[200px] text-center">
-            {MONTH_NAMES_DISPLAY[month - 1]} {year}
-          </span>
-          <Button variant="outline" size="icon-sm" onClick={navigateNext}>
+          <div className="min-w-44 text-center text-sm font-semibold">
+            {MONTH_NAMES[month - 1]} {year}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={navigateNext}
+            aria-label="Следующий месяц"
+          >
             <ChevronRight className="size-4" />
           </Button>
         </div>
+
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Найти сотрудника"
+            className="pl-9"
+          />
+        </div>
       </div>
 
-      {/* Summary header */}
       {!isLoading && !error && (
-        <Card className="p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-base font-bold tracking-wide">
-                {MONTH_NAMES[month - 1]} {year}
-              </span>
-              <span className="text-muted-foreground">|</span>
-              <span className="text-base font-semibold tabular-nums">
-                {formatMinutes(totals.totalMinutes)}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                ({totals.totalShifts} Schichten)
-              </span>
-            </div>
-
-            {/* KW summary badges */}
-            <div className="flex flex-wrap gap-2">
-              {kwHeaders.map((kw) => {
-                const kwData = kwTotals.get(kw.weekNumber);
-                const minutes = kwData?.minutes ?? 0;
-                return (
-                  <Badge
-                    key={kw.weekNumber}
-                    variant="secondary"
-                    className="tabular-nums font-mono text-xs cursor-default"
-                  >
-                    {kw.label} {formatMinutesCompact(minutes)}
-                  </Badge>
-                );
-              })}
-            </div>
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-[var(--outline-input-background)] p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-baseline gap-2">
+            <span className="text-lg font-semibold tabular-nums">
+              {formatMinutes(totals.totalMinutes)}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {totals.totalShifts} смен
+            </span>
           </div>
-        </Card>
+          <div className="flex flex-wrap gap-1.5">
+            {kwHeaders.map((week) => (
+              <Badge
+                key={week.weekNumber}
+                variant="secondary"
+                className="cursor-default font-mono tabular-nums"
+              >
+                {week.label}: {formatMinutesCompact(kwTotals.get(week.weekNumber)?.minutes ?? 0)}
+              </Badge>
+            ))}
+          </div>
+        </div>
       )}
 
-      {/* Search */}
-      <div className="relative w-full sm:max-w-xs">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Найти сотрудника..."
-          className="pl-9"
-        />
-      </div>
-
-      {/* Loading */}
       {isLoading && <ReportingSkeleton />}
 
-      {/* Error */}
       {error && (
         <Card className="p-6 text-center text-destructive">
-          Ошибка загрузки der Auswertung. Повторите попытку.
+          Не удалось загрузить отчёт. Повторите попытку.
         </Card>
       )}
 
-      {/* Empty state */}
       {!isLoading && !error && employees.length === 0 && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
-          <BarChart3 className="size-12 text-muted-foreground/50 mb-3" />
-          <p className="text-lg font-medium">Нет данных</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Fuer diesen Monat sind noch keine Zeiterfassungen vorhanden.
+          <BarChart3 className="mb-3 size-10 text-muted-foreground/45" />
+          <p className="font-medium">Нет данных</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            За выбранный месяц рабочее время ещё не зафиксировано.
           </p>
         </Card>
       )}
 
-      {/* Table */}
       {!isLoading && !error && employees.length > 0 && (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[200px]">
-                    <button
-                      type="button"
-                      onClick={() => toggleSort("name")}
-                      className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors"
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[200px]">
+                <SortButton
+                  active={sortField === "name"}
+                  onClick={() => toggleSort("name")}
+                >
+                  Сотрудник
+                </SortButton>
+              </TableHead>
+              {kwHeaders.map((week) => (
+                <TableHead
+                  key={week.weekNumber}
+                  className="min-w-[80px] text-center"
+                >
+                  {week.label}
+                </TableHead>
+              ))}
+              <TableHead className="min-w-[100px] text-right">
+                <SortButton
+                  active={sortField === "total"}
+                  onClick={() => toggleSort("total")}
+                  className="ml-auto"
+                >
+                  Всего
+                </SortButton>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredEmployees.map((employee) => (
+              <TableRow key={employee.userId}>
+                <TableCell className="font-medium">
+                  {employee.lastName}, {employee.firstName}
+                </TableCell>
+                {kwHeaders.map((week) => {
+                  const minutes = getWeekMinutes(employee, week.weekNumber);
+                  return (
+                    <TableCell
+                      key={week.weekNumber}
+                      className="text-center font-mono text-sm tabular-nums"
                     >
-                      NAME
-                      <ArrowUpDown
-                        className={cn(
-                          "size-3",
-                          sortField === "name"
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        )}
-                      />
-                    </button>
-                  </TableHead>
-                  {kwHeaders.map((kw) => (
-                    <TableHead
-                      key={kw.weekNumber}
-                      className="text-center min-w-[80px] font-semibold"
-                    >
-                      {kw.label}
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-right min-w-[100px]">
-                    <button
-                      type="button"
-                      onClick={() => toggleSort("total")}
-                      className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors ml-auto"
-                    >
-                      GESAMT
-                      <ArrowUpDown
-                        className={cn(
-                          "size-3",
-                          sortField === "total"
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        )}
-                      />
-                    </button>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEmployees.map((emp) => (
-                  <TableRow key={emp.userId}>
-                    <TableCell className="font-medium">
-                      {emp.lastName}, {emp.firstName}
+                      {minutes > 0 ? (
+                        formatMinutesCompact(minutes)
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
                     </TableCell>
-                    {kwHeaders.map((kw) => {
-                      const minutes = getKWMinutes(emp, kw.weekNumber);
-                      return (
-                        <TableCell
-                          key={kw.weekNumber}
-                          className="text-center tabular-nums font-mono text-sm"
-                        >
-                          {minutes > 0 ? (
-                            <span className="text-foreground">
-                              {formatMinutesCompact(minutes)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/40">-</span>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="text-right tabular-nums font-mono text-sm font-semibold">
-                      {emp.totalMinutes > 0
-                        ? formatMinutesCompact(emp.totalMinutes)
-                        : "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                  );
+                })}
+                <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">
+                  {employee.totalMinutes > 0
+                    ? formatMinutesCompact(employee.totalMinutes)
+                    : "—"}
+                </TableCell>
+              </TableRow>
+            ))}
 
-                {/* Totals row */}
-                <TableRow className="bg-muted/50 font-semibold">
-                  <TableCell>Gesamt</TableCell>
-                  {kwHeaders.map((kw) => {
-                    const kwData = kwTotals.get(kw.weekNumber);
-                    const minutes = kwData?.minutes ?? 0;
-                    return (
-                      <TableCell
-                        key={kw.weekNumber}
-                        className="text-center tabular-nums font-mono text-sm"
-                      >
-                        {minutes > 0 ? formatMinutesCompact(minutes) : "-"}
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell className="text-right tabular-nums font-mono text-sm">
-                    {formatMinutesCompact(totals.totalMinutes)}
+            <TableRow className="bg-[var(--accent-subtle)] font-semibold hover:bg-[var(--accent-subtle)]">
+              <TableCell>Всего</TableCell>
+              {kwHeaders.map((week) => {
+                const minutes = kwTotals.get(week.weekNumber)?.minutes ?? 0;
+                return (
+                  <TableCell
+                    key={week.weekNumber}
+                    className="text-center font-mono text-sm tabular-nums"
+                  >
+                    {minutes > 0 ? formatMinutesCompact(minutes) : "—"}
                   </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+                );
+              })}
+              <TableCell className="text-right font-mono text-sm tabular-nums">
+                {formatMinutesCompact(totals.totalMinutes)}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       )}
 
-      {/* No results from search */}
       {!isLoading &&
         !error &&
         employees.length > 0 &&
         filteredEmployees.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground py-8">
-            Сотрудники не найдены fuer &quot;{search}&quot;
-          </p>
+          <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+            По запросу «{search}» сотрудники не найдены.
+          </div>
         )}
 
-      {/* Export modal */}
       <ExportModal
         open={showExport}
         onOpenChange={setShowExport}
@@ -446,24 +375,53 @@ export function HoursTable({ month, year }: HoursTableProps) {
   );
 }
 
+function SortButton({
+  children,
+  active,
+  className,
+  onClick,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  className?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1 font-semibold transition-colors hover:text-foreground",
+        className
+      )}
+    >
+      {children}
+      <ArrowUpDown
+        className={cn(
+          "size-3",
+          active ? "text-[var(--accent-strong)]" : "text-muted-foreground"
+        )}
+      />
+    </button>
+  );
+}
+
 function ReportingSkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-16 w-full rounded-lg" />
-      <Card className="overflow-hidden">
-        <div className="p-4 space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-20 ml-auto" />
-            </div>
-          ))}
+    <div className="overflow-hidden rounded-lg border border-border">
+      <Skeleton className="h-10 w-full rounded-none" />
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-4 border-t border-border p-3"
+        >
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="ml-auto h-4 w-20" />
         </div>
-      </Card>
+      ))}
     </div>
   );
 }
