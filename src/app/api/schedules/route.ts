@@ -13,16 +13,43 @@ type DayNoteRow = {
   updatedAt: Date;
 };
 
+type DayOffRow = {
+  id: string;
+  scheduleId: string;
+  userId: string;
+  dayOfWeek: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type OvertimeRow = {
   bookingId: string;
   overtimeMinutes: number;
 };
 
+function getWeekRange(year: number, weekNumber: number) {
+  const januaryFourth = new Date(Date.UTC(year, 0, 4));
+  const januaryFourthDay = januaryFourth.getUTCDay() || 7;
+  const weekOneMonday = new Date(januaryFourth);
+  weekOneMonday.setUTCDate(
+    januaryFourth.getUTCDate() - januaryFourthDay + 1
+  );
+
+  const start = new Date(weekOneMonday);
+  start.setUTCDate(weekOneMonday.getUTCDate() + (weekNumber - 1) * 7);
+
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+
+  return { start, end };
+}
+
 /**
  * GET /api/schedules?kw=09&year=2026
  *
  * Get or auto-create a schedule for the given calendar week + year.
- * Returns shifts, employee bookings, overtime and structured date-level notes.
+ * Returns shifts, employee bookings, overtime, day-offs, approved absences
+ * and structured date-level notes.
  */
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
@@ -110,7 +137,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const [dayNotes, overtimeRows] = await Promise.all([
+  const { start: weekStart, end: weekEnd } = getWeekRange(year, weekNumber);
+
+  const [dayNotes, dayOffs, absences, overtimeRows] = await Promise.all([
     db.$queryRaw<DayNoteRow[]>`
       SELECT
         "id",
@@ -125,6 +154,44 @@ export async function GET(request: NextRequest) {
       WHERE "scheduleId" = ${schedule.id}
       ORDER BY "dayOfWeek" ASC, "sortOrder" ASC, "createdAt" ASC
     `,
+    db.$queryRaw<DayOffRow[]>`
+      SELECT
+        "id",
+        "scheduleId",
+        "userId",
+        "dayOfWeek",
+        "createdAt",
+        "updatedAt"
+      FROM "schedule_day_offs"
+      WHERE "scheduleId" = ${schedule.id}
+      ORDER BY "dayOfWeek" ASC, "createdAt" ASC
+    `,
+    db.absence.findMany({
+      where: {
+        status: "APPROVED",
+        dateFrom: { lte: weekEnd },
+        dateTo: { gte: weekStart },
+        user: {
+          memberships: {
+            some: {
+              organizationId: orgId,
+              isActive: true,
+            },
+          },
+        },
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            isPaid: true,
+          },
+        },
+      },
+      orderBy: [{ dateFrom: "asc" }, { createdAt: "asc" }],
+    }),
     db.$queryRaw<OvertimeRow[]>`
       SELECT
         b."id" AS "bookingId",
@@ -160,6 +227,8 @@ export async function GET(request: NextRequest) {
       showPauses: schedule.showPauses,
       shifts,
       dayNotes,
+      dayOffs,
+      absences,
     },
   });
 }
