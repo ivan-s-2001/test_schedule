@@ -86,20 +86,34 @@ function getFullName(employee: Employee["user"]): string {
 function getRoleBadge(role: string) {
   switch (role) {
     case "OWNER":
-      return <Badge className="bg-amber-100 text-amber-800">Владелец</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-[color-mix(in_srgb,var(--outline-warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--outline-warning)_10%,transparent)] text-[var(--outline-warning)]"
+        >
+          Владелец
+        </Badge>
+      );
     case "ADMIN":
-      return <Badge className="bg-indigo-100 text-indigo-800">Администратор</Badge>;
+      return <Badge variant="secondary">Администратор</Badge>;
     case "MANAGER":
-      return <Badge className="bg-emerald-100 text-emerald-800">Руководитель</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-[color-mix(in_srgb,var(--outline-success)_40%,transparent)] bg-[color-mix(in_srgb,var(--outline-success)_10%,transparent)] text-[var(--outline-success)]"
+        >
+          Руководитель
+        </Badge>
+      );
     default:
-      return <Badge variant="secondary">Сотрудник</Badge>;
+      return <Badge variant="outline">Сотрудник</Badge>;
   }
 }
 
 function EmployeeName({ employee }: { employee: Employee["user"] }) {
   return (
     <div className="min-w-0">
-      <div className="truncate font-semibold text-slate-900">
+      <div className="truncate text-sm font-medium text-foreground">
         {employee.firstName}
       </div>
       <div className="truncate text-xs text-muted-foreground">
@@ -109,12 +123,38 @@ function EmployeeName({ employee }: { employee: Employee["user"] }) {
   );
 }
 
+function StatusBadge({ employee }: { employee: Employee }) {
+  if (!employee.isActive) {
+    return <Badge variant="destructive">Неактивен</Badge>;
+  }
+
+  if (!employee.isActivated) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-[color-mix(in_srgb,var(--outline-warning)_45%,transparent)] text-[var(--outline-warning)]"
+      >
+        <AlertTriangle className="size-3" />
+        Не активирован
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      variant="outline"
+      className="border-[color-mix(in_srgb,var(--outline-success)_40%,transparent)] text-[var(--outline-success)]"
+    >
+      Активен
+    </Badge>
+  );
+}
+
 export function EmployeeList() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
   const router = useRouter();
   const { data: currentMember } = useCurrentMember();
-
   const isAdmin =
     currentMember?.role === "OWNER" || currentMember?.role === "ADMIN";
 
@@ -136,12 +176,12 @@ export function EmployeeList() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-5">
+      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Сотрудники</h1>
-          <p className="text-sm text-muted-foreground">
-            Управление сотрудниками и ролями QuickTickets
+          <h1>Сотрудники</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Пользователи, роли и доступ к рабочему пространству
           </p>
         </div>
 
@@ -152,24 +192,24 @@ export function EmployeeList() {
             onClick={() => router.push("/employees/absences")}
           >
             <CalendarDays className="size-4" />
-            <span className="hidden sm:inline">Отсутствия</span>
+            Отсутствия
           </Button>
           {isAdmin && <EmployeeForm />}
         </div>
-      </div>
+      </header>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Поиск по ФИО или электронной почте..."
+            placeholder="Поиск по имени или электронной почте"
             className="pl-9"
           />
         </div>
 
-        <div className="flex flex-wrap gap-1">
+        <div className="flex max-w-full gap-0.5 overflow-x-auto rounded-md border border-border bg-[var(--outline-input-background)] p-0.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const count = data?.counts?.[tab.key] ?? 0;
@@ -181,15 +221,15 @@ export function EmployeeList() {
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  "flex h-7 shrink-0 items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors",
                   active
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-background text-[var(--accent-strong)] shadow-[0_0_0_1px_var(--accent-border)]"
+                    : "text-muted-foreground hover:bg-[var(--accent-subtle)] hover:text-foreground"
                 )}
               >
                 <Icon className="size-3.5" />
-                <span className="hidden sm:inline">{tab.label}</span>
-                <span className="text-xs tabular-nums opacity-70">({count})</span>
+                {tab.label}
+                <span className="tabular-nums opacity-65">{count}</span>
               </button>
             );
           })}
@@ -206,8 +246,8 @@ export function EmployeeList() {
 
       {!isLoading && !error && data?.members?.length === 0 && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
-          <Users className="mb-3 size-12 text-muted-foreground/50" />
-          <p className="text-lg font-medium">Сотрудники не найдены</p>
+          <Users className="mb-3 size-10 text-muted-foreground/45" />
+          <p className="font-medium">Сотрудники не найдены</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {search ? "Измените поисковый запрос." : "Добавьте первого сотрудника."}
           </p>
@@ -216,11 +256,11 @@ export function EmployeeList() {
 
       {!isLoading && !error && data?.members && data.members.length > 0 && (
         <>
-          <Card className="hidden overflow-hidden md:block">
+          <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Имя / ФИО</TableHead>
+                  <TableHead>Сотрудник</TableHead>
                   <TableHead>Электронная почта</TableHead>
                   <TableHead>Роль</TableHead>
                   <TableHead>Статус</TableHead>
@@ -239,7 +279,7 @@ export function EmployeeList() {
                           {employee.user.profileImage && (
                             <AvatarImage src={employee.user.profileImage} />
                           )}
-                          <AvatarFallback>
+                          <AvatarFallback className="bg-[var(--accent-soft)] text-[var(--accent-strong)]">
                             {getInitials(
                               employee.user.firstName,
                               employee.user.lastName
@@ -254,52 +294,38 @@ export function EmployeeList() {
                     </TableCell>
                     <TableCell>{getRoleBadge(employee.role)}</TableCell>
                     <TableCell>
-                      {!employee.isActive ? (
-                        <Badge variant="destructive">Неактивен</Badge>
-                      ) : !employee.isActivated ? (
-                        <Badge variant="outline" className="border-amber-500 text-amber-600">
-                          <AlertTriangle className="size-3" />
-                          Не активирован
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-emerald-500 text-emerald-600">
-                          Активен
-                        </Badge>
-                      )}
+                      <StatusBadge employee={employee} />
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </Card>
+          </div>
 
           <div className="space-y-2 md:hidden">
             {data.members.map((employee) => (
-              <Card
+              <button
                 key={employee.id}
-                className="cursor-pointer p-4 transition-colors hover:bg-muted/50"
+                type="button"
+                className="flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-[var(--accent-subtle)]"
                 onClick={() => router.push(`/employees/${employee.id}`)}
               >
-                <div className="flex items-center gap-3">
-                  <Avatar size="default">
-                    {employee.user.profileImage && (
-                      <AvatarImage src={employee.user.profileImage} />
-                    )}
-                    <AvatarFallback>
-                      {getInitials(employee.user.firstName, employee.user.lastName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <EmployeeName employee={employee.user} />
-                    <div className="mt-1 flex items-center gap-2">
-                      {getRoleBadge(employee.role)}
-                      <span className="truncate text-xs text-muted-foreground">
-                        {employee.user.email}
-                      </span>
-                    </div>
+                <Avatar size="default">
+                  {employee.user.profileImage && (
+                    <AvatarImage src={employee.user.profileImage} />
+                  )}
+                  <AvatarFallback className="bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+                    {getInitials(employee.user.firstName, employee.user.lastName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <EmployeeName employee={employee.user} />
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {getRoleBadge(employee.role)}
+                    <StatusBadge employee={employee} />
                   </div>
                 </div>
-              </Card>
+              </button>
             ))}
           </div>
         </>
@@ -310,19 +336,20 @@ export function EmployeeList() {
 
 function EmployeeListSkeleton() {
   return (
-    <Card className="overflow-hidden">
-      <div className="space-y-4 p-4">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <div key={index} className="flex items-center gap-3">
-            <Skeleton className="size-8 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-3 w-56" />
-            </div>
-            <Skeleton className="h-5 w-20 rounded-full" />
+    <div className="overflow-hidden rounded-lg border border-border">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-3 border-b border-border p-3 last:border-b-0"
+        >
+          <Skeleton className="size-8 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-56" />
           </div>
-        ))}
-      </div>
-    </Card>
+          <Skeleton className="h-5 w-20 rounded-md" />
+        </div>
+      ))}
+    </div>
   );
 }
