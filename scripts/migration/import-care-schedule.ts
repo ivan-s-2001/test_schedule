@@ -3,6 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import { db } from "../../src/lib/db";
+import {
+  DEFAULT_SHIFT_POOL,
+  type ShiftTemplate,
+} from "../../src/lib/schedule/shift-pool";
+import { resolveOvertimeAgainstPool } from "../../src/lib/schedule/overtime";
 
 type EmployeeSource = {
   fullName: string;
@@ -35,6 +40,13 @@ type MigrationSource = {
   assignments: AssignmentSource[];
 };
 
+type ResolvedAssignment = AssignmentSource & {
+  template: ShiftTemplate;
+  overtimeBeforeMinutes: number;
+  overtimeAfterMinutes: number;
+  overtimeMinutes: number;
+};
+
 const IMPORT_MARKER = "[CARE_SCHEDULE_2026_01_07]";
 const DIVISION_TITLE = "Служба заботы";
 const DEFAULT_PASSWORD = "password123";
@@ -65,6 +77,17 @@ function isoWeek(value: string): { year: number; weekNumber: number; dayOfWeek: 
   return { year, weekNumber, dayOfWeek };
 }
 
+function patronymicFromFullName(employee: EmployeeSource): string | null {
+  const parts = employee.fullName.trim().split(/\s+/u);
+  if (parts.length < 3) return null;
+
+  const firstNameIndex = parts.findIndex(
+    (part) => part.toLocaleLowerCase("ru-RU") === employee.firstName.toLocaleLowerCase("ru-RU")
+  );
+  if (firstNameIndex < 0 || firstNameIndex >= parts.length - 1) return null;
+  return parts.slice(firstNameIndex + 1).join(" ") || null;
+}
+
 function validateSource(): void {
   const emails = new Set<string>();
   const names = new Set<string>();
@@ -87,9 +110,21 @@ function validateSource(): void {
     if (!/^\d{2}:\d{2}$/.test(assignment.start) || !/^\d{2}:\d{2}$/.test(assignment.end)) {
       fail(`Некорректное время: ${assignment.start}-${assignment.end}`);
     }
-    if (assignment.start >= assignment.end) {
-      fail(`Начало смены не раньше окончания: ${assignment.date}, ${email}, ${assignment.start}-${assignment.end}`);
+
+    try {
+      resolveOvertimeAgainstPool(
+        assignment.start,
+        assignment.end,
+        DEFAULT_SHIFT_POOL
+      );
+    } catch (error) {
+      fail(
+        `${assignment.date}, ${email}, ${assignment.start}–${assignment.displayEnd}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
+
     const date = parseDate(assignment.date);
     if (date < parseDate(source.metadata.periodFrom) || date > parseDate(source.metadata.periodTo)) {
       fail(`Смена вне периода импорта: ${assignment.date}`);
@@ -102,11 +137,19 @@ function validateSource(): void {
 
 function printPreview(): void {
   const scheduled = new Set(source.assignments.map((item) => item.employeeEmail)).size;
-  const groups = new Set(
-    source.assignments.map(
-      (item) => `${item.date}|${item.start}|${item.end}|${item.overtime ? "P" : "N"}`
+  const resolved = source.assignments.map((assignment) =>
+    resolveOvertimeAgainstPool(
+      assignment.start,
+      assignment.end,
+      DEFAULT_SHIFT_POOL
     )
-  ).size;
+  );
+  const overtimeAssignments = resolved.filter((item) => item.totalMinutes > 0);
+  const beforeCount = overtimeAssignments.filter((item) => item.beforeMinutes > 0).length;
+  const afterCount = overtimeAssignments.filter((item) => item.afterMinutes > 0).length;
+  const bothCount = overtimeAssignments.filter(
+    (item) => item.beforeMinutes > 0 && item.afterMinutes > 0
+  ).length;
 
   console.log("");
   console.log("Служба заботы: предварительная проверка");
@@ -114,19 +157,21 @@ function printPreview(): void {
   console.log(`Сотрудников: ${source.employees.length}`);
   console.log(`Сотрудников со сменами: ${scheduled}`);
   console.log(`Назначений сотрудник/день: ${source.assignments.length}`);
-  console.log(`Групп смен по датам и времени: ${groups}`);
-  console.log("Отпуска, сессии, аттестация и заметки ФН на этом этапе не импортируются.");
+  console.log(`Переработок определено автоматически: ${overtimeAssignments.length}`);
+  console.log(`С переработкой до смены: ${beforeCount}`);
+  console.log(`С переработкой после смены: ${afterCount}`);
+  console.log(`С переработкой с обеих сторон: ${bothCount}`);
 }
 
 async function findActor() {
-  const demo = await db.organizationMember.findFirst({
+  const admin = await db.organizationMember.findFirst({
     where: {
       isActive: true,
-      user: { email: "admin@demo.de" },
+      user: { email: "admin@qksr.ru" },
     },
     include: { user: true, organization: true },
   });
-  if (demo) return demo;
+  if (admin) return admin;
 
   const owner = await db.organizationMember.findFirst({
     where: { isActive: true, role: "OWNER" },
@@ -142,15 +187,73 @@ async function findActor() {
   });
 }
 
+async function ensurePool(organizationId: string): Promise<ShiftTemplate[]> {
+  for (const template of DEFAULT_SHIFT_POOL) {
+    await db.$executeRaw`
+      INSERT INTO "shift_pool_templates"
+        (
+          "id", "organizationId", "code", "name", "shiftFrom", "shiftTo",
+          "color", "textColor", "description", "sortOrder", "isActive",
+          "createdAt", "updatedAt"
+        )
+      VALUES
+        (
+          ${`${organizationId}:${template.id}`}, ${organizationId}, ${template.id},
+          ${template.name}, ${template.shiftFrom}, ${template.shiftTo},
+          ${template.color}, ${template.textColor}, ${template.description},
+          ${template.sortOrder}, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+      ON CONFLICT ("organizationId", "code") DO NOTHING
+    `;
+  }
+
+  const rows = await db.$queryRaw<
+    Array<{
+      code: string;
+      name: string;
+      shiftFrom: string;
+      shiftTo: string;
+      color: string;
+      textColor: string;
+      description: string | null;
+      sortOrder: number;
+      isActive: boolean;
+    }>
+  >`
+    SELECT
+      "code", "name", "shiftFrom", "shiftTo", "color", "textColor",
+      "description", "sortOrder", "isActive"
+    FROM "shift_pool_templates"
+    WHERE "organizationId" = ${organizationId}
+      AND "isActive" = true
+    ORDER BY "sortOrder" ASC, "createdAt" ASC
+  `;
+
+  return rows.map((row) => ({
+    id: row.code,
+    name: row.name,
+    label: `${row.shiftFrom}–${row.shiftTo}`,
+    shiftFrom: row.shiftFrom,
+    shiftTo: row.shiftTo,
+    color: row.color,
+    textColor: row.textColor,
+    description: row.description,
+    sortOrder: row.sortOrder,
+    isActive: row.isActive,
+  }));
+}
+
 async function applyMigration(): Promise<void> {
   const actor = await findActor();
   if (!actor) {
-    fail("Не найдена организация. Сначала войдите в приложение или выполните первоначальное заполнение базы.");
+    fail("Не найдена организация. Сначала выполните первоначальное заполнение базы.");
   }
 
   const organizationId = actor.organizationId;
   const actorUserId = actor.userId;
   console.log(`Организация: ${actor.organization.name}`);
+
+  const pool = await ensurePool(organizationId);
 
   let division = await db.division.findFirst({
     where: { organizationId, title: DIVISION_TITLE },
@@ -207,6 +310,12 @@ async function applyMigration(): Promise<void> {
       });
     }
 
+    await db.$executeRaw`
+      UPDATE "users"
+      SET "patronymic" = ${patronymicFromFullName(employee)}
+      WHERE "id" = ${user.id}
+    `;
+
     userIds.set(email, user.id);
 
     const membership = await db.organizationMember.findFirst({
@@ -249,8 +358,26 @@ async function applyMigration(): Promise<void> {
     });
   }
 
+  const resolvedAssignments: ResolvedAssignment[] = source.assignments.map(
+    (assignment) => {
+      const resolved = resolveOvertimeAgainstPool(
+        assignment.start,
+        assignment.end,
+        pool
+      );
+
+      return {
+        ...assignment,
+        template: resolved.template,
+        overtimeBeforeMinutes: resolved.beforeMinutes,
+        overtimeAfterMinutes: resolved.afterMinutes,
+        overtimeMinutes: resolved.totalMinutes,
+      };
+    }
+  );
+
   const weeks = new Map<string, { year: number; weekNumber: number }>();
-  for (const assignment of source.assignments) {
+  for (const assignment of resolvedAssignments) {
     const week = isoWeek(assignment.date);
     weeks.set(`${week.year}-${week.weekNumber}`, {
       year: week.year,
@@ -281,15 +408,9 @@ async function applyMigration(): Promise<void> {
     });
   }
 
-  const grouped = new Map<string, AssignmentSource[]>();
-  for (const assignment of source.assignments) {
-    const key = [
-      assignment.date,
-      assignment.start,
-      assignment.end,
-      assignment.displayEnd,
-      assignment.overtime ? "P" : "N",
-    ].join("|");
+  const grouped = new Map<string, ResolvedAssignment[]>();
+  for (const assignment of resolvedAssignments) {
+    const key = `${assignment.date}|${assignment.template.id}`;
     const list = grouped.get(key) ?? [];
     list.push(assignment);
     grouped.set(key, list);
@@ -298,6 +419,7 @@ async function applyMigration(): Promise<void> {
   const scheduleCache = new Map<string, string>();
   let createdShifts = 0;
   let createdBookings = 0;
+  let overtimeBookings = 0;
 
   console.log("Импорт графика...");
   for (const [groupKey, group] of [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b))) {
@@ -344,40 +466,60 @@ async function applyMigration(): Promise<void> {
       scheduleCache.set(scheduleKey, scheduleId);
     }
 
-    const employeeIds = group.map((assignment) => {
-      const id = userIds.get(assignment.employeeEmail.toLowerCase());
-      if (!id) fail(`Не найден созданный пользователь: ${assignment.employeeEmail}`);
-      return id;
-    });
-
     const sourceSheets = [...new Set(group.map((assignment) => assignment.sourceSheet))].join(",");
-    const title = first.overtime
-      ? `${first.start}–${first.displayEnd} · переработка`
-      : `${first.start}–${first.displayEnd}`;
-
-    await db.shift.create({
+    const template = first.template;
+    const shift = await db.shift.create({
       data: {
         scheduleId,
-        divisionId: division.id,
+        divisionId: null,
         dayOfWeek: week.dayOfWeek,
-        shiftFrom: first.start,
-        shiftTo: first.end,
-        maxEmployees: employeeIds.length,
+        shiftFrom: template.shiftFrom,
+        shiftTo: template.shiftTo,
+        maxEmployees: group.length,
         pauseOption: "PER_SHIFT",
         pauseValue: 0,
-        title,
+        title: `pool:${template.id}`,
         description: `${IMPORT_MARKER}; ${first.date}; ${sourceSheets}; ${groupKey}`,
-        bookings: {
-          create: employeeIds.map((userId) => ({
-            userId,
-            bookedBy: actorUserId,
-          })),
-        },
       },
     });
 
+    await db.$executeRaw`
+      UPDATE "shifts"
+      SET
+        "poolTemplateCode" = ${template.id},
+        "poolLabel" = ${template.name},
+        "poolColor" = ${template.color},
+        "poolTextColor" = ${template.textColor},
+        "poolDescription" = ${template.description}
+      WHERE "id" = ${shift.id}
+    `;
+
+    for (const assignment of group) {
+      const userId = userIds.get(assignment.employeeEmail.toLowerCase());
+      if (!userId) fail(`Не найден созданный пользователь: ${assignment.employeeEmail}`);
+
+      const booking = await db.booking.create({
+        data: {
+          shiftId: shift.id,
+          userId,
+          bookedBy: actorUserId,
+        },
+      });
+
+      await db.$executeRaw`
+        UPDATE "bookings"
+        SET
+          "overtimeMinutes" = ${assignment.overtimeMinutes},
+          "overtimeBeforeMinutes" = ${assignment.overtimeBeforeMinutes},
+          "overtimeAfterMinutes" = ${assignment.overtimeAfterMinutes}
+        WHERE "id" = ${booking.id}
+      `;
+
+      if (assignment.overtimeMinutes > 0) overtimeBookings += 1;
+      createdBookings += 1;
+    }
+
     createdShifts += 1;
-    createdBookings += employeeIds.length;
   }
 
   console.log("");
@@ -387,6 +529,7 @@ async function applyMigration(): Promise<void> {
   console.log(`Недель графика: ${scheduleCache.size}`);
   console.log(`Смен создано: ${createdShifts}`);
   console.log(`Назначений создано: ${createdBookings}`);
+  console.log(`Переработок определено и записано: ${overtimeBookings}`);
   console.log(`Пароль новых локальных пользователей: ${DEFAULT_PASSWORD}`);
   console.log("Повторный запуск безопасен: заменяются только смены с маркером этого импорта.");
 }
