@@ -27,7 +27,12 @@ import {
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import { findShiftTemplate } from "@/lib/schedule/shift-pool";
 import { cn } from "@/lib/utils";
-import type { BookingUser, ScheduleData } from "@/types/schedule";
+import type {
+  BookingUser,
+  ScheduleAbsence,
+  ScheduleData,
+  ScheduleDayOff,
+} from "@/types/schedule";
 
 interface MonthGridProps {
   month: number;
@@ -58,10 +63,25 @@ type MonthAssignment = ShiftAssignment & {
   dayOfWeek: number;
 };
 
+type MonthDayOff = ScheduleDayOff & {
+  dateKey: string;
+};
+
 const CARE_EMAIL_SUFFIX = "@care.qt.local";
 
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+}
+
+function isDateInsideAbsence(date: Date, absence: ScheduleAbsence): boolean {
+  const key = format(date, "yyyy-MM-dd");
+  return key >= absence.dateFrom.slice(0, 10) && key <= absence.dateTo.slice(0, 10);
+}
+
+function absenceKind(absence: ScheduleAbsence): "VACATION" | "SICK" {
+  return absence.category.name.toLowerCase().includes("больнич")
+    ? "SICK"
+    : "VACATION";
 }
 
 export function MonthGrid({ month, year }: MonthGridProps) {
@@ -205,6 +225,44 @@ export function MonthGrid({ month, year }: MonthGridProps) {
     return result;
   }, [monthDates, schedules]);
 
+  const dayOffs = useMemo(() => {
+    const result = new Map<string, MonthDayOff>();
+
+    for (const schedule of schedules) {
+      for (const dayOff of schedule.dayOffs ?? []) {
+        const date = monthDates.find(
+          (item) =>
+            getISOWeek(item) === schedule.weekNumber &&
+            getISOWeekYear(item) === schedule.year &&
+            getISODay(item) === dayOff.dayOfWeek
+        );
+        if (!date) continue;
+
+        const dateKey = format(date, "yyyy-MM-dd");
+        result.set(`${dayOff.userId}:${dateKey}`, { ...dayOff, dateKey });
+      }
+    }
+
+    return result;
+  }, [monthDates, schedules]);
+
+  const absencesByUser = useMemo(() => {
+    const unique = new Map<string, ScheduleAbsence>();
+    for (const schedule of schedules) {
+      for (const absence of schedule.absences ?? []) {
+        unique.set(absence.id, absence);
+      }
+    }
+
+    const result = new Map<string, ScheduleAbsence[]>();
+    for (const absence of unique.values()) {
+      const list = result.get(absence.userId) ?? [];
+      list.push(absence);
+      result.set(absence.userId, list);
+    }
+    return result;
+  }, [schedules]);
+
   const navigateMonth = useCallback(
     (offset: number) => {
       const target = addMonths(monthStart, offset);
@@ -222,26 +280,30 @@ export function MonthGrid({ month, year }: MonthGridProps) {
     ]);
   }
 
-  function openCell(user: EmployeeMember["user"], date: Date) {
+  function openCell(
+    user: EmployeeMember["user"],
+    date: Date,
+    assignment: MonthAssignment | null,
+    dayOff: MonthDayOff | null,
+    absence: ScheduleAbsence | null
+  ) {
     const weekNumber = getISOWeek(date);
     const weekYear = getISOWeekYear(date);
     const schedule = scheduleByWeek.get(`${weekYear}-${weekNumber}`);
     if (!schedule) return;
 
-    const dayOfWeek = getISODay(date);
-    const assignment =
-      assignments.get(`${user.id}:${format(date, "yyyy-MM-dd")}`) ?? null;
-
-    if (!assignment && !canEdit) return;
+    if (!assignment && !dayOff && !absence && !canEdit) return;
 
     setEditorTarget({
       scheduleId: schedule.id,
       user,
       date,
-      dayOfWeek,
+      dayOfWeek: getISODay(date),
       assignment: assignment
         ? { shift: assignment.shift, booking: assignment.booking }
         : null,
+      dayOff,
+      absence,
     });
   }
 
@@ -306,91 +368,157 @@ export function MonthGrid({ month, year }: MonthGridProps) {
           </thead>
 
           <tbody>
-            {visibleMembers.map((member) => (
-              <tr key={member.user.id} className="group">
-                <td className="sticky left-0 z-10 border-b border-r border-slate-300 bg-white px-3 py-1.5">
-                  <div className="flex items-center gap-2">
-                    <Avatar size="sm">
-                      <AvatarFallback className="text-[9px]">
-                        {getInitials(
-                          member.user.firstName,
-                          member.user.lastName
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="truncate font-semibold text-slate-900">
-                        {member.user.nickname || member.user.firstName}
-                      </div>
-                      {member.user.nickname && (
-                        <div className="truncate text-[9px] text-slate-500">
-                          {member.user.firstName} {member.user.lastName}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </td>
+            {visibleMembers.map((member) => {
+              const cells = [];
+              const userAbsences = absencesByUser.get(member.user.id) ?? [];
+              let index = 0;
 
-                {monthDates.map((date) => {
-                  const dateKey = format(date, "yyyy-MM-dd");
-                  const nonWorking = nonWorkingDates.has(dateKey);
-                  const assignment = assignments.get(
-                    `${member.user.id}:${dateKey}`
-                  );
-                  const template = assignment
-                    ? findShiftTemplate(
-                        assignment.shift.shiftFrom,
-                        assignment.shift.shiftTo,
-                        assignment.shift.title
-                      )
-                    : undefined;
-                  const clickable = Boolean(assignment) || canEdit;
-                  const title = assignment
-                    ? `${format(date, "d MMMM", { locale: ru })}: ${
-                        template?.label ??
-                        `${assignment.shift.shiftFrom}–${assignment.shift.shiftTo}`
-                      }`
-                    : `${format(date, "d MMMM", { locale: ru })}: смена не назначена`;
+              while (index < monthDates.length) {
+                const date = monthDates[index];
+                const absence =
+                  userAbsences.find((item) => isDateInsideAbsence(date, item)) ??
+                  null;
 
-                  return (
+                if (absence) {
+                  let span = 1;
+                  while (
+                    index + span < monthDates.length &&
+                    isDateInsideAbsence(monthDates[index + span], absence)
+                  ) {
+                    span += 1;
+                  }
+
+                  const kind = absenceKind(absence);
+                  const label = kind === "VACATION" ? "Отпуск" : "Больничный";
+                  const period = `${format(new Date(absence.dateFrom), "d MMMM", {
+                    locale: ru,
+                  })} — ${format(new Date(absence.dateTo), "d MMMM yyyy", {
+                    locale: ru,
+                  })}`;
+
+                  cells.push(
                     <td
-                      key={dateKey}
-                      className={cn(
-                        "h-8 min-w-9 border-b border-r border-slate-300 p-0.5",
-                        nonWorking && "bg-emerald-50",
-                        isToday(date) && "ring-1 ring-inset ring-yellow-300"
-                      )}
+                      key={`absence-${absence.id}-${index}`}
+                      colSpan={span}
+                      className="h-8 border-b border-r border-slate-300 p-0.5"
                     >
                       <button
                         type="button"
-                        title={title}
-                        disabled={!clickable}
-                        onClick={() => openCell(member.user, date)}
-                        className={cn(
-                          "h-7 w-full rounded-sm border transition",
-                          assignment
-                            ? "shadow-sm"
-                            : "border-transparent bg-transparent",
-                          clickable && "hover:ring-2 hover:ring-indigo-400"
-                        )}
-                        style={
-                          assignment
-                            ? {
-                                backgroundColor: template?.color ?? "#E5E7EB",
-                                borderColor:
-                                  template?.color === "#FFFFFF"
-                                    ? "#94A3B8"
-                                    : template?.color ?? "#CBD5E1",
-                              }
-                            : undefined
+                        title={`${label}: ${period}`}
+                        onClick={() =>
+                          openCell(member.user, date, null, null, absence)
                         }
-                        aria-label={title}
-                      />
+                        className={cn(
+                          "h-7 w-full rounded-sm border px-1 text-center text-[10px] font-bold transition hover:ring-2 hover:ring-indigo-400",
+                          kind === "VACATION"
+                            ? "border-slate-400 bg-white text-slate-900"
+                            : "border-red-300 bg-red-50 text-red-900"
+                        )}
+                      >
+                        {label}
+                      </button>
                     </td>
                   );
-                })}
-              </tr>
-            ))}
+                  index += span;
+                  continue;
+                }
+
+                const dateKey = format(date, "yyyy-MM-dd");
+                const nonWorking = nonWorkingDates.has(dateKey);
+                const assignment =
+                  assignments.get(`${member.user.id}:${dateKey}`) ?? null;
+                const dayOff =
+                  dayOffs.get(`${member.user.id}:${dateKey}`) ?? null;
+                const template = assignment
+                  ? findShiftTemplate(
+                      assignment.shift.shiftFrom,
+                      assignment.shift.shiftTo,
+                      assignment.shift.title
+                    )
+                  : undefined;
+                const clickable = Boolean(assignment || dayOff) || canEdit;
+                const title = assignment
+                  ? `${format(date, "d MMMM", { locale: ru })}: ${
+                      template?.label ??
+                      `${assignment.shift.shiftFrom}–${assignment.shift.shiftTo}`
+                    }`
+                  : dayOff
+                    ? `${format(date, "d MMMM", { locale: ru })}: выходной`
+                    : `${format(date, "d MMMM", { locale: ru })}: не заполнено`;
+
+                cells.push(
+                  <td
+                    key={dateKey}
+                    className={cn(
+                      "h-8 min-w-9 border-b border-r border-slate-300 p-0.5",
+                      nonWorking && "bg-emerald-50",
+                      isToday(date) && "ring-1 ring-inset ring-yellow-300"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      title={title}
+                      disabled={!clickable}
+                      onClick={() =>
+                        openCell(member.user, date, assignment, dayOff, null)
+                      }
+                      className={cn(
+                        "flex h-7 w-full items-center justify-center rounded-sm border text-xs font-bold transition",
+                        assignment
+                          ? "shadow-sm"
+                          : dayOff
+                            ? "border-slate-300 bg-white text-slate-700"
+                            : "border-transparent bg-transparent",
+                        clickable && "hover:ring-2 hover:ring-indigo-400"
+                      )}
+                      style={
+                        assignment
+                          ? {
+                              backgroundColor: template?.color ?? "#E5E7EB",
+                              borderColor:
+                                template?.color === "#FFFFFF"
+                                  ? "#94A3B8"
+                                  : template?.color ?? "#CBD5E1",
+                            }
+                          : undefined
+                      }
+                      aria-label={title}
+                    >
+                      {dayOff ? "−" : null}
+                    </button>
+                  </td>
+                );
+                index += 1;
+              }
+
+              return (
+                <tr key={member.user.id} className="group">
+                  <td className="sticky left-0 z-10 border-b border-r border-slate-300 bg-white px-3 py-1.5">
+                    <div className="flex items-center gap-2">
+                      <Avatar size="sm">
+                        <AvatarFallback className="text-[9px]">
+                          {getInitials(
+                            member.user.firstName,
+                            member.user.lastName
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-slate-900">
+                          {member.user.nickname || member.user.firstName}
+                        </div>
+                        {member.user.nickname && (
+                          <div className="truncate text-[9px] text-slate-500">
+                            {member.user.firstName} {member.user.lastName}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  {cells}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
