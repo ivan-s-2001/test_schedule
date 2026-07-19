@@ -17,7 +17,8 @@ import { useCurrentMember } from "@/lib/hooks/use-current-member";
 
 export function UserMenu() {
   const { data: member } = useCurrentMember();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   const firstName = member?.user.firstName ?? "";
   const lastName = member?.user.lastName ?? "";
@@ -35,7 +36,7 @@ export function UserMenu() {
                 alt={fullName}
               />
             )}
-            <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+            <AvatarFallback className="bg-secondary text-secondary-foreground">
               {initials || "?"}
             </AvatarFallback>
           </Avatar>
@@ -54,7 +55,7 @@ export function UserMenu() {
               </p>
             )}
             {member?.user.email && (
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="truncate text-xs text-muted-foreground">
                 {member.user.email}
               </p>
             )}
@@ -62,14 +63,14 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          onClick={() => setTheme(isDark ? "light" : "dark")}
         >
-          {theme === "dark" ? (
+          {isDark ? (
             <Sun className="mr-2 size-4" />
           ) : (
             <Moon className="mr-2 size-4" />
           )}
-          {theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+          {isDark ? "Светлая тема" : "Тёмная тема"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
