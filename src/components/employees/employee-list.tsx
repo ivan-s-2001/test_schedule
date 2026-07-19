@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -61,17 +62,13 @@ type EmployeeResponse = {
 
 type FilterTab = "all" | "admin" | "manager" | "not_activated" | "inactive";
 
-const tabs: {
-  key: FilterTab;
-  label: string;
-  icon: React.ElementType;
-}[] = [
-  { key: "all", label: "Все", icon: Users },
-  { key: "admin", label: "Администраторы", icon: ShieldCheck },
-  { key: "manager", label: "Руководители", icon: UserCog },
-  { key: "not_activated", label: "Не активированы", icon: AlertTriangle },
-  { key: "inactive", label: "Неактивные", icon: UserX },
-];
+const tabIcons: Record<FilterTab, React.ElementType> = {
+  all: Users,
+  admin: ShieldCheck,
+  manager: UserCog,
+  not_activated: AlertTriangle,
+  inactive: UserX,
+};
 
 function getInitials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -81,19 +78,6 @@ function getFullName(employee: Employee["user"]): string {
   return [employee.lastName, employee.firstName, employee.patronymic]
     .filter(Boolean)
     .join(" ");
-}
-
-function getRoleBadge(role: string) {
-  switch (role) {
-    case "OWNER":
-      return <Badge className="bg-amber-100 text-amber-800">Владелец</Badge>;
-    case "ADMIN":
-      return <Badge className="bg-indigo-100 text-indigo-800">Администратор</Badge>;
-    case "MANAGER":
-      return <Badge className="bg-emerald-100 text-emerald-800">Руководитель</Badge>;
-    default:
-      return <Badge variant="secondary">Сотрудник</Badge>;
-  }
 }
 
 function EmployeeName({ employee }: { employee: Employee["user"] }) {
@@ -110,6 +94,10 @@ function EmployeeName({ employee }: { employee: Employee["user"] }) {
 }
 
 export function EmployeeList() {
+  const t = useTranslations("employees");
+  const tCommon = useTranslations("common");
+  const tAbsences = useTranslations("absences");
+  const tErrors = useTranslations("errors");
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
   const router = useRouter();
@@ -130,19 +118,49 @@ export function EmployeeList() {
     queryKey: ["employees", activeTab, search],
     queryFn: async () => {
       const response = await fetch(`/api/employees?${queryParams.toString()}`);
-      if (!response.ok) throw new Error("Ошибка загрузки сотрудников");
+      if (!response.ok) throw new Error(tErrors("loadEmployees"));
       return response.json();
     },
   });
+
+  function roleLabel(role: string): string {
+    if (role === "OWNER") return t("owner");
+    if (role === "ADMIN") return t("admin");
+    if (role === "MANAGER") return t("manager");
+    return t("employee");
+  }
+
+  function roleBadge(role: string) {
+    const classes =
+      role === "OWNER"
+        ? "bg-amber-100 text-amber-800"
+        : role === "ADMIN"
+          ? "bg-indigo-100 text-indigo-800"
+          : role === "MANAGER"
+            ? "bg-emerald-100 text-emerald-800"
+            : undefined;
+
+    return (
+      <Badge variant={classes ? undefined : "secondary"} className={classes}>
+        {roleLabel(role)}
+      </Badge>
+    );
+  }
+
+  function tabLabel(tab: FilterTab): string {
+    if (tab === "all") return tCommon("all");
+    if (tab === "admin") return t("admin");
+    if (tab === "manager") return t("manager");
+    if (tab === "not_activated") return t("notActivated");
+    return tCommon("inactive");
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Сотрудники</h1>
-          <p className="text-sm text-muted-foreground">
-            Управление сотрудниками и ролями QuickTickets
-          </p>
+          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -152,7 +170,7 @@ export function EmployeeList() {
             onClick={() => router.push("/employees/absences")}
           >
             <CalendarDays className="size-4" />
-            <span className="hidden sm:inline">Отсутствия</span>
+            <span className="hidden sm:inline">{tAbsences("title")}</span>
           </Button>
           {isAdmin && <EmployeeForm />}
         </div>
@@ -164,31 +182,31 @@ export function EmployeeList() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Поиск по ФИО или электронной почте..."
+            placeholder={t("search")}
             className="pl-9"
           />
         </div>
 
         <div className="flex flex-wrap gap-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const count = data?.counts?.[tab.key] ?? 0;
-            const active = activeTab === tab.key;
+          {(Object.keys(tabIcons) as FilterTab[]).map((tab) => {
+            const Icon = tabIcons[tab];
+            const count = data?.counts?.[tab] ?? 0;
+            const active = activeTab === tab;
 
             return (
               <button
-                key={tab.key}
+                key={tab}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => setActiveTab(tab)}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   active
-                    ? "bg-indigo-50 text-indigo-700"
+                    ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <Icon className="size-3.5" />
-                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="hidden sm:inline">{tabLabel(tab)}</span>
                 <span className="text-xs tabular-nums opacity-70">({count})</span>
               </button>
             );
@@ -198,7 +216,7 @@ export function EmployeeList() {
 
       {error && (
         <Card className="p-6 text-center text-destructive">
-          Не удалось загрузить сотрудников.
+          {tErrors("loadEmployees")}
         </Card>
       )}
 
@@ -207,10 +225,7 @@ export function EmployeeList() {
       {!isLoading && !error && data?.members?.length === 0 && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <Users className="mb-3 size-12 text-muted-foreground/50" />
-          <p className="text-lg font-medium">Сотрудники не найдены</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {search ? "Измените поисковый запрос." : "Добавьте первого сотрудника."}
-          </p>
+          <p className="text-lg font-medium">{t("noEmployees")}</p>
         </Card>
       )}
 
@@ -220,10 +235,10 @@ export function EmployeeList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Имя / ФИО</TableHead>
-                  <TableHead>Электронная почта</TableHead>
-                  <TableHead>Роль</TableHead>
-                  <TableHead>Статус</TableHead>
+                  <TableHead>{t("fullName")}</TableHead>
+                  <TableHead>{t("email")}</TableHead>
+                  <TableHead>{t("role")}</TableHead>
+                  <TableHead>{tCommon("status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -252,18 +267,24 @@ export function EmployeeList() {
                     <TableCell className="text-muted-foreground">
                       {employee.user.email}
                     </TableCell>
-                    <TableCell>{getRoleBadge(employee.role)}</TableCell>
+                    <TableCell>{roleBadge(employee.role)}</TableCell>
                     <TableCell>
                       {!employee.isActive ? (
-                        <Badge variant="destructive">Неактивен</Badge>
+                        <Badge variant="destructive">{tCommon("inactive")}</Badge>
                       ) : !employee.isActivated ? (
-                        <Badge variant="outline" className="border-amber-500 text-amber-600">
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500 text-amber-600"
+                        >
                           <AlertTriangle className="size-3" />
-                          Не активирован
+                          {t("notActivated")}
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="border-emerald-500 text-emerald-600">
-                          Активен
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-500 text-emerald-600"
+                        >
+                          {tCommon("active")}
                         </Badge>
                       )}
                     </TableCell>
@@ -292,7 +313,7 @@ export function EmployeeList() {
                   <div className="min-w-0 flex-1">
                     <EmployeeName employee={employee.user} />
                     <div className="mt-1 flex items-center gap-2">
-                      {getRoleBadge(employee.role)}
+                      {roleBadge(employee.role)}
                       <span className="truncate text-xs text-muted-foreground">
                         {employee.user.email}
                       </span>
