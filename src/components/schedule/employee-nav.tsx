@@ -38,14 +38,19 @@ function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
-/**
- * Calculate total shift hours for an employee from booked shifts.
- * Handles HH:MM format.
- */
 function calcShiftHours(from: string, to: string): number {
-  const [fh, fm] = from.split(":").map(Number);
-  const [th, tm] = to.split(":").map(Number);
-  return (th * 60 + tm - (fh * 60 + fm)) / 60;
+  const [fromHour, fromMinute] = from.split(":").map(Number);
+  const [toHour, toMinute] = to.split(":").map(Number);
+  let duration = toHour * 60 + toMinute - (fromHour * 60 + fromMinute);
+  if (duration <= 0) duration += 24 * 60;
+  return duration / 60;
+}
+
+function formatHours(value: number): string {
+  return `${value.toLocaleString("ru-RU", {
+    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
+    maximumFractionDigits: 1,
+  })} ч`;
 }
 
 export function EmployeeNav({
@@ -56,58 +61,57 @@ export function EmployeeNav({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Fetch all active employees
   const { data } = useQuery<{ members: OrgEmployee[] }>({
     queryKey: ["employees", "active"],
     queryFn: async () => {
-      const res = await fetch("/api/employees?status=active");
-      if (!res.ok) throw new Error("Ошибка загрузки");
-      return res.json();
+      const response = await fetch("/api/employees?status=active");
+      if (!response.ok) throw new Error("Не удалось загрузить сотрудников");
+      return response.json();
     },
   });
 
   const employees = data?.members ?? [];
 
-  // Calculate hours per employee from shifts data
   const employeeHours = useMemo(() => {
-    const hours: Record<string, number> = {};
+    const result: Record<string, number> = {};
+
     for (const shift of shifts) {
-      const shiftDuration = calcShiftHours(shift.shiftFrom, shift.shiftTo);
+      const duration = calcShiftHours(shift.shiftFrom, shift.shiftTo);
       for (const booking of shift.bookings) {
-        hours[booking.userId] = (hours[booking.userId] ?? 0) + shiftDuration;
+        result[booking.userId] = (result[booking.userId] ?? 0) + duration;
       }
     }
-    return hours;
+
+    return result;
   }, [shifts]);
 
-  // Total hours across all employees
-  const totalHours = useMemo(() => {
-    return Object.values(employeeHours).reduce((sum, h) => sum + h, 0);
-  }, [employeeHours]);
+  const totalHours = useMemo(
+    () => Object.values(employeeHours).reduce((sum, value) => sum + value, 0),
+    [employeeHours]
+  );
 
-  // Filter employees by search
   const filteredEmployees = useMemo(() => {
-    if (!search) return employees;
-    const q = search.toLowerCase();
+    if (!search.trim()) return employees;
+    const query = search.toLocaleLowerCase("ru-RU");
+
     return employees.filter(
-      (e) =>
-        e.user.firstName.toLowerCase().includes(q) ||
-        e.user.lastName.toLowerCase().includes(q)
+      (employee) =>
+        employee.user.firstName.toLocaleLowerCase("ru-RU").includes(query) ||
+        employee.user.lastName.toLocaleLowerCase("ru-RU").includes(query)
     );
   }, [employees, search]);
 
-  // Sort by hours (most hours first), then alphabetically
   const sortedEmployees = useMemo(() => {
-    return [...filteredEmployees].sort((a, b) => {
-      const ha = employeeHours[a.user.id] ?? 0;
-      const hb = employeeHours[b.user.id] ?? 0;
-      if (hb !== ha) return hb - ha;
-      return a.user.lastName.localeCompare(b.user.lastName);
+    return [...filteredEmployees].sort((left, right) => {
+      const leftHours = employeeHours[left.user.id] ?? 0;
+      const rightHours = employeeHours[right.user.id] ?? 0;
+      if (rightHours !== leftHours) return rightHours - leftHours;
+      return left.user.lastName.localeCompare(right.user.lastName, "ru");
     });
   }, [filteredEmployees, employeeHours]);
 
   const selectedEmployee = employees.find(
-    (e) => e.user.id === selectedEmployeeId
+    (employee) => employee.user.id === selectedEmployeeId
   );
 
   return (
@@ -123,40 +127,38 @@ export function EmployeeNav({
             {selectedEmployee ? (
               <>
                 {selectedEmployee.user.firstName} {selectedEmployee.user.lastName}
-                <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1">
-                  {(employeeHours[selectedEmployee.user.id] ?? 0).toFixed(1)}H
+                <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
+                  {formatHours(employeeHours[selectedEmployee.user.id] ?? 0)}
                 </Badge>
               </>
             ) : (
               <>
                 Все сотрудники
-                <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1">
-                  {totalHours.toFixed(1)}H
+                <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
+                  {formatHours(totalHours)}
                 </Badge>
               </>
             )}
-            <ChevronDown className="size-3 ml-0.5" />
+            <ChevronDown className="ml-0.5 size-3" />
           </Button>
         </PopoverTrigger>
+
         <PopoverContent className="w-72 p-0" align="start">
-          {/* Search */}
           <div className="flex items-center gap-2 border-b px-3 py-2">
             <Search className="size-3.5 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Найти сотрудника..."
-              className="h-7 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 shadow-none"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Найти сотрудника"
+              className="h-7 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
             />
           </div>
 
-          {/* Employee list */}
           <div className="max-h-64 overflow-y-auto p-1">
-            {/* "All" option */}
             <button
               type="button"
               className={cn(
-                "flex items-center gap-2 w-full rounded-sm px-2 py-1.5 text-sm transition-colors",
+                "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors",
                 !selectedEmployeeId
                   ? "bg-accent text-accent-foreground"
                   : "hover:bg-accent/50"
@@ -166,49 +168,48 @@ export function EmployeeNav({
                 setOpen(false);
               }}
             >
-              <div className="size-6 rounded-full bg-muted flex items-center justify-center">
+              <div className="flex size-6 items-center justify-center rounded-full bg-muted">
                 <Users className="size-3" />
               </div>
               <span className="flex-1 text-left">Все сотрудники</span>
-              <Badge variant="secondary" className="text-[9px] px-1 py-0">
-                {totalHours.toFixed(1)}H
+              <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                {formatHours(totalHours)}
               </Badge>
             </button>
 
-            {/* Employee items */}
-            {sortedEmployees.map((emp) => {
-              const hours = employeeHours[emp.user.id] ?? 0;
-              const isSelected = selectedEmployeeId === emp.user.id;
+            {sortedEmployees.map((employee) => {
+              const hours = employeeHours[employee.user.id] ?? 0;
+              const isSelected = selectedEmployeeId === employee.user.id;
 
               return (
                 <button
-                  key={emp.id}
+                  key={employee.id}
                   type="button"
                   className={cn(
-                    "flex items-center gap-2 w-full rounded-sm px-2 py-1.5 text-sm transition-colors",
+                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors",
                     isSelected
                       ? "bg-accent text-accent-foreground"
                       : "hover:bg-accent/50"
                   )}
                   onClick={() => {
-                    onSelectEmployee(isSelected ? null : emp.user.id);
+                    onSelectEmployee(isSelected ? null : employee.user.id);
                     setOpen(false);
                   }}
                 >
                   <Avatar size="sm">
                     <AvatarFallback className="text-[9px]">
-                      {getInitials(emp.user.firstName, emp.user.lastName)}
+                      {getInitials(
+                        employee.user.firstName,
+                        employee.user.lastName
+                      )}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="flex-1 text-left truncate">
-                    {emp.user.firstName} {emp.user.lastName}
+                  <span className="flex-1 truncate text-left">
+                    {employee.user.firstName} {employee.user.lastName}
                   </span>
                   {hours > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="text-[9px] px-1 py-0"
-                    >
-                      {hours.toFixed(1)}H
+                    <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                      {formatHours(hours)}
                     </Badge>
                   )}
                 </button>
@@ -218,13 +219,13 @@ export function EmployeeNav({
         </PopoverContent>
       </Popover>
 
-      {/* Clear filter button */}
       {selectedEmployeeId && (
         <Button
           variant="ghost"
           size="sm"
           className="size-7 p-0"
           onClick={() => onSelectEmployee(null)}
+          aria-label="Сбросить выбор сотрудника"
         >
           <X className="size-3.5" />
         </Button>
