@@ -25,7 +25,7 @@ import {
   type ShiftAssignmentTarget,
 } from "@/components/schedule/shift-assignment-editor";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
-import { findShiftTemplate } from "@/lib/schedule/shift-pool";
+import { resolveShiftTemplate } from "@/lib/schedule/shift-pool";
 import { cn } from "@/lib/utils";
 import type {
   BookingUser,
@@ -73,6 +73,24 @@ function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
+function getFullName(user: BookingUser): string {
+  return [user.lastName, user.firstName, user.patronymic]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function formatHours(value: number): string {
+  return value.toLocaleString("ru-RU", {
+    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+function isLegacyOvertime(assignment: MonthAssignment): boolean {
+  const text = `${assignment.shift.title ?? ""} ${assignment.shift.description ?? ""}`;
+  return /переработ|(?:^|\s)П(?:\s|$)/i.test(text);
+}
+
 function isDateInsideAbsence(date: Date, absence: ScheduleAbsence): boolean {
   const key = format(date, "yyyy-MM-dd");
   return key >= absence.dateFrom.slice(0, 10) && key <= absence.dateTo.slice(0, 10);
@@ -108,7 +126,6 @@ export function MonthGrid({ month, year }: MonthGridProps) {
 
   const weeks = useMemo(() => {
     const unique = new Map<string, { weekNumber: number; year: number }>();
-
     for (const date of monthDates) {
       const weekNumber = getISOWeek(date);
       const weekYear = getISOWeekYear(date);
@@ -117,8 +134,18 @@ export function MonthGrid({ month, year }: MonthGridProps) {
         year: weekYear,
       });
     }
-
     return [...unique.values()];
+  }, [monthDates]);
+
+  const dateByWeekDay = useMemo(() => {
+    const map = new Map<string, Date>();
+    for (const date of monthDates) {
+      map.set(
+        `${getISOWeekYear(date)}-${getISOWeek(date)}-${getISODay(date)}`,
+        date
+      );
+    }
+    return map;
   }, [monthDates]);
 
   const {
@@ -140,7 +167,6 @@ export function MonthGrid({ month, year }: MonthGridProps) {
           return data.schedule as ScheduleData;
         })
       );
-
       return { schedules };
     },
   });
@@ -173,7 +199,6 @@ export function MonthGrid({ month, year }: MonthGridProps) {
     () => new Set(holidayCalendar?.nonWorkingDates ?? []),
     [holidayCalendar]
   );
-
   const schedules = schedulesData?.schedules ?? [];
 
   const scheduleByWeek = useMemo(() => {
@@ -186,7 +211,7 @@ export function MonthGrid({ month, year }: MonthGridProps) {
 
   const visibleMembers = useMemo(() => {
     const active = (employeesData?.members ?? []).filter(
-      (member) => member.isActive !== false
+      (member) => member.isActive !== false && member.role !== "OWNER"
     );
     const care = active.filter((member) =>
       member.user.email.toLowerCase().endsWith(CARE_EMAIL_SUFFIX)
@@ -199,11 +224,8 @@ export function MonthGrid({ month, year }: MonthGridProps) {
 
     for (const schedule of schedules) {
       for (const shift of schedule.shifts ?? []) {
-        const date = monthDates.find(
-          (item) =>
-            getISOWeek(item) === schedule.weekNumber &&
-            getISOWeekYear(item) === schedule.year &&
-            getISODay(item) === shift.dayOfWeek
+        const date = dateByWeekDay.get(
+          `${schedule.year}-${schedule.weekNumber}-${shift.dayOfWeek}`
         );
         if (!date) continue;
 
@@ -223,18 +245,15 @@ export function MonthGrid({ month, year }: MonthGridProps) {
     }
 
     return result;
-  }, [monthDates, schedules]);
+  }, [dateByWeekDay, schedules]);
 
   const dayOffs = useMemo(() => {
     const result = new Map<string, MonthDayOff>();
 
     for (const schedule of schedules) {
       for (const dayOff of schedule.dayOffs ?? []) {
-        const date = monthDates.find(
-          (item) =>
-            getISOWeek(item) === schedule.weekNumber &&
-            getISOWeekYear(item) === schedule.year &&
-            getISODay(item) === dayOff.dayOfWeek
+        const date = dateByWeekDay.get(
+          `${schedule.year}-${schedule.weekNumber}-${dayOff.dayOfWeek}`
         );
         if (!date) continue;
 
@@ -244,7 +263,7 @@ export function MonthGrid({ month, year }: MonthGridProps) {
     }
 
     return result;
-  }, [monthDates, schedules]);
+  }, [dateByWeekDay, schedules]);
 
   const absencesByUser = useMemo(() => {
     const unique = new Map<string, ScheduleAbsence>();
@@ -291,7 +310,6 @@ export function MonthGrid({ month, year }: MonthGridProps) {
     const weekYear = getISOWeekYear(date);
     const schedule = scheduleByWeek.get(`${weekYear}-${weekNumber}`);
     if (!schedule) return;
-
     if (!assignment && !dayOff && !absence && !canEdit) return;
 
     setEditorTarget({
@@ -405,9 +423,7 @@ export function MonthGrid({ month, year }: MonthGridProps) {
                       <button
                         type="button"
                         title={`${label}: ${period}`}
-                        onClick={() =>
-                          openCell(member.user, date, null, null, absence)
-                        }
+                        onClick={() => openCell(member.user, date, null, null, absence)}
                         className={cn(
                           "h-7 w-full rounded-sm border px-1 text-center text-[10px] font-bold transition hover:ring-2 hover:ring-indigo-400",
                           kind === "VACATION"
@@ -430,17 +446,21 @@ export function MonthGrid({ month, year }: MonthGridProps) {
                 const dayOff =
                   dayOffs.get(`${member.user.id}:${dateKey}`) ?? null;
                 const template = assignment
-                  ? findShiftTemplate(
-                      assignment.shift.shiftFrom,
-                      assignment.shift.shiftTo,
-                      assignment.shift.title
-                    )
+                  ? resolveShiftTemplate(assignment.shift)
                   : undefined;
+                const overtimeMinutes =
+                  assignment?.booking.overtimeMinutes ?? 0;
+                const legacyOvertime = assignment
+                  ? isLegacyOvertime(assignment)
+                  : false;
                 const clickable = Boolean(assignment || dayOff) || canEdit;
                 const title = assignment
                   ? `${format(date, "d MMMM", { locale: ru })}: ${
-                      template?.label ??
-                      `${assignment.shift.shiftFrom}–${assignment.shift.shiftTo}`
+                      template?.name ?? "Смена"
+                    } ${template?.label ?? ""}${
+                      overtimeMinutes > 0
+                        ? `, переработка +${formatHours(overtimeMinutes / 60)} ч`
+                        : ""
                     }`
                   : dayOff
                     ? `${format(date, "d MMMM", { locale: ru })}: выходной`
@@ -463,7 +483,7 @@ export function MonthGrid({ month, year }: MonthGridProps) {
                         openCell(member.user, date, assignment, dayOff, null)
                       }
                       className={cn(
-                        "flex h-7 w-full items-center justify-center rounded-sm border text-xs font-bold transition",
+                        "relative flex h-7 w-full items-center justify-center overflow-visible rounded-sm border text-xs font-bold transition",
                         assignment
                           ? "shadow-sm"
                           : dayOff
@@ -485,6 +505,16 @@ export function MonthGrid({ month, year }: MonthGridProps) {
                       aria-label={title}
                     >
                       {dayOff ? "−" : null}
+                      {assignment && overtimeMinutes > 0 && (
+                        <span className="absolute -right-1 -top-1 z-10 whitespace-nowrap rounded-full border border-white/80 bg-slate-900 px-1 py-0.5 text-[8px] font-extrabold leading-none text-white shadow-sm">
+                          П +{formatHours(overtimeMinutes / 60)} ч
+                        </span>
+                      )}
+                      {assignment && overtimeMinutes === 0 && legacyOvertime && (
+                        <span className="absolute -right-1 -top-1 z-10 rounded-full border border-white/80 bg-slate-900 px-1 py-0.5 text-[8px] font-extrabold leading-none text-white shadow-sm">
+                          П
+                        </span>
+                      )}
                     </button>
                   </td>
                 );
@@ -505,13 +535,11 @@ export function MonthGrid({ month, year }: MonthGridProps) {
                       </Avatar>
                       <div className="min-w-0">
                         <div className="truncate font-semibold text-slate-900">
-                          {member.user.nickname || member.user.firstName}
+                          {member.user.firstName}
                         </div>
-                        {member.user.nickname && (
-                          <div className="truncate text-[9px] text-slate-500">
-                            {member.user.firstName} {member.user.lastName}
-                          </div>
-                        )}
+                        <div className="truncate text-[9px] text-slate-500">
+                          {getFullName(member.user)}
+                        </div>
                       </div>
                     </div>
                   </td>
