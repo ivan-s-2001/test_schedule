@@ -39,13 +39,15 @@ call npx prisma migrate deploy
 if errorlevel 1 goto :fail
 
 echo.
-echo [6/9] Разовый импорт выходных, отпусков и больничных из Excel...
+echo [6/9] Синхронизация данных Excel и пула смен...
 if not exist "scripts\migration\care-cell-statuses-2026.json" (
   echo ОШИБКА: не найден scripts\migration\care-cell-statuses-2026.json
   echo Распакуйте приватный архив в корень проекта.
   goto :fail
 )
 call npx tsx --env-file=.env scripts/migration/import-care-cell-statuses.ts --apply
+if errorlevel 1 goto :fail
+call npx tsx --env-file=.env scripts/migration/sync-shift-pool-snapshots.ts
 if errorlevel 1 goto :fail
 
 echo.
