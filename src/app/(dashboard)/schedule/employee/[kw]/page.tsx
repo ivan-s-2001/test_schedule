@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { EmployeeGridWrapper } from "@/components/schedule/employee-grid-wrapper";
+import { ShiftLegend } from "@/components/schedule/shift-legend";
 import { ViewSwitcher } from "@/components/schedule/view-switcher";
 import { WeekNav } from "@/components/schedule/week-nav";
 import {
@@ -32,7 +33,7 @@ export default async function EmployeeKWPage({ params }: EmployeeKWPageProps) {
         <div>
           <h1 className="text-2xl font-bold">График службы заботы</h1>
           <p className="text-sm text-muted-foreground">
-            Недельная таблица сотрудников и смен из фиксированного пула
+            Недельная таблица сотрудников и смен из управляемого пула
           </p>
         </div>
         <ViewSwitcher kw={kw} />
@@ -43,6 +44,8 @@ export default async function EmployeeKWPage({ params }: EmployeeKWPageProps) {
         year={year}
         baseUrl="/schedule/employee"
       />
+
+      <ShiftLegend />
 
       <EmployeeGridWrapper
         weekNumber={weekNumber}
