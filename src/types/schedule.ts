@@ -19,6 +19,8 @@ export type ShiftBooking = {
   bookedAt: string;
   bookedBy: string | null;
   overtimeMinutes: number;
+  overtimeBeforeMinutes: number;
+  overtimeAfterMinutes: number;
   user: BookingUser;
 };
 
