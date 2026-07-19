@@ -77,7 +77,10 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
   ];
 
   return (
-    <nav className="flex items-end gap-6 border-b border-[#dae1e9]">
+    <nav
+      aria-label="Вид графика"
+      className="inline-flex items-center rounded-md border border-border bg-[var(--outline-input-background)] p-0.5"
+    >
       {views
         .filter((view) => view.visible)
         .map((view) => {
@@ -87,9 +90,12 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
             <Link
               key={view.key}
               href={view.href}
+              aria-current={view.active ? "page" : undefined}
               className={cn(
-                "relative flex items-center gap-1.5 px-0.5 py-2 text-sm font-medium text-[#66778f] transition-colors hover:text-[#394351]",
-                view.active && "text-[#394351] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:rounded-t after:bg-[#394351]"
+                "flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors",
+                view.active
+                  ? "bg-background text-[var(--accent-strong)] shadow-[0_0_0_1px_var(--accent-border)]"
+                  : "text-muted-foreground hover:bg-[var(--accent-subtle)] hover:text-foreground"
               )}
             >
               <Icon className="size-3.5" />
