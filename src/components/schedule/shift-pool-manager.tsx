@@ -91,9 +91,8 @@ export function ShiftPoolManager() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const method = editing ? "PATCH" : "POST";
       const response = await fetch("/api/shift-pool", {
-        method,
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(editing ? { id: editing.id } : {}),
@@ -113,14 +112,16 @@ export function ShiftPoolManager() {
       return response.json();
     },
     onSuccess: async (result) => {
+      const wasEditing = Boolean(editing);
       await refreshPool();
       setDialogOpen(false);
       setEditing(null);
 
-      if (editing) {
-        const count = Number(result?.updatedAssignments ?? 0);
+      if (wasEditing) {
         toast.success(
-          `Смена обновлена. Назначений обновлено: ${count}`
+          `Смена обновлена. Назначений обновлено: ${Number(
+            result?.updatedAssignments ?? 0
+          )}`
         );
       } else {
         toast.success("Смена добавлена в пул");
@@ -140,7 +141,7 @@ export function ShiftPoolManager() {
     },
     onSuccess: async () => {
       await refreshPool();
-      toast.success("Смена удалена из активного пула. История сохранена.");
+      toast.success("Смена отключена. История сохранена.");
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
@@ -157,8 +158,8 @@ export function ShiftPoolManager() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border bg-white p-12 text-sm text-muted-foreground">
-        <Loader2 className="size-5 animate-spin" />
+      <div className="flex items-center justify-center gap-2 rounded-md border bg-white p-10 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
         Загрузка пула смен…
       </div>
     );
@@ -166,102 +167,107 @@ export function ShiftPoolManager() {
 
   if (error || !data) {
     return (
-      <div className="rounded-lg border p-8 text-center text-destructive">
+      <div className="rounded-md border p-8 text-center text-destructive">
         Не удалось загрузить пул смен.
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">Пул смен QuickTickets</h2>
-          <p className="text-sm text-muted-foreground">
-            Названия, время, цвета и обязанности из исходной Excel-таблицы.
+          <h2 className="text-lg font-semibold">Пул смен</h2>
+          <p className="text-xs text-muted-foreground">
+            Без галочки прошлые даты сохраняют прежние параметры.
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          Добавить смену
-        </Button>
+        {data.canEdit && (
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="size-4" />
+            Добавить
+          </Button>
+        )}
       </div>
 
-      <div className="rounded-lg border bg-amber-50 p-4 text-sm text-amber-950">
-        <div className="font-semibold">Как работает изменение шаблона</div>
-        <p className="mt-1">
-          Без галочки обновляются назначения на сегодня и будущие даты. Прошлые
-          графики сохраняют старые время, цвет и описание. С галочкой изменения
-          применяются и к прошлым назначениям этой смены.
-        </p>
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        {data.templates.map((template) => (
-          <article
-            key={template.id}
-            className={cn(
-              "overflow-hidden rounded-lg border bg-white shadow-sm",
-              !template.isActive && "opacity-60"
-            )}
-          >
-            <div
-              className="min-h-24 border-b p-4"
-              style={{
-                backgroundColor: template.color,
-                color: template.textColor,
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold">{template.name}</h3>
-                  <div className="text-base font-semibold">{template.label}</div>
-                </div>
-                <span className="rounded-full border border-current/30 bg-white/30 px-2 py-0.5 text-[10px] font-bold uppercase">
-                  {template.isActive ? "Активна" : "Отключена"}
-                </span>
-              </div>
-              {template.description && (
-                <p className="mt-3 text-sm font-medium opacity-90">
-                  {template.description}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-2 p-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => openEdit(template)}
+      <div className="overflow-x-auto rounded-md border bg-white">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
+          <thead className="bg-slate-50 text-left text-xs text-slate-600">
+            <tr>
+              <th className="w-14 px-3 py-2 font-medium">Цвет</th>
+              <th className="px-3 py-2 font-medium">Тип смены</th>
+              <th className="w-36 px-3 py-2 font-medium">Время</th>
+              <th className="w-24 px-3 py-2 font-medium">Статус</th>
+              <th className="w-24 px-3 py-2 text-right font-medium">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.templates.map((template) => (
+              <tr
+                key={template.id}
+                className={cn(
+                  "border-t align-middle",
+                  !template.isActive && "bg-slate-50 opacity-60"
+                )}
               >
-                <Pencil className="size-4" />
-                {template.isActive ? "Изменить" : "Восстановить"}
-              </Button>
-
-              {template.isActive && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  disabled={disableMutation.isPending}
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        `Убрать «${template.name} ${template.label}» из активного пула? Исторические назначения сохранятся.`
-                      )
-                    ) {
-                      disableMutation.mutate(template);
-                    }
-                  }}
-                >
-                  <PowerOff className="size-4" />
-                  Отключить
-                </Button>
-              )}
-            </div>
-          </article>
-        ))}
+                <td className="px-3 py-2">
+                  <span
+                    className="block size-7 rounded border border-black/20"
+                    style={{ backgroundColor: template.color }}
+                    title={template.color}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <div className="font-semibold text-slate-900">{template.name}</div>
+                  {template.description && (
+                    <div className="mt-0.5 max-w-2xl text-xs leading-tight text-slate-500">
+                      {template.description}
+                    </div>
+                  )}
+                </td>
+                <td className="px-3 py-2 font-medium tabular-nums text-slate-700">
+                  {template.label}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {template.isActive ? "Активна" : "Отключена"}
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      title={template.isActive ? "Изменить" : "Восстановить"}
+                      onClick={() => openEdit(template)}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    {template.isActive && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Отключить"
+                        disabled={disableMutation.isPending}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Отключить «${template.name} ${template.label}»? История сохранится.`
+                            )
+                          ) {
+                            disableMutation.mutate(template);
+                          }
+                        }}
+                      >
+                        <PowerOff className="size-4 text-red-600" />
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <Dialog
@@ -271,35 +277,29 @@ export function ShiftPoolManager() {
           if (!open) setEditing(null);
         }}
       >
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              {editing ? "Изменить смену" : "Добавить смену"}
-            </DialogTitle>
+            <DialogTitle>{editing ? "Изменить смену" : "Добавить смену"}</DialogTitle>
             <DialogDescription>
-              Настройте обозначение, которое будет использоваться в графике и
-              легенде.
+              Основные параметры типа смены: цвет, пояснение и время.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
+          <div className="grid gap-3 py-1">
+            <div className="space-y-1.5">
               <Label htmlFor="pool-name">Название</Label>
               <Input
                 id="pool-name"
                 value={form.name}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
+                  setForm((current) => ({ ...current, name: event.target.value }))
                 }
                 placeholder="Утренняя смена"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
                 <Label htmlFor="pool-from">Начало</Label>
                 <Input
                   id="pool-from"
@@ -313,7 +313,7 @@ export function ShiftPoolManager() {
                   }
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="pool-to">Окончание</Label>
                 <Input
                   id="pool-to"
@@ -329,8 +329,8 @@ export function ShiftPoolManager() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
                 <Label htmlFor="pool-color">Цвет ячейки</Label>
                 <div className="flex gap-2">
                   <Input
@@ -343,7 +343,7 @@ export function ShiftPoolManager() {
                         color: event.target.value.toUpperCase(),
                       }))
                     }
-                    className="w-14 p-1"
+                    className="w-12 p-1"
                   />
                   <Input
                     value={form.color}
@@ -356,7 +356,7 @@ export function ShiftPoolManager() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="pool-text-color">Цвет текста</Label>
                 <div className="flex gap-2">
                   <Input
@@ -369,7 +369,7 @@ export function ShiftPoolManager() {
                         textColor: event.target.value.toUpperCase(),
                       }))
                     }
-                    className="w-14 p-1"
+                    className="w-12 p-1"
                   />
                   <Input
                     value={form.textColor}
@@ -384,8 +384,8 @@ export function ShiftPoolManager() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="pool-description">Обязанность / пояснение</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="pool-description">Пояснение</Label>
               <textarea
                 id="pool-description"
                 value={form.description}
@@ -395,31 +395,28 @@ export function ShiftPoolManager() {
                     description: event.target.value,
                   }))
                 }
-                rows={4}
+                rows={2}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 placeholder="Ответственный за почту и Verbox в указанное время"
               />
             </div>
 
             <div
-              className="rounded-lg border-2 p-4"
+              className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
               style={{
                 backgroundColor: form.color,
                 color: form.textColor,
                 borderColor: form.color === "#FFFFFF" ? "#94A3B8" : form.color,
               }}
             >
-              <div className="font-bold">{form.name || "Название смены"}</div>
-              <div className="font-semibold">
+              <span className="font-semibold">{form.name || "Название смены"}</span>
+              <span className="font-medium tabular-nums">
                 {form.shiftFrom}–{form.shiftTo}
-              </div>
-              {form.description && (
-                <div className="mt-2 text-xs opacity-85">{form.description}</div>
-              )}
+              </span>
             </div>
 
             {editing && (
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-slate-50 p-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={form.applyToPreviousDates}
@@ -429,17 +426,9 @@ export function ShiftPoolManager() {
                       applyToPreviousDates: event.target.checked,
                     }))
                   }
-                  className="mt-0.5 size-4"
+                  className="size-4"
                 />
-                <span>
-                  <span className="block text-sm font-semibold">
-                    Применить изменения к предыдущим датам
-                  </span>
-                  <span className="mt-1 block text-xs text-muted-foreground">
-                    Перекрасит и изменит время этой смены во всех исторических
-                    графиках. Оставьте выключенным, чтобы сохранить историю.
-                  </span>
-                </span>
+                Применить изменения к предыдущим датам
               </label>
             )}
           </div>
