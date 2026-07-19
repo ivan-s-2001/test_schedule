@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Layers3, Table2 } from "lucide-react";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
+import { formatKW, getCurrentKW } from "@/lib/utils/calendar";
 import { cn } from "@/lib/utils";
 
 interface ViewSwitcherProps {
@@ -34,8 +35,13 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
   const pathname = usePathname();
   const { data: currentMember } = useCurrentMember();
   const now = new Date();
-  const effectiveKW = kw ?? `01-${now.getFullYear()}`;
-  const effectiveMonth = month ?? kwToMonth(effectiveKW);
+  const currentKW = getCurrentKW();
+  const effectiveKW = kw ?? formatKW(currentKW.weekNumber, currentKW.year);
+  const effectiveMonth =
+    month ??
+    (kw
+      ? kwToMonth(effectiveKW)
+      : `${String(now.getMonth() + 1).padStart(2, "0")}-${now.getFullYear()}`);
   const monthActive = pathname.includes("/schedule/month");
   const poolActive = pathname.includes("/schedule/pool");
   const canManagePool =
