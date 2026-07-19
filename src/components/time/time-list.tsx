@@ -1,30 +1,29 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   ChevronUp,
-  Search,
-  Plus,
   Clock,
-  Timer,
   Pencil,
+  Plus,
+  Search,
+  Timer,
   Trash2,
-  Loader2,
 } from "lucide-react";
 import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  getDay,
-  isToday,
   addMonths,
-  subMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  getDay,
   getISOWeek,
+  isToday,
+  startOfMonth,
+  subMonths,
 } from "date-fns";
 import { ru } from "date-fns/locale";
 import { toast } from "sonner";
@@ -39,8 +38,6 @@ import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import { TimeRecordForm } from "./time-record-form";
 import { Stopwatch } from "./stopwatch";
 import { AnomalyBadge, EmployeeAnomalyIndicator } from "./anomaly-badge";
-
-// ---------- Types ----------
 
 type TimeRecord = {
   id: string;
@@ -69,8 +66,6 @@ type TimeResponse = {
   employees: EmployeeGroup[];
 };
 
-// ---------- Helpers ----------
-
 const DAY_NAMES_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 
 function getInitials(firstName: string, lastName: string) {
@@ -78,10 +73,11 @@ function getInitials(firstName: string, lastName: string) {
 }
 
 function formatHours(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  return minutes === 0
+    ? `${wholeHours} ч`
+    : `${wholeHours} ч ${minutes} мин`;
 }
 
 function getRecordDisplayTime(record: TimeRecord): string {
@@ -89,31 +85,34 @@ function getRecordDisplayTime(record: TimeRecord): string {
     (record.type === "MANUAL" || record.type === "WATCH") &&
     record.timeFrom
   ) {
-    if (record.timeTo) {
-      return `${record.timeFrom} - ${record.timeTo}`;
-    }
-    return `${record.timeFrom} - ...`;
+    return record.timeTo
+      ? `${record.timeFrom} — ${record.timeTo}`
+      : `${record.timeFrom} — …`;
   }
+
   if (record.type === "MANUAL_DURATION") {
-    const h = record.durationHours ?? 0;
-    const m = record.durationMinutes ?? 0;
-    return `${h}h ${m}m`;
+    return `${record.durationHours ?? 0} ч ${record.durationMinutes ?? 0} мин`;
   }
-  return "-";
+
+  return "—";
 }
 
-function getRecordTypeIcon(type: TimeRecord["type"]) {
-  switch (type) {
-    case "MANUAL":
-      return <Clock className="size-3.5 text-blue-500" />;
-    case "WATCH":
-      return <Timer className="size-3.5 text-emerald-500" />;
-    case "MANUAL_DURATION":
-      return <Clock className="size-3.5 text-violet-500" />;
+function RecordTypeIcon({ type }: { type: TimeRecord["type"] }) {
+  if (type === "WATCH") {
+    return <Timer className="size-3.5 text-[var(--outline-success)]" />;
   }
-}
 
-// ---------- Component ----------
+  return (
+    <Clock
+      className={cn(
+        "size-3.5",
+        type === "MANUAL_DURATION"
+          ? "text-[var(--accent-muted)]"
+          : "text-[var(--accent-strong)]"
+      )}
+    />
+  );
+}
 
 export function TimeList() {
   const queryClient = useQueryClient();
@@ -123,29 +122,25 @@ export function TimeList() {
     currentMember?.role === "ADMIN" ||
     currentMember?.role === "MANAGER";
 
-  // State
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [search, setSearch] = useState("");
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [showRecordForm, setShowRecordForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<TimeRecord | null>(null);
   const [showStopwatch, setShowStopwatch] = useState(false);
-
   const monthKey = format(currentMonth, "yyyy-MM");
 
-  // Fetch time records
   const { data, isLoading, error } = useQuery<TimeResponse>({
     queryKey: ["time-records", monthKey],
     queryFn: async () => {
-      const res = await fetch(`/api/time?month=${monthKey}`);
-      if (!res.ok) throw new Error("Ошибка загрузки учёта времени");
-      return res.json();
+      const response = await fetch(`/api/time?month=${monthKey}`);
+      if (!response.ok) throw new Error("Ошибка загрузки учёта времени");
+      return response.json();
     },
   });
 
   const employees = data?.employees ?? [];
 
-  // Fetch anomaly data for the month (managers only)
   const { data: anomalyData } = useQuery<{
     anomalies: {
       type: "long_shift" | "gap" | "overlap" | "deviation";
@@ -160,52 +155,57 @@ export function TimeList() {
   }>({
     queryKey: ["anomalies", monthKey],
     queryFn: async () => {
-      const res = await fetch(`/api/ai/anomalies?month=${monthKey}`);
-      if (!res.ok) return { anomalies: [], summary: { total: 0, critical: 0, warning: 0 } };
-      return res.json();
+      const response = await fetch(`/api/ai/anomalies?month=${monthKey}`);
+      if (!response.ok) {
+        return {
+          anomalies: [],
+          summary: { total: 0, critical: 0, warning: 0 },
+        };
+      }
+      return response.json();
     },
     enabled: isManager,
   });
+
   const anomalies = anomalyData?.anomalies ?? [];
 
-  // Filter by search
   const filteredEmployees = useMemo(() => {
     if (!search) return employees;
-    const q = search.toLowerCase();
+    const query = search.toLowerCase();
     return employees.filter(
-      (emp) =>
-        emp.firstName.toLowerCase().includes(q) ||
-        emp.lastName.toLowerCase().includes(q)
+      (employee) =>
+        employee.firstName.toLowerCase().includes(query) ||
+        employee.lastName.toLowerCase().includes(query)
     );
   }, [employees, search]);
 
-  // Employee options for the form
   const employeeOptions = useMemo(
     () =>
-      employees.map((emp) => ({
-        userId: emp.userId,
-        firstName: emp.firstName,
-        lastName: emp.lastName,
+      employees.map((employee) => ({
+        userId: employee.userId,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
       })),
     [employees]
   );
 
-  // All days in the month
-  const daysInMonth = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth]);
+  const daysInMonth = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfMonth(currentMonth),
+        end: endOfMonth(currentMonth),
+      }),
+    [currentMonth]
+  );
 
-  // Group days by ISO week
   const weekGroups = useMemo(() => {
     const groups: { weekNumber: number; days: Date[] }[] = [];
     let currentWeek: { weekNumber: number; days: Date[] } | null = null;
 
     for (const day of daysInMonth) {
-      const wn = getISOWeek(day);
-      if (!currentWeek || currentWeek.weekNumber !== wn) {
-        currentWeek = { weekNumber: wn, days: [] };
+      const weekNumber = getISOWeek(day);
+      if (!currentWeek || currentWeek.weekNumber !== weekNumber) {
+        currentWeek = { weekNumber, days: [] };
         groups.push(currentWeek);
       }
       currentWeek.days.push(day);
@@ -214,49 +214,37 @@ export function TimeList() {
     return groups;
   }, [daysInMonth]);
 
-  // Navigation
   const navigatePrev = useCallback(() => {
-    setCurrentMonth((prev) => subMonths(prev, 1));
+    setCurrentMonth((previous) => subMonths(previous, 1));
   }, []);
 
   const navigateNext = useCallback(() => {
-    setCurrentMonth((prev) => addMonths(prev, 1));
+    setCurrentMonth((previous) => addMonths(previous, 1));
   }, []);
 
-  const navigateToday = useCallback(() => {
-    setCurrentMonth(new Date());
-  }, []);
-
-  // Toggle expand
   const toggleExpand = useCallback((userId: string) => {
-    setExpandedUsers((prev) => {
-      const next = new Set(prev);
-      if (next.has(userId)) {
-        next.delete(userId);
-      } else {
-        next.add(userId);
-      }
+    setExpandedUsers((previous) => {
+      const next = new Set(previous);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
       return next;
     });
   }, []);
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/time/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || "Ошибка удаления");
+      const response = await fetch(`/api/time/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const responseData = await response.json();
+        throw new Error(responseData.error || "Ошибка удаления");
       }
-      return res.json();
+      return response.json();
     },
     onSuccess: () => {
       toast.success("Запись удалена");
       queryClient.invalidateQueries({ queryKey: ["time-records"] });
     },
-    onError: (err: Error) => {
-      toast.error(err.message);
-    },
+    onError: (mutationError: Error) => toast.error(mutationError.message),
   });
 
   function handleDelete(id: string) {
@@ -270,34 +258,32 @@ export function TimeList() {
     setShowRecordForm(true);
   }
 
-  // Get records for a specific user and date
-  function getRecordsForDate(records: TimeRecord[], day: Date): TimeRecord[] {
-    const dateStr = format(day, "yyyy-MM-dd");
-    return records.filter((r) => r.date.slice(0, 10) === dateStr);
+  function getRecordsForDate(records: TimeRecord[], day: Date) {
+    const date = format(day, "yyyy-MM-dd");
+    return records.filter((record) => record.date.slice(0, 10) === date);
   }
 
-  const monthLabel = format(currentMonth, "MMMM yyyy", { locale: ru });
+  const monthLabel = format(currentMonth, "LLLL yyyy", { locale: ru });
   const isCurrentMonth =
     format(currentMonth, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5">
+      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Учёт времени</h1>
-          <p className="text-sm text-muted-foreground">
-            Учитывайте рабочее время сотрудников
+          <h1>Учёт времени</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Рабочие интервалы, продолжительность и отклонения
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowStopwatch(!showStopwatch)}
+            onClick={() => setShowStopwatch((value) => !value)}
           >
             <Timer className="size-4" />
-            <span className="hidden sm:inline">Секундомер</span>
+            Секундомер
           </Button>
           <Button
             size="sm"
@@ -307,72 +293,77 @@ export function TimeList() {
             }}
           >
             <Plus className="size-4" />
-            Erfassen
+            Добавить запись
           </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Stopwatch widget */}
       {showStopwatch && (
-        <div className="max-w-sm">
+        <div className="max-w-sm rounded-lg border border-[var(--accent-border)] bg-[var(--accent-subtle)] p-3">
           <Stopwatch />
         </div>
       )}
 
-      {/* Month navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon-sm" onClick={navigatePrev}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={navigatePrev}
+            aria-label="Предыдущий месяц"
+          >
             <ChevronLeft className="size-4" />
           </Button>
-          <span className="text-lg font-semibold capitalize min-w-[160px] text-center">
+          <div className="min-w-44 text-center text-sm font-semibold capitalize">
             {monthLabel}
-          </span>
-          <Button variant="outline" size="icon-sm" onClick={navigateNext}>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={navigateNext}
+            aria-label="Следующий месяц"
+          >
             <ChevronRight className="size-4" />
           </Button>
+          {!isCurrentMonth && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date())}
+            >
+              Сегодня
+            </Button>
+          )}
         </div>
-        {!isCurrentMonth && (
-          <Button variant="ghost" size="sm" onClick={navigateToday}>
-            Heute
-          </Button>
+
+        {isManager && (
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Найти сотрудника"
+              className="pl-9"
+            />
+          </div>
         )}
       </div>
 
-      {/* Anomaly Badge */}
-      {isManager && (
-        <AnomalyBadge month={monthKey} isManager={isManager} />
-      )}
+      {isManager && <AnomalyBadge month={monthKey} isManager={isManager} />}
 
-      {/* Search */}
-      {isManager && (
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Найти сотрудника..."
-            className="pl-9"
-          />
-        </div>
-      )}
-
-      {/* Loading */}
       {isLoading && <TimeListSkeleton />}
 
-      {/* Error */}
       {error && (
         <Card className="p-6 text-center text-destructive">
           Не удалось загрузить данные. Повторите попытку.
         </Card>
       )}
 
-      {/* Empty state */}
       {!isLoading && !error && filteredEmployees.length === 0 && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
-          <Clock className="size-12 text-muted-foreground/50 mb-3" />
-          <p className="text-lg font-medium">Записей рабочего времени нет</p>
-          <p className="text-sm text-muted-foreground mt-1">
+          <Clock className="mb-3 size-10 text-muted-foreground/45" />
+          <p className="font-medium">Записей рабочего времени нет</p>
+          <p className="mt-1 text-sm text-muted-foreground">
             {search
               ? "По вашему запросу ничего не найдено."
               : "За этот месяц записей пока нет."}
@@ -380,257 +371,168 @@ export function TimeList() {
         </Card>
       )}
 
-      {/* Employee list (accordion) */}
-      {!isLoading &&
-        !error &&
-        filteredEmployees.map((emp) => {
-          const isExpanded = expandedUsers.has(emp.userId);
-          return (
-            <Card key={emp.userId} className="overflow-hidden">
-              {/* Employee header */}
-              <button
-                type="button"
-                onClick={() => toggleExpand(emp.userId)}
-                className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50 transition-colors"
+      {!isLoading && !error && filteredEmployees.length > 0 && (
+        <div className="space-y-2">
+          {filteredEmployees.map((employee) => {
+            const expanded = expandedUsers.has(employee.userId);
+
+            return (
+              <section
+                key={employee.userId}
+                className="overflow-hidden rounded-lg border border-border bg-card"
               >
-                <Avatar>
-                  <AvatarFallback>
-                    {getInitials(emp.firstName, emp.lastName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">
-                    {emp.lastName}, {emp.firstName}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {emp.records.length} Erfassung
-                    {emp.records.length !== 1 ? "en" : ""}
-                  </div>
-                </div>
-                {isManager && anomalies.length > 0 && (
-                  <EmployeeAnomalyIndicator
-                    anomalies={anomalies}
-                    employeeId={emp.userId}
-                  />
-                )}
-                <Badge
-                  variant="secondary"
-                  className="tabular-nums font-mono text-sm"
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(employee.userId)}
+                  className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--accent-subtle)]"
                 >
-                  {formatHours(emp.totalHours)}
-                </Badge>
-                {isExpanded ? (
-                  <ChevronUp className="size-5 text-muted-foreground shrink-0" />
-                ) : (
-                  <ChevronDown className="size-5 text-muted-foreground shrink-0" />
-                )}
-              </button>
-
-              {/* Expanded: calendar-like day list */}
-              {isExpanded && (
-                <div className="border-t">
-                  {/* Desktop: grouped by weeks */}
-                  <div className="hidden md:block">
-                    {weekGroups.map((week) => (
-                      <div key={week.weekNumber} className="border-b last:border-b-0">
-                        <div className="bg-muted/30 px-4 py-1.5 text-xs font-medium text-muted-foreground">
-                          KW {week.weekNumber}
-                        </div>
-                        {week.days.map((day) => {
-                          const dayRecords = getRecordsForDate(
-                            emp.records,
-                            day
-                          );
-                          const dayOfWeek = getDay(day); // 0=Sun
-                          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                          const today = isToday(day);
-
-                          return (
-                            <div
-                              key={day.toISOString()}
-                              className={cn(
-                                "flex items-start gap-3 px-4 py-2 border-b last:border-b-0",
-                                isWeekend && "bg-muted/20",
-                                today && "bg-primary/5"
-                              )}
-                            >
-                              {/* Date column */}
-                              <div className="w-24 shrink-0 flex items-center gap-2">
-                                <span
-                                  className={cn(
-                                    "text-xs font-medium w-5",
-                                    isWeekend
-                                      ? "text-muted-foreground"
-                                      : "text-foreground"
-                                  )}
-                                >
-                                  {DAY_NAMES_SHORT[dayOfWeek]}
-                                </span>
-                                <span
-                                  className={cn(
-                                    "text-sm tabular-nums",
-                                    today
-                                      ? "font-bold text-primary"
-                                      : "text-muted-foreground"
-                                  )}
-                                >
-                                  {format(day, "dd.MM.")}
-                                </span>
-                              </div>
-
-                              {/* Records column */}
-                              <div className="flex-1 min-w-0">
-                                {dayRecords.length === 0 ? (
-                                  <span className="text-xs text-muted-foreground/50">
-                                    -
-                                  </span>
-                                ) : (
-                                  <div className="space-y-1">
-                                    {dayRecords.map((record) => (
-                                      <div
-                                        key={record.id}
-                                        className="flex items-center gap-2 group"
-                                      >
-                                        {getRecordTypeIcon(record.type)}
-                                        <span className="text-sm font-mono tabular-nums">
-                                          {getRecordDisplayTime(record)}
-                                        </span>
-                                        {record.category && (
-                                          <Badge
-                                            variant="outline"
-                                            className="text-[10px] px-1.5 py-0"
-                                          >
-                                            {record.category.name}
-                                          </Badge>
-                                        )}
-                                        {record.comment && (
-                                          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                            {record.comment}
-                                          </span>
-                                        )}
-                                        <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <Button
-                                            variant="ghost"
-                                            size="icon-xs"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleEdit(record);
-                                            }}
-                                          >
-                                            <Pencil className="size-3" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon-xs"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleDelete(record.id);
-                                            }}
-                                            disabled={deleteMutation.isPending}
-                                          >
-                                            <Trash2 className="size-3 text-destructive" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+                  <Avatar>
+                    <AvatarFallback className="bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+                      {getInitials(employee.firstName, employee.lastName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">
+                      {employee.lastName}, {employee.firstName}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Записей: {employee.records.length}
+                    </div>
                   </div>
+                  {isManager && anomalies.length > 0 && (
+                    <EmployeeAnomalyIndicator
+                      anomalies={anomalies}
+                      employeeId={employee.userId}
+                    />
+                  )}
+                  <Badge variant="secondary" className="font-mono tabular-nums">
+                    {formatHours(employee.totalHours)}
+                  </Badge>
+                  {expanded ? (
+                    <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                  )}
+                </button>
 
-                  {/* Mobile: simplified list */}
-                  <div className="md:hidden">
-                    {daysInMonth.map((day) => {
-                      const dayRecords = getRecordsForDate(emp.records, day);
-                      if (dayRecords.length === 0) return null;
-                      const dayOfWeek = getDay(day);
-                      const today = isToday(day);
-
-                      return (
+                {expanded && (
+                  <div className="border-t border-border">
+                    <div className="hidden md:block">
+                      {weekGroups.map((week) => (
                         <div
-                          key={day.toISOString()}
-                          className={cn(
-                            "px-4 py-3 border-b last:border-b-0",
-                            today && "bg-primary/5"
-                          )}
+                          key={week.weekNumber}
+                          className="border-b border-border last:border-b-0"
                         >
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-xs font-medium">
-                              {DAY_NAMES_SHORT[dayOfWeek]}
-                            </span>
-                            <span
-                              className={cn(
-                                "text-sm tabular-nums",
-                                today
-                                  ? "font-bold text-primary"
-                                  : "text-muted-foreground"
-                              )}
-                            >
-                              {format(day, "dd.MM.")}
-                            </span>
+                          <div className="bg-[var(--outline-input-background)] px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
+                            Неделя {week.weekNumber}
                           </div>
-                          <div className="space-y-2">
-                            {dayRecords.map((record) => (
+                          {week.days.map((day) => {
+                            const records = getRecordsForDate(employee.records, day);
+                            const dayOfWeek = getDay(day);
+                            const weekend = dayOfWeek === 0 || dayOfWeek === 6;
+                            const today = isToday(day);
+
+                            return (
                               <div
-                                key={record.id}
-                                className="flex items-center justify-between gap-2"
+                                key={day.toISOString()}
+                                className={cn(
+                                  "flex min-h-10 items-start gap-3 border-b border-border px-3 py-2 last:border-b-0",
+                                  weekend && "bg-[var(--outline-smoke-light)] dark:bg-[var(--outline-smoke)]",
+                                  today && "bg-[var(--accent-subtle)]"
+                                )}
                               >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {getRecordTypeIcon(record.type)}
-                                  <span className="text-sm font-mono tabular-nums">
-                                    {getRecordDisplayTime(record)}
+                                <div className="flex w-24 shrink-0 items-center gap-2">
+                                  <span className="w-5 text-xs font-medium text-muted-foreground">
+                                    {DAY_NAMES_SHORT[dayOfWeek]}
                                   </span>
-                                  {record.category && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] px-1.5 py-0"
-                                    >
-                                      {record.category.name}
-                                    </Badge>
+                                  <span
+                                    className={cn(
+                                      "text-sm tabular-nums",
+                                      today
+                                        ? "font-semibold text-[var(--accent-strong)]"
+                                        : "text-muted-foreground"
+                                    )}
+                                  >
+                                    {format(day, "dd.MM")}
+                                  </span>
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  {records.length === 0 ? (
+                                    <span className="text-xs text-muted-foreground/40">—</span>
+                                  ) : (
+                                    <div className="space-y-1.5">
+                                      {records.map((record) => (
+                                        <RecordRow
+                                          key={record.id}
+                                          record={record}
+                                          onEdit={() => handleEdit(record)}
+                                          onDelete={() => handleDelete(record.id)}
+                                          deleting={deleteMutation.isPending}
+                                        />
+                                      ))}
+                                    </div>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    onClick={() => handleEdit(record)}
-                                  >
-                                    <Pencil className="size-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    onClick={() => handleDelete(record.id)}
-                                    disabled={deleteMutation.isPending}
-                                  >
-                                    <Trash2 className="size-3 text-destructive" />
-                                  </Button>
-                                </div>
                               </div>
-                            ))}
-                          </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                    {/* If no records at all on mobile */}
-                    {emp.records.length === 0 && (
-                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                        Keine Erfassungen in diesem Monat
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </Card>
-          );
-        })}
+                      ))}
+                    </div>
 
-      {/* Record form dialog */}
+                    <div className="md:hidden">
+                      {daysInMonth.map((day) => {
+                        const records = getRecordsForDate(employee.records, day);
+                        if (records.length === 0) return null;
+                        const dayOfWeek = getDay(day);
+                        const today = isToday(day);
+
+                        return (
+                          <div
+                            key={day.toISOString()}
+                            className={cn(
+                              "border-b border-border px-3 py-3 last:border-b-0",
+                              today && "bg-[var(--accent-subtle)]"
+                            )}
+                          >
+                            <div className="mb-2 flex items-center gap-2 text-xs">
+                              <span className="font-medium">
+                                {DAY_NAMES_SHORT[dayOfWeek]}
+                              </span>
+                              <span className="text-muted-foreground tabular-nums">
+                                {format(day, "dd.MM")}
+                              </span>
+                            </div>
+                            <div className="space-y-2">
+                              {records.map((record) => (
+                                <RecordRow
+                                  key={record.id}
+                                  record={record}
+                                  onEdit={() => handleEdit(record)}
+                                  onDelete={() => handleDelete(record.id)}
+                                  deleting={deleteMutation.isPending}
+                                  mobile
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {employee.records.length === 0 && (
+                        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                          За этот месяц записей нет.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
+
       <TimeRecordForm
         open={showRecordForm}
         onOpenChange={(open) => {
@@ -644,20 +546,73 @@ export function TimeList() {
   );
 }
 
+function RecordRow({
+  record,
+  onEdit,
+  onDelete,
+  deleting,
+  mobile = false,
+}: {
+  record: TimeRecord;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+  mobile?: boolean;
+}) {
+  return (
+    <div className="group flex min-w-0 items-center gap-2">
+      <RecordTypeIcon type={record.type} />
+      <span className="shrink-0 font-mono text-sm tabular-nums">
+        {getRecordDisplayTime(record)}
+      </span>
+      {record.category && (
+        <Badge variant="outline" className="text-[10px]">
+          {record.category.name}
+        </Badge>
+      )}
+      {record.comment && !mobile && (
+        <span className="max-w-64 truncate text-xs text-muted-foreground">
+          {record.comment}
+        </span>
+      )}
+      <div
+        className={cn(
+          "ml-auto flex shrink-0 items-center gap-0.5 transition-opacity",
+          mobile ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+        )}
+      >
+        <Button variant="ghost" size="icon-xs" onClick={onEdit} aria-label="Изменить">
+          <Pencil className="size-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={onDelete}
+          disabled={deleting}
+          aria-label="Удалить"
+        >
+          <Trash2 className="size-3 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function TimeListSkeleton() {
   return (
-    <div className="space-y-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <Card key={i} className="p-4">
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-10 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-            <Skeleton className="h-6 w-16 rounded-full" />
+    <div className="overflow-hidden rounded-lg border border-border">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-3 border-b border-border p-3 last:border-b-0"
+        >
+          <Skeleton className="size-9 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-24" />
           </div>
-        </Card>
+          <Skeleton className="h-6 w-20 rounded-md" />
+        </div>
       ))}
     </div>
   );
