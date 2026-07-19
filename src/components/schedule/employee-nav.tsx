@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Search, Users, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -46,13 +47,6 @@ function calcShiftHours(from: string, to: string): number {
   return duration / 60;
 }
 
-function formatHours(value: number): string {
-  return `${value.toLocaleString("ru-RU", {
-    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
-    maximumFractionDigits: 1,
-  })} ч`;
-}
-
 export function EmployeeNav({
   shifts,
   selectedEmployeeId,
@@ -60,12 +54,16 @@ export function EmployeeNav({
 }: EmployeeNavProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const locale = useLocale();
+  const format = useFormatter();
+  const t = useTranslations("schedule.grid");
+  const tErrors = useTranslations("errors");
 
   const { data } = useQuery<{ members: OrgEmployee[] }>({
     queryKey: ["employees", "active"],
     queryFn: async () => {
       const response = await fetch("/api/employees?status=active");
-      if (!response.ok) throw new Error("Не удалось загрузить сотрудников");
+      if (!response.ok) throw new Error(tErrors("loadEmployees"));
       return response.json();
     },
   });
@@ -92,27 +90,35 @@ export function EmployeeNav({
 
   const filteredEmployees = useMemo(() => {
     if (!search.trim()) return employees;
-    const query = search.toLocaleLowerCase("ru-RU");
+    const query = search.toLocaleLowerCase(locale);
 
     return employees.filter(
       (employee) =>
-        employee.user.firstName.toLocaleLowerCase("ru-RU").includes(query) ||
-        employee.user.lastName.toLocaleLowerCase("ru-RU").includes(query)
+        employee.user.firstName.toLocaleLowerCase(locale).includes(query) ||
+        employee.user.lastName.toLocaleLowerCase(locale).includes(query)
     );
-  }, [employees, search]);
+  }, [employees, locale, search]);
 
   const sortedEmployees = useMemo(() => {
     return [...filteredEmployees].sort((left, right) => {
       const leftHours = employeeHours[left.user.id] ?? 0;
       const rightHours = employeeHours[right.user.id] ?? 0;
       if (rightHours !== leftHours) return rightHours - leftHours;
-      return left.user.lastName.localeCompare(right.user.lastName, "ru");
+      return left.user.lastName.localeCompare(right.user.lastName, locale);
     });
-  }, [filteredEmployees, employeeHours]);
+  }, [filteredEmployees, employeeHours, locale]);
 
   const selectedEmployee = employees.find(
     (employee) => employee.user.id === selectedEmployeeId
   );
+
+  const formatHours = (value: number) =>
+    t("hours", {
+      value: format.number(value, {
+        minimumFractionDigits: value % 1 === 0 ? 0 : 1,
+        maximumFractionDigits: 1,
+      }),
+    });
 
   return (
     <div className="flex items-center gap-2">
@@ -133,7 +139,7 @@ export function EmployeeNav({
               </>
             ) : (
               <>
-                Все сотрудники
+                {t("allEmployees")}
                 <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px]">
                   {formatHours(totalHours)}
                 </Badge>
@@ -149,7 +155,7 @@ export function EmployeeNav({
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Найти сотрудника"
+              placeholder={t("searchEmployee")}
               className="h-7 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
             />
           </div>
@@ -171,7 +177,7 @@ export function EmployeeNav({
               <div className="flex size-6 items-center justify-center rounded-full bg-muted">
                 <Users className="size-3" />
               </div>
-              <span className="flex-1 text-left">Все сотрудники</span>
+              <span className="flex-1 text-left">{t("allEmployees")}</span>
               <Badge variant="secondary" className="px-1 py-0 text-[10px]">
                 {formatHours(totalHours)}
               </Badge>
@@ -225,7 +231,7 @@ export function EmployeeNav({
           size="sm"
           className="size-7 p-0"
           onClick={() => onSelectEmployee(null)}
-          aria-label="Сбросить выбор сотрудника"
+          aria-label={t("allEmployees")}
         >
           <X className="size-3.5" />
         </Button>
