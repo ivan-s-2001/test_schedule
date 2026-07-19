@@ -92,19 +92,25 @@ function loadSource(): MigrationSource {
     fail("В JSON отсутствуют массивы dayOffs или absences");
   }
 
+  const dayOffKeys = new Set<string>();
   for (const dayOff of source.dayOffs) {
     if (!dayOff.employeeNickname.trim()) fail("У выходного отсутствует сотрудник");
     parseDate(dayOff.date);
+    const key = `${normalizeName(dayOff.employeeNickname)}|${dayOff.date}`;
+    if (dayOffKeys.has(key)) fail(`Повторяется выходной: ${key}`);
+    dayOffKeys.add(key);
   }
 
   for (const absence of source.absences) {
     if (!absence.employeeNickname.trim()) fail("У отсутствия отсутствует сотрудник");
-    if (!['VACATION', 'SICK'].includes(absence.type)) {
+    if (absence.type !== "VACATION" && absence.type !== "SICK") {
       fail(`Неизвестный тип отсутствия: ${absence.type}`);
     }
     const from = parseDate(absence.dateFrom);
     const to = parseDate(absence.dateTo);
-    if (from > to) fail(`Некорректный период: ${absence.dateFrom} — ${absence.dateTo}`);
+    if (from > to) {
+      fail(`Некорректный период: ${absence.dateFrom} — ${absence.dateTo}`);
+    }
   }
 
   return source;
@@ -159,6 +165,30 @@ async function removeExistingAssignment(
       });
     }
   }
+}
+
+async function getOrCreateCategory(
+  organizationId: string,
+  name: string,
+  color: string
+) {
+  const existing = await db.absenceCategory.findFirst({
+    where: {
+      organizationId,
+      name: { equals: name, mode: "insensitive" },
+    },
+  });
+
+  if (existing) {
+    return db.absenceCategory.update({
+      where: { id: existing.id },
+      data: { name, color, isPaid: true },
+    });
+  }
+
+  return db.absenceCategory.create({
+    data: { organizationId, name, color, isPaid: true },
+  });
 }
 
 async function main() {
@@ -264,41 +294,12 @@ async function main() {
     dayOffUpserts += 1;
   }
 
-  const vacationCategory = await db.absenceCategory.upsert({
-    where: {
-      id:
-        (
-          await db.absenceCategory.findFirst({
-            where: {
-              organizationId,
-              name: { equals: "Отпуск", mode: "insensitive" },
-            },
-            select: { id: true },
-          })
-        )?.id ?? randomUUID(),
-    },
-    update: { name: "Отпуск", color: "#FFFFFF", isPaid: true },
-    create: {
-      id: randomUUID(),
-      organizationId,
-      name: "Отпуск",
-      color: "#FFFFFF",
-      isPaid: true,
-    },
-  }).catch(async () => {
-    const existing = await db.absenceCategory.findFirst({
-      where: {
-        organizationId,
-        name: { equals: "Отпуск", mode: "insensitive" },
-      },
-    });
-    if (existing) return existing;
-    return db.absenceCategory.create({
-      data: { organizationId, name: "Отпуск", color: "#FFFFFF", isPaid: true },
-    });
-  });
-
-  const sickCategory = await db.absenceCategory.findFirst({
+  const vacationCategory = await getOrCreateCategory(
+    organizationId,
+    "Отпуск",
+    "#FFFFFF"
+  );
+  let sickCategory = await db.absenceCategory.findFirst({
     where: {
       organizationId,
       name: { equals: "Больничный", mode: "insensitive" },
@@ -319,18 +320,18 @@ async function main() {
   let absenceCreates = 0;
   for (const absence of source.absences) {
     const userId = resolveUserId(absence.employeeNickname);
+
+    if (absence.type === "SICK" && !sickCategory) {
+      sickCategory = await getOrCreateCategory(
+        organizationId,
+        "Больничный",
+        "#FEE2E2"
+      );
+    }
+
     const category =
-      absence.type === "VACATION"
-        ? vacationCategory
-        : sickCategory ??
-          (await db.absenceCategory.create({
-            data: {
-              organizationId,
-              name: "Больничный",
-              color: "#FEE2E2",
-              isPaid: true,
-            },
-          }));
+      absence.type === "VACATION" ? vacationCategory : sickCategory;
+    if (!category) fail("Не удалось создать категорию больничного");
 
     await db.absence.create({
       data: {
