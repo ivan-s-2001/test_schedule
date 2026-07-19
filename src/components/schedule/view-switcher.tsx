@@ -77,7 +77,7 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
   ];
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
+    <nav className="flex items-end gap-6 border-b border-[#dae1e9]">
       {views
         .filter((view) => view.visible)
         .map((view) => {
@@ -88,10 +88,8 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
               key={view.key}
               href={view.href}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
-                view.active
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                "relative flex items-center gap-1.5 px-0.5 py-2 text-sm font-medium text-[#66778f] transition-colors hover:text-[#394351]",
+                view.active && "text-[#394351] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:rounded-t after:bg-[#394351]"
               )}
             >
               <Icon className="size-3.5" />
@@ -99,6 +97,6 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
             </Link>
           );
         })}
-    </div>
+    </nav>
   );
 }
