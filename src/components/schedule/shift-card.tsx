@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Clock, Loader2, Pause, Plus, Users, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -39,6 +40,9 @@ export function ShiftCard({
   userWishRequest,
 }: ShiftCardProps) {
   const queryClient = useQueryClient();
+  const t = useTranslations("schedule.grid");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
   const bookedCount = shift.bookings.length;
   const isFull = bookedCount >= shift.maxEmployees;
   const emptySlots = Math.max(0, shift.maxEmployees - bookedCount);
@@ -48,12 +52,8 @@ export function ShiftCard({
     ? shift.bookings.some((booking) => booking.userId === highlightUserId)
     : false;
   const isDimmed = highlightUserId ? !hasHighlightUser : false;
-
   const hasPause = shift.pauseValue > 0;
-  const pauseLabel =
-    shift.pauseOption === "PER_HOUR"
-      ? `${shift.pauseValue} мин на каждый час`
-      : `${shift.pauseValue} мин на всю смену`;
+  const pauseLabel = tCommon("minutesShort", { value: shift.pauseValue });
 
   const bookMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -65,13 +65,13 @@ export function ShiftCard({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Не удалось назначить сотрудника");
+        throw new Error(data.error || tErrors("save"));
       }
 
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Сотрудник назначен на смену");
+      toast.success(t("assignEmployee"));
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -87,13 +87,13 @@ export function ShiftCard({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Не удалось снять сотрудника со смены");
+        throw new Error(data.error || tErrors("delete"));
       }
 
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Сотрудник снят со смены");
+      toast.success(t("removeEmployee"));
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -107,26 +107,22 @@ export function ShiftCard({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Не удалось добавить место");
+        throw new Error(data.error || tErrors("save"));
       }
 
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Свободное место добавлено");
+      toast.success(t("addPlace"));
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
   function handleUnbook(userId: string, name: string) {
-    if (confirm(`Снять сотрудника ${name} с этой смены?`)) {
+    if (confirm(`${t("removeEmployee")}: ${name}?`)) {
       unbookMutation.mutate(userId);
     }
-  }
-
-  function handleBook(userId: string) {
-    bookMutation.mutate(userId);
   }
 
   const isPending =
@@ -252,8 +248,8 @@ export function ShiftCard({
                 <button
                   type="button"
                   className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/slot:opacity-100"
-                  title="Снять со смены"
-                  aria-label={`Снять ${booking.user.firstName} ${booking.user.lastName} со смены`}
+                  title={t("removeEmployee")}
+                  aria-label={`${t("removeEmployee")}: ${booking.user.firstName} ${booking.user.lastName}`}
                   onClick={() =>
                     handleUnbook(
                       booking.userId,
@@ -277,7 +273,7 @@ export function ShiftCard({
             {isManager ? (
               <EmployeePicker
                 bookedUserIds={bookedUserIds}
-                onSelect={handleBook}
+                onSelect={(userId) => bookMutation.mutate(userId)}
                 shiftId={shift.id}
               >
                 <button
@@ -288,7 +284,7 @@ export function ShiftCard({
                     <Plus className="size-3 text-muted-foreground/50" />
                   </div>
                   <span className="text-xs italic text-muted-foreground/60 transition-colors hover:text-muted-foreground">
-                    Назначить сотрудника
+                    {t("assignEmployee")}
                   </span>
                 </button>
               </EmployeePicker>
@@ -296,13 +292,13 @@ export function ShiftCard({
               <button
                 type="button"
                 className="flex w-full cursor-pointer items-center gap-2 rounded py-0.5 transition-colors hover:bg-muted/50"
-                onClick={() => currentUserId && handleBook(currentUserId)}
+                onClick={() => currentUserId && bookMutation.mutate(currentUserId)}
               >
                 <div className="flex size-6 items-center justify-center rounded-full border-2 border-dashed border-primary/40">
                   <Plus className="size-3 text-primary/60" />
                 </div>
                 <span className="text-xs italic text-primary/80">
-                  Записаться на смену
+                  {t("selfBook")}
                 </span>
               </button>
             ) : (
@@ -311,7 +307,7 @@ export function ShiftCard({
                   <span className="text-[9px] text-muted-foreground/50">?</span>
                 </div>
                 <span className="text-xs italic text-muted-foreground/60">
-                  Свободное место
+                  {t("freePlace")}
                 </span>
               </div>
             )}
@@ -325,7 +321,7 @@ export function ShiftCard({
             onClick={() => addPlaceMutation.mutate()}
           >
             <Plus className="size-3" />
-            Добавить место
+            {t("addPlace")}
           </button>
         )}
       </div>
