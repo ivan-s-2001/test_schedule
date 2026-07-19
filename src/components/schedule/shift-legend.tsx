@@ -2,11 +2,11 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import type { ShiftTemplate } from "@/lib/schedule/shift-pool";
 import { getThemeColorStyle } from "@/lib/utils/theme-color";
 
-type ShiftPoolResponse = {
+ type ShiftPoolResponse = {
   templates: ShiftTemplate[];
 };
 
@@ -26,13 +26,13 @@ function ShiftBadge({
 }) {
   return (
     <span
-      className="inline-flex min-h-7 items-center gap-2 rounded-md border px-2.5 py-1 text-sm font-semibold leading-none shadow-none [background-color:var(--user-color-light-bg)] [border-color:var(--user-color-light-border)] [color:var(--user-color-light-text)] dark:[background-color:var(--user-color-dark-bg)] dark:[border-color:var(--user-color-dark-border)] dark:[color:var(--user-color-dark-text)]"
+      className="inline-flex min-h-6 items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-semibold leading-none [background-color:var(--user-color-light-bg)] [border-color:var(--user-color-light-border)] [color:var(--user-color-light-text)] dark:[background-color:var(--user-color-dark-bg)] dark:[border-color:var(--user-color-dark-border)] dark:[color:var(--user-color-dark-text)]"
       style={getThemeColorStyle(variant.color, variant.textColor)}
     >
       <span>{name}</span>
       <span
-        className="border-l pl-2 text-xs font-medium tabular-nums"
-        style={{ borderColor: "currentColor", opacity: 0.86 }}
+        className="border-l pl-1.5 font-medium tabular-nums opacity-80"
+        style={{ borderColor: "currentColor" }}
       >
         {variant.label}
       </span>
@@ -40,21 +40,27 @@ function ShiftBadge({
   );
 }
 
-function SystemLegendItem({
-  badge,
-  description,
+function SystemBadge({
+  children,
+  tone = "neutral",
 }: {
-  badge: React.ReactNode;
-  description: string;
+  children: React.ReactNode;
+  tone?: "neutral" | "danger" | "success" | "dark";
 }) {
+  const classes = {
+    neutral: "border-border bg-background text-foreground",
+    danger: "border-destructive/35 bg-destructive/10 text-destructive",
+    success:
+      "border-[color-mix(in_srgb,var(--outline-success)_40%,transparent)] bg-[color-mix(in_srgb,var(--outline-success)_12%,transparent)] text-[var(--outline-success)]",
+    dark: "border-transparent bg-foreground text-background",
+  }[tone];
+
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-      {badge}
-      <span className="font-medium text-muted-foreground" aria-hidden="true">
-        —
-      </span>
-      <span className="text-secondary-foreground">{description}</span>
-    </div>
+    <span
+      className={`inline-flex min-h-6 items-center rounded-md border px-2 text-xs font-semibold ${classes}`}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -90,12 +96,13 @@ export function ShiftLegend() {
   }, [data?.templates]);
 
   return (
-    <details className="rounded-lg border border-border bg-card" open>
-      <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
-        Обозначения
+    <details className="group" open>
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-muted-foreground marker:hidden">
+        <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
+        Обозначения смен
       </summary>
 
-      <div className="space-y-3 border-t border-border px-4 py-4">
+      <div className="mt-2.5 space-y-3">
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
@@ -103,13 +110,10 @@ export function ShiftLegend() {
           </div>
         ) : (
           <>
-            <div className="space-y-2.5">
+            <div className="flex flex-wrap gap-x-5 gap-y-2.5">
               {groups.map((group) => (
-                <div
-                  key={group.key}
-                  className="flex min-w-0 flex-wrap items-center gap-2"
-                >
-                  <div className="flex flex-wrap gap-1.5">
+                <div key={group.key} className="flex min-w-0 items-center gap-2">
+                  <div className="flex flex-wrap gap-1">
                     {group.variants.map((variant) => (
                       <ShiftBadge
                         key={variant.id}
@@ -118,61 +122,31 @@ export function ShiftLegend() {
                       />
                     ))}
                   </div>
-
-                  <span
-                    className="font-medium text-muted-foreground"
-                    aria-hidden="true"
-                  >
-                    —
-                  </span>
-                  <span className="min-w-0 text-sm leading-5 text-secondary-foreground">
-                    {group.description ?? "Обычная рабочая смена"}
-                  </span>
+                  {group.description && (
+                    <span className="hidden max-w-64 truncate text-xs text-muted-foreground xl:inline">
+                      {group.description}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
 
-            <div className="grid gap-2 border-t border-border pt-3 md:grid-cols-2 xl:grid-cols-3">
-              <SystemLegendItem
-                badge={
-                  <span className="inline-flex min-h-7 min-w-9 items-center justify-center rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground">
-                    −
-                  </span>
-                }
-                description="Выходной сотрудника"
-              />
-              <SystemLegendItem
-                badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md border border-input bg-background px-2.5 text-sm font-semibold text-foreground">
-                    Отпуск
-                  </span>
-                }
-                description="Период отпуска"
-              />
-              <SystemLegendItem
-                badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md border border-destructive/35 bg-destructive/10 px-2.5 text-sm font-semibold text-destructive">
-                    Больничный
-                  </span>
-                }
-                description="Период больничного"
-              />
-              <SystemLegendItem
-                badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md bg-foreground px-2.5 text-sm font-semibold text-background">
-                    П +N ч
-                  </span>
-                }
-                description="Сумма переработки до и после смены"
-              />
-              <SystemLegendItem
-                badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                    Зелёный фон
-                  </span>
-                }
-                description="Суббота, воскресенье или официальный нерабочий день РФ"
-              />
+            <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-2.5 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <SystemBadge>−</SystemBadge> выходной
+              </span>
+              <span className="flex items-center gap-1.5">
+                <SystemBadge>Отпуск</SystemBadge> отпуск
+              </span>
+              <span className="flex items-center gap-1.5">
+                <SystemBadge tone="danger">Больничный</SystemBadge> больничный
+              </span>
+              <span className="flex items-center gap-1.5">
+                <SystemBadge tone="dark">П +N ч</SystemBadge> переработка
+              </span>
+              <span className="flex items-center gap-1.5">
+                <SystemBadge tone="success">Нерабочий</SystemBadge> выходной или праздник
+              </span>
             </div>
           </>
         )}
