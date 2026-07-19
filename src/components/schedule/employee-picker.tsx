@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Check, Loader2, Star } from "lucide-react";
 import {
   Popover,
@@ -18,12 +19,6 @@ import {
 } from "@/components/ui/command";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 type OrgEmployee = {
@@ -38,19 +33,11 @@ type OrgEmployee = {
   };
 };
 
-type ScoreBreakdown = {
-  hours: number;
-  availability: number;
-  division: number;
-  history: number;
-};
-
 type EmployeeScoreData = {
   employeeId: string;
   firstName: string;
   lastName: string;
   score: number;
-  breakdown: ScoreBreakdown;
 };
 
 interface EmployeePickerProps {
@@ -63,13 +50,6 @@ interface EmployeePickerProps {
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  OWNER: "Владелец",
-  ADMIN: "Администратор",
-  MANAGER: "Руководитель",
-  EMPLOYEE: "Сотрудник",
-};
 
 const ROLE_COLORS: Record<string, string> = {
   OWNER: "bg-amber-100 text-amber-800",
@@ -84,15 +64,6 @@ function getScoreColor(score: number): string {
   return "bg-red-100 text-red-800";
 }
 
-function formatBreakdown(breakdown: ScoreBreakdown): string {
-  return [
-    `Нагрузка: ${breakdown.hours}/40`,
-    `Доступность: ${breakdown.availability}/30`,
-    `Подразделение: ${breakdown.division}/20`,
-    `Предыдущие смены: ${breakdown.history}/10`,
-  ].join("\n");
-}
-
 export function EmployeePicker({
   bookedUserIds,
   onSelect,
@@ -100,12 +71,16 @@ export function EmployeePicker({
   children,
 }: EmployeePickerProps) {
   const [open, setOpen] = useState(false);
+  const tGrid = useTranslations("schedule.grid");
+  const tEmployees = useTranslations("employees");
+  const tAi = useTranslations("ai");
+  const tErrors = useTranslations("errors");
 
   const { data } = useQuery<{ members: OrgEmployee[] }>({
     queryKey: ["employees", "active"],
     queryFn: async () => {
       const response = await fetch("/api/employees?status=active");
-      if (!response.ok) throw new Error("Не удалось загрузить сотрудников");
+      if (!response.ok) throw new Error(tErrors("loadEmployees"));
       return response.json();
     },
     enabled: open,
@@ -146,19 +121,26 @@ export function EmployeePicker({
     setOpen(false);
   }
 
+  function roleLabel(role: string): string {
+    if (role === "OWNER") return tEmployees("owner");
+    if (role === "ADMIN") return tEmployees("admin");
+    if (role === "MANAGER") return tEmployees("manager");
+    return tEmployees("employee");
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start" sideOffset={4}>
         <Command>
-          <CommandInput placeholder="Найти сотрудника" />
+          <CommandInput placeholder={tGrid("searchEmployee")} />
           <CommandList>
-            <CommandEmpty>Сотрудники не найдены</CommandEmpty>
+            <CommandEmpty>{tEmployees("noEmployees")}</CommandEmpty>
             <CommandGroup>
               {shiftId && scoresLoading && (
                 <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" />
-                  Подбираем сотрудников…
+                  {tAi("generating")}
                 </div>
               )}
 
@@ -189,31 +171,20 @@ export function EmployeePicker({
                     {isBooked ? (
                       <span className="flex items-center gap-1 text-xs text-green-700">
                         <Check className="size-3.5" />
-                        Уже назначен
+                        {tGrid("alreadyAssigned")}
                       </span>
                     ) : scoreData ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge
-                              variant="secondary"
-                              className={cn(
-                                "cursor-help gap-0.5 px-1.5 py-0 text-[10px]",
-                                getScoreColor(scoreData.score)
-                              )}
-                            >
-                              <Star className="size-2.5" />
-                              {scoreData.score}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent
-                            side="left"
-                            className="whitespace-pre text-[11px] leading-relaxed"
-                          >
-                            {formatBreakdown(scoreData.breakdown)}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <Badge
+                        variant="secondary"
+                        title={tAi("suggest")}
+                        className={cn(
+                          "gap-0.5 px-1.5 py-0 text-[10px]",
+                          getScoreColor(scoreData.score)
+                        )}
+                      >
+                        <Star className="size-2.5" />
+                        {scoreData.score}
+                      </Badge>
                     ) : (
                       <Badge
                         variant="secondary"
@@ -222,7 +193,7 @@ export function EmployeePicker({
                           ROLE_COLORS[employee.role]
                         )}
                       >
-                        {ROLE_LABELS[employee.role] ?? "Сотрудник"}
+                        {roleLabel(employee.role)}
                       </Badge>
                     )}
                   </CommandItem>
