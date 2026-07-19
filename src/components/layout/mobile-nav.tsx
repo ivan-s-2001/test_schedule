@@ -26,10 +26,10 @@ export function MobileNav() {
 
   const itemClass = (active: boolean) =>
     cn(
-      "flex min-h-[30px] items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium text-[#4e5c6e] transition-colors",
+      "flex min-h-8 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
       active
-        ? "bg-[#cdd8e5] text-[#111319]"
-        : "hover:bg-[#dee5ed] hover:text-[#111319]"
+        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     );
 
   return (
@@ -40,10 +40,10 @@ export function MobileNav() {
           <span className="sr-only">Навигация</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 border-[#dae1e9] bg-[#eef2f6] p-0">
-        <SheetHeader className="border-b border-[#dae1e9] px-4 py-3">
-          <SheetTitle className="flex items-center gap-2 text-base font-semibold text-[#111319]">
-            <CalendarDays className="size-5 text-[#4e5c6e]" />
+      <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
+        <SheetHeader className="border-b border-sidebar-border px-4 py-3">
+          <SheetTitle className="flex items-center gap-2 text-base font-semibold text-sidebar-primary-foreground">
+            <CalendarDays className="size-5 text-sidebar-foreground" />
             QuickTickets
           </SheetTitle>
         </SheetHeader>
