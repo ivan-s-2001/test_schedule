@@ -149,3 +149,22 @@ table[class*="min-w-[1080px]"] button.relative > span > span:nth-child(2) {
   white-space: nowrap;
   box-shadow: 0 1px 3px rgb(15 23 42 / 35%);
 }
+
+/* Schedule tables: employee column is fixed, all day columns share the rest equally. */
+.schedule-equal-day-columns table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.schedule-equal-day-columns table > thead > tr > :first-child,
+.schedule-equal-day-columns table > tbody > tr > :first-child {
+  width: 13rem !important;
+  min-width: 13rem !important;
+  max-width: 13rem !important;
+}
+
+.schedule-equal-day-columns table > thead > tr > :not(:first-child),
+.schedule-equal-day-columns table > tbody > tr > :not(:first-child) {
+  min-width: 0 !important;
+  overflow-wrap: anywhere;
+}
