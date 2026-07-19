@@ -14,52 +14,32 @@ set "ADMIN_EMAIL=admin@qksr.ru"
 set "OPEN_URL=%APP_URL%/?email=admin%%40qksr.ru"
 
 echo.
-echo [1/10] Переключение на develop...
+echo [1/8] Переключение на develop...
 git switch develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [2/10] Получение изменений...
+echo [2/8] Получение изменений...
 git pull --ff-only origin develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [3/10] Установка новых зависимостей...
+echo [3/8] Установка новых зависимостей...
 call npm install
 if errorlevel 1 goto :fail
 
 echo.
-echo [4/10] Обновление Prisma Client...
+echo [4/8] Обновление Prisma Client...
 call npx prisma generate
 if errorlevel 1 goto :fail
 
 echo.
-echo [5/10] Применение только невыполненных миграций...
+echo [5/8] Применение только невыполненных миграций...
 call npx prisma migrate deploy
 if errorlevel 1 goto :fail
 
 echo.
-echo [6/10] Синхронизация пометок из Excel...
-if exist "scripts\migration\care-day-notes-2026.json" (
-  call npx tsx --env-file=.env scripts/migration/import-care-day-notes.ts --apply
-  if errorlevel 1 goto :fail
-) else (
-  echo Файл scripts\migration\care-day-notes-2026.json не найден.
-  echo Пометки Excel не импортированы.
-)
-
-echo.
-echo [7/10] Синхронизация выходных и отсутствий из Excel...
-if exist "scripts\migration\care-cell-statuses-2026.json" (
-  call npx tsx --env-file=.env scripts/migration/import-care-cell-statuses.ts --apply
-  if errorlevel 1 goto :fail
-) else (
-  echo Файл scripts\migration\care-cell-statuses-2026.json не найден.
-  echo Выходные и отсутствия Excel не импортированы.
-)
-
-echo.
-echo [8/10] Остановка предыдущего сервера на порту %APP_PORT%...
+echo [6/8] Остановка предыдущего сервера на порту %APP_PORT%...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ids = Get-NetTCPConnection -LocalPort %APP_PORT% -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($id in $ids) { if ($id) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } }"
 if errorlevel 1 goto :fail
 
@@ -80,12 +60,12 @@ if not "%PORT_FREE%"=="1" (
 )
 
 echo.
-echo [9/10] Пересборка приложения на порту %APP_PORT%...
+echo [7/8] Пересборка приложения на порту %APP_PORT%...
 call npm run build
 if errorlevel 1 goto :fail
 
 echo.
-echo [10/10] Запуск собранного приложения...
+echo [8/8] Запуск собранного приложения...
 start "Schichtplaner" cmd /k "set NODE_ENV=production&& set PORT=%APP_PORT%&& set APP_URL=%APP_URL%&& set NEXTAUTH_URL=%NEXTAUTH_URL%&& npx tsx --env-file=.env server.ts"
 if errorlevel 1 goto :fail
 
