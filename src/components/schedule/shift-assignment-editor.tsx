@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { ru } from "date-fns/locale";
+import { useFormatter, useTranslations } from "next-intl";
 import { CalendarRange, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -61,28 +61,14 @@ type ShiftPoolResponse = {
   canEdit: boolean;
 };
 
-const CELL_KIND_OPTIONS: Array<{ value: CellKind; label: string }> = [
-  { value: "SHIFT", label: "Смена" },
-  { value: "DAY_OFF", label: "Выходной" },
-  { value: "VACATION", label: "Отпуск" },
-  { value: "SICK", label: "Больничный" },
-];
-
-function formatHours(value: number): string {
-  return value.toLocaleString("ru-RU", {
-    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
-    maximumFractionDigits: 1,
-  });
-}
-
 function isLegacyOvertime(shift: ShiftData): boolean {
   const text = `${shift.title ?? ""} ${shift.description ?? ""}`;
-  return /переработ|(?:^|\s)П(?:\s|$)/i.test(text);
+  return /переработ|overtime|(?:^|\s)П(?:\s|$)/i.test(text);
 }
 
 function absenceKind(absence: ScheduleAbsence | null | undefined): CellKind {
   const name = absence?.category.name.toLowerCase() ?? "";
-  return name.includes("больнич") ? "SICK" : "VACATION";
+  return /больнич|sick/.test(name) ? "SICK" : "VACATION";
 }
 
 function currentKind(target: ShiftAssignmentTarget | null): CellKind {
@@ -103,6 +89,13 @@ export function ShiftAssignmentEditor({
   onClose,
   onChanged,
 }: ShiftAssignmentEditorProps) {
+  const t = useTranslations("schedule.editor");
+  const tGrid = useTranslations("schedule.grid");
+  const tPool = useTranslations("schedule.pool");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
+  const formatValue = useFormatter();
+
   const [mode, setMode] = useState<EditorMode>("edit");
   const [kind, setKind] = useState<CellKind>("SHIFT");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -115,7 +108,7 @@ export function ShiftAssignmentEditor({
     queryKey: ["shift-pool"],
     queryFn: async () => {
       const response = await fetch("/api/shift-pool");
-      if (!response.ok) throw new Error("Не удалось загрузить пул смен");
+      if (!response.ok) throw new Error(tErrors("loadSchedule"));
       return response.json();
     },
     enabled: target !== null,
@@ -129,10 +122,22 @@ export function ShiftAssignmentEditor({
         : undefined,
     [target]
   );
-
   const hasValue = Boolean(
     target?.assignment || target?.dayOff || target?.absence
   );
+
+  const cellKindOptions: Array<{ value: CellKind; label: string }> = [
+    { value: "SHIFT", label: t("shift") },
+    { value: "DAY_OFF", label: t("dayOff") },
+    { value: "VACATION", label: t("vacation") },
+    { value: "SICK", label: t("sickLeave") },
+  ];
+
+  const formatHours = (value: number) =>
+    formatValue.number(value, {
+      minimumFractionDigits: value % 1 === 0 ? 0 : 1,
+      maximumFractionDigits: 1,
+    });
 
   useEffect(() => {
     if (!target) return;
@@ -182,7 +187,7 @@ export function ShiftAssignmentEditor({
           dayOfWeek: target.dayOfWeek,
         }),
       });
-      if (!response.ok) await readError(response, "Не удалось удалить смену");
+      if (!response.ok) await readError(response, tErrors("delete"));
       return;
     }
 
@@ -198,17 +203,16 @@ export function ShiftAssignmentEditor({
           absenceId: target.absence?.id,
         }),
       });
-      if (!response.ok) await readError(response, "Не удалось очистить ячейку");
+      if (!response.ok) await readError(response, tErrors("delete"));
     }
   }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!target) throw new Error("Ячейка не выбрана");
+      if (!target) throw new Error(tErrors("invalidData"));
 
       if (kind === "SHIFT") {
-        if (!selectedTemplateId) throw new Error("Смена не выбрана");
-
+        if (!selectedTemplateId) throw new Error(tErrors("invalidData"));
         if (target.dayOff || target.absence) await clearCurrentValue();
 
         const parsedBefore = Number(overtimeBeforeHours.replace(",", "."));
@@ -225,7 +229,7 @@ export function ShiftAssignmentEditor({
             overtimeAfterHours: Number.isFinite(parsedAfter) ? parsedAfter : 0,
           }),
         });
-        if (!response.ok) await readError(response, "Не удалось сохранить смену");
+        if (!response.ok) await readError(response, tErrors("save"));
         return;
       }
 
@@ -239,8 +243,10 @@ export function ShiftAssignmentEditor({
           userId: target.user.id,
           dayOfWeek: target.dayOfWeek,
           type: kind,
-          dateFrom: kind === "VACATION" || kind === "SICK" ? dateFrom : undefined,
-          dateTo: kind === "VACATION" || kind === "SICK" ? dateTo : undefined,
+          dateFrom:
+            kind === "VACATION" || kind === "SICK" ? dateFrom : undefined,
+          dateTo:
+            kind === "VACATION" || kind === "SICK" ? dateTo : undefined,
           absenceId:
             target.absence && (kind === "VACATION" || kind === "SICK")
               ? target.absence.id
@@ -248,14 +254,12 @@ export function ShiftAssignmentEditor({
         }),
       });
 
-      if (!response.ok) {
-        await readError(response, "Не удалось сохранить состояние ячейки");
-      }
+      if (!response.ok) await readError(response, tErrors("save"));
     },
     onSuccess: async () => {
       if (!target) return;
       await onChanged(target.scheduleId);
-      toast.success("График обновлён");
+      toast.success(t("saved"));
       onClose();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -266,7 +270,7 @@ export function ShiftAssignmentEditor({
     onSuccess: async () => {
       if (!target) return;
       await onChanged(target.scheduleId);
-      toast.success("Значение удалено");
+      toast.success(t("deleted"));
       onClose();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -281,17 +285,27 @@ export function ShiftAssignmentEditor({
     0;
   const overtimeMinutes = overtimeBeforeMinutes + overtimeAfterMinutes;
   const displayedKind = currentKind(target);
+  const totalEditedOvertime =
+    (Number(overtimeBeforeHours.replace(",", ".")) || 0) +
+    (Number(overtimeAfterHours.replace(",", ".")) || 0);
 
   return (
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{hasValue ? "Ячейка графика" : "Заполнить ячейку"}</DialogTitle>
+          <DialogTitle>
+            {hasValue ? t("view") : t("edit")}
+          </DialogTitle>
           <DialogDescription>
             {target && (
               <>
                 {target.user.firstName} ·{" "}
-                {format(target.date, "EEEE, d MMMM yyyy", { locale: ru })}
+                {formatValue.dateTime(target.date, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
               </>
             )}
           </DialogDescription>
@@ -309,7 +323,7 @@ export function ShiftAssignmentEditor({
                   : "text-slate-500 hover:text-slate-900"
               )}
             >
-              Просмотр
+              {t("view")}
             </button>
             <button
               type="button"
@@ -323,7 +337,7 @@ export function ShiftAssignmentEditor({
                 !canEdit && "cursor-not-allowed opacity-50"
               )}
             >
-              Редактировать
+              {t("edit")}
             </button>
           </div>
         )}
@@ -353,20 +367,27 @@ export function ShiftAssignmentEditor({
                 )}
                 {overtimeMinutes > 0 ? (
                   <div className="mt-3 space-y-1 text-sm font-bold">
-                    <div>Переработка: +{formatHours(overtimeMinutes / 60)} ч</div>
+                    <div>
+                      {tGrid("overtimeTotal")}: +
+                      {formatHours(overtimeMinutes / 60)}
+                    </div>
                     <div className="text-xs font-semibold opacity-80">
-                      До смены: +{formatHours(overtimeBeforeMinutes / 60)} ч · После
-                      смены: +{formatHours(overtimeAfterMinutes / 60)} ч
+                      {tGrid("overtimeBefore")}: +
+                      {formatHours(overtimeBeforeMinutes / 60)} ·{" "}
+                      {tGrid("overtimeAfter")}: +
+                      {formatHours(overtimeAfterMinutes / 60)}
                     </div>
                   </div>
                 ) : isLegacyOvertime(assignment.shift) ? (
-                  <div className="mt-3 text-sm font-bold">Переработка</div>
+                  <div className="mt-3 text-sm font-bold">
+                    {tGrid("overtimeTotal")}
+                  </div>
                 ) : null}
               </div>
             ) : displayedKind === "DAY_OFF" ? (
               <div className="rounded-lg border-2 border-slate-300 bg-white p-6 text-center text-3xl font-bold text-slate-700">
                 −
-                <div className="mt-2 text-sm font-medium">Выходной</div>
+                <div className="mt-2 text-sm font-medium">{t("dayOff")}</div>
               </div>
             ) : absence ? (
               <div
@@ -378,13 +399,22 @@ export function ShiftAssignmentEditor({
                 )}
               >
                 <div className="text-xl font-bold">
-                  {displayedKind === "VACATION" ? "Отпуск" : "Больничный"}
+                  {displayedKind === "VACATION"
+                    ? t("vacation")
+                    : t("sickLeave")}
                 </div>
                 <div className="mt-3 flex items-center justify-center gap-2 text-sm font-medium">
                   <CalendarRange className="size-4" />
-                  {format(new Date(absence.dateFrom), "d MMMM", { locale: ru })}
+                  {formatValue.dateTime(new Date(absence.dateFrom), {
+                    day: "numeric",
+                    month: "long",
+                  })}
                   {" — "}
-                  {format(new Date(absence.dateTo), "d MMMM yyyy", { locale: ru })}
+                  {formatValue.dateTime(new Date(absence.dateTo), {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
                 </div>
               </div>
             ) : null}
@@ -392,7 +422,7 @@ export function ShiftAssignmentEditor({
         ) : (
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {CELL_KIND_OPTIONS.map((option) => (
+              {cellKindOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -400,7 +430,7 @@ export function ShiftAssignmentEditor({
                   className={cn(
                     "rounded-md border px-2 py-2 text-sm font-semibold transition",
                     kind === option.value
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
+                      ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
                       : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                   )}
                 >
@@ -414,7 +444,7 @@ export function ShiftAssignmentEditor({
                 {poolLoading ? (
                   <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
-                    Загрузка пула смен…
+                    {tCommon("loading")} {tPool("title").toLocaleLowerCase()}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -429,7 +459,7 @@ export function ShiftAssignmentEditor({
                           className={cn(
                             "min-h-20 rounded-md border-2 px-3 py-2 text-left transition",
                             selected
-                              ? "ring-2 ring-indigo-500 ring-offset-2"
+                              ? "ring-2 ring-primary ring-offset-2"
                               : "hover:scale-[1.01]"
                           )}
                           style={{
@@ -459,7 +489,7 @@ export function ShiftAssignmentEditor({
                 <div className="grid grid-cols-1 gap-3 rounded-lg border bg-slate-50 p-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="overtime-before-hours">
-                      Переработка до смены, часов
+                      {t("overtimeBefore")}
                     </Label>
                     <Input
                       id="overtime-before-hours"
@@ -474,7 +504,7 @@ export function ShiftAssignmentEditor({
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="overtime-after-hours">
-                      Переработка после смены, часов
+                      {t("overtimeAfter")}
                     </Label>
                     <Input
                       id="overtime-after-hours"
@@ -488,12 +518,7 @@ export function ShiftAssignmentEditor({
                     />
                   </div>
                   <div className="text-xs font-semibold text-slate-600 sm:col-span-2">
-                    Итого: +
-                    {formatHours(
-                      (Number(overtimeBeforeHours.replace(",", ".")) || 0) +
-                        (Number(overtimeAfterHours.replace(",", ".")) || 0)
-                    )}{" "}
-                    ч
+                    {tGrid("overtimeTotal")}: +{formatHours(totalEditedOvertime)}
                   </div>
                 </div>
               </>
@@ -501,14 +526,14 @@ export function ShiftAssignmentEditor({
               <div className="rounded-lg border border-slate-300 bg-slate-50 p-6 text-center">
                 <div className="text-3xl font-bold">−</div>
                 <div className="mt-2 text-sm text-slate-600">
-                  Выходной сотрудника. Это не отсутствие.
+                  {tGrid("dayOff")}
                 </div>
               </div>
             ) : (
               <div className="space-y-4 rounded-lg border bg-slate-50 p-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="absence-date-from">С</Label>
+                    <Label htmlFor="absence-date-from">{t("periodFrom")}</Label>
                     <Input
                       id="absence-date-from"
                       type="date"
@@ -517,7 +542,7 @@ export function ShiftAssignmentEditor({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="absence-date-to">По</Label>
+                    <Label htmlFor="absence-date-to">{t("periodTo")}</Label>
                     <Input
                       id="absence-date-to"
                       type="date"
@@ -526,9 +551,6 @@ export function ShiftAssignmentEditor({
                     />
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  В таблице соседние даты периода объединяются в один блок.
-                </p>
               </div>
             )}
           </div>
@@ -548,20 +570,20 @@ export function ShiftAssignmentEditor({
                 ) : (
                   <Trash2 className="size-4" />
                 )}
-                Удалить
+                {tCommon("delete")}
               </Button>
             )}
           </div>
 
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
-              Закрыть
+              {tCommon("close")}
             </Button>
 
             {mode === "view" && hasValue && canEdit ? (
               <Button type="button" onClick={() => setMode("edit")}>
                 <Pencil className="size-4" />
-                Редактировать
+                {t("edit")}
               </Button>
             ) : mode === "edit" && canEdit ? (
               <Button
@@ -577,7 +599,7 @@ export function ShiftAssignmentEditor({
                 {saveMutation.isPending && (
                   <Loader2 className="size-4 animate-spin" />
                 )}
-                Сохранить
+                {tCommon("save")}
               </Button>
             ) : null}
           </div>
