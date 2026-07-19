@@ -14,10 +14,7 @@ import {
   type ShiftAssignmentTarget,
 } from "@/components/schedule/shift-assignment-editor";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
-import {
-  findShiftTemplate,
-  type ShiftTemplate,
-} from "@/lib/schedule/shift-pool";
+import { resolveShiftTemplate } from "@/lib/schedule/shift-pool";
 import { cn } from "@/lib/utils";
 import type {
   BookingUser,
@@ -60,6 +57,12 @@ function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
+function getFullName(user: BookingUser): string {
+  return [user.lastName, user.firstName, user.patronymic]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function formatHours(value: number): string {
   return value.toLocaleString("ru-RU", {
     minimumFractionDigits: value % 1 === 0 ? 0 : 1,
@@ -70,12 +73,6 @@ function formatHours(value: number): string {
 function isLegacyOvertime(shift: ShiftAssignment["shift"]): boolean {
   const text = `${shift.title ?? ""} ${shift.description ?? ""}`;
   return /переработ|(?:^|\s)П(?:\s|$)/i.test(text);
-}
-
-function getTemplate(
-  shift: ShiftAssignment["shift"]
-): ShiftTemplate | undefined {
-  return findShiftTemplate(shift.shiftFrom, shift.shiftTo, shift.title);
 }
 
 function isDateInsideAbsence(date: Date, absence: ScheduleAbsence): boolean {
@@ -150,8 +147,8 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
   const nonWorkingDates = useMemo(
     () =>
       new Set(
-        (holidayCalendars ?? []).flatMap((calendar) =>
-          calendar.nonWorkingDates ?? []
+        (holidayCalendars ?? []).flatMap(
+          (calendar) => calendar.nonWorkingDates ?? []
         )
       ),
     [holidayCalendars]
@@ -162,7 +159,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
 
   const visibleMembers = useMemo(() => {
     const active = (employeesData?.members ?? []).filter(
-      (member) => member.isActive !== false
+      (member) => member.isActive !== false && member.role !== "OWNER"
     );
     const care = active.filter((member) =>
       member.user.email.toLowerCase().endsWith(CARE_EMAIL_SUFFIX)
@@ -182,28 +179,21 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
 
     return visibleMembers.map((member) => {
       const dayAssignments = {} as Record<number, ShiftAssignment | null>;
-
       for (let day = 1; day <= 7; day += 1) {
         dayAssignments[day] =
           assignments.get(`${member.user.id}:${day}`) ?? null;
       }
-
-      return {
-        user: member.user,
-        assignments: dayAssignments,
-      };
+      return { user: member.user, assignments: dayAssignments };
     });
   }, [shifts, visibleMembers]);
 
   const dayNotesByDay = useMemo(() => {
     const result = new Map<number, ScheduleDayNote[]>();
-
     for (const note of schedule?.dayNotes ?? []) {
       const list = result.get(note.dayOfWeek) ?? [];
       list.push(note);
       result.set(note.dayOfWeek, list);
     }
-
     return result;
   }, [schedule?.dayNotes]);
 
@@ -385,16 +375,27 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                 const dayOff =
                   dayOffByCell.get(`${row.user.id}:${dayOfWeek}`) ?? null;
                 const template = assignment
-                  ? getTemplate(assignment.shift)
-                  : undefined;
+                  ? resolveShiftTemplate(assignment.shift)
+                  : null;
                 const overtimeMinutes =
                   assignment?.booking.overtimeMinutes ?? 0;
-                const legacyOvertime =
-                  assignment && isLegacyOvertime(assignment.shift);
+                const legacyOvertime = assignment
+                  ? isLegacyOvertime(assignment.shift)
+                  : false;
+                const hasOvertime = overtimeMinutes > 0 || legacyOvertime;
                 const clickable = Boolean(assignment || dayOff) || canEdit;
                 const nonWorking = nonWorkingDates.has(
                   format(date, "yyyy-MM-dd")
                 );
+                const title = assignment
+                  ? `${template?.name ?? "Смена"}: ${template?.label ?? ""}${
+                      overtimeMinutes > 0
+                        ? `, переработка +${formatHours(overtimeMinutes / 60)} ч`
+                        : ""
+                    }`
+                  : dayOff
+                    ? "Выходной"
+                    : "Не заполнено";
 
                 cells.push(
                   <td
@@ -407,12 +408,14 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                   >
                     <button
                       type="button"
+                      title={title}
                       disabled={!clickable}
                       onClick={() =>
                         openCell(row.user, dayOfWeek, assignment, dayOff, null)
                       }
                       className={cn(
-                        "relative flex min-h-11 w-full items-center justify-center rounded-sm border px-1.5 py-1 text-[11px] font-semibold leading-tight transition",
+                        "relative flex min-h-11 w-full items-center justify-center overflow-visible rounded-sm border px-1.5 py-1 text-[11px] font-semibold leading-tight transition",
+                        hasOvertime && "pt-4",
                         assignment
                           ? "shadow-sm"
                           : dayOff
@@ -421,39 +424,36 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                         clickable && "hover:ring-2 hover:ring-indigo-400"
                       )}
                       style={
-                        assignment
+                        assignment && template
                           ? {
-                              backgroundColor: template?.color ?? "#E5E7EB",
-                              color: template?.textColor ?? "#111827",
+                              backgroundColor: template.color,
+                              color: template.textColor,
                               borderColor:
-                                template?.color === "#FFFFFF"
+                                template.color === "#FFFFFF"
                                   ? "#94A3B8"
-                                  : template?.color ?? "#CBD5E1",
+                                  : template.color,
                             }
                           : undefined
                       }
                     >
-                      {assignment ? (
-                        <span>
-                          <span className="block whitespace-nowrap">
-                            {template?.label ??
-                              `${assignment.shift.shiftFrom}–${assignment.shift.shiftTo}`}
-                          </span>
-                          {overtimeMinutes > 0 ? (
-                            <span className="mt-0.5 block text-[10px] font-bold">
-                              П +{formatHours(overtimeMinutes / 60)} ч
-                            </span>
-                          ) : legacyOvertime ? (
-                            <span className="mt-0.5 block text-[10px] font-bold">
-                              П
-                            </span>
-                          ) : null}
-                        </span>
+                      {assignment && template ? (
+                        <span className="whitespace-nowrap">{template.label}</span>
                       ) : dayOff ? (
                         "−"
                       ) : canEdit ? (
                         <Plus className="size-3.5 opacity-0 group-hover:opacity-60" />
                       ) : null}
+
+                      {assignment && overtimeMinutes > 0 && (
+                        <span className="absolute right-0.5 top-0.5 z-10 whitespace-nowrap rounded-full border border-white/80 bg-slate-900 px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white shadow-sm">
+                          П +{formatHours(overtimeMinutes / 60)} ч
+                        </span>
+                      )}
+                      {assignment && overtimeMinutes === 0 && legacyOvertime && (
+                        <span className="absolute right-0.5 top-0.5 z-10 rounded-full border border-white/80 bg-slate-900 px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white shadow-sm">
+                          П
+                        </span>
+                      )}
                     </button>
                   </td>
                 );
@@ -471,13 +471,11 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                       </Avatar>
                       <div className="min-w-0">
                         <div className="truncate font-semibold text-slate-900">
-                          {row.user.nickname || row.user.firstName}
+                          {row.user.firstName}
                         </div>
-                        {row.user.nickname && (
-                          <div className="truncate text-[10px] text-slate-500">
-                            {row.user.firstName} {row.user.lastName}
-                          </div>
-                        )}
+                        <div className="truncate text-[10px] text-slate-500">
+                          {getFullName(row.user)}
+                        </div>
                       </div>
                     </div>
                   </td>
