@@ -1,6 +1,7 @@
 import { getISOWeek, getISOWeekYear } from "date-fns";
 import { redirect } from "next/navigation";
 import { MonthGridWrapper } from "@/components/schedule/month-grid-wrapper";
+import { ShiftLegend } from "@/components/schedule/shift-legend";
 import { ViewSwitcher } from "@/components/schedule/view-switcher";
 import { formatKW } from "@/lib/utils/calendar";
 
@@ -39,6 +40,7 @@ export default async function MonthViewPage({ params }: MonthPageProps) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <ViewSwitcher kw={kw} month={monthParam} />
       </div>
+      <ShiftLegend />
       <MonthGridWrapper month={month} year={year} />
     </div>
   );
