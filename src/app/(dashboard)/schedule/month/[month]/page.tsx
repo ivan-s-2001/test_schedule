@@ -36,10 +36,17 @@ export default async function MonthViewPage({ params }: MonthPageProps) {
   const kw = formatKW(getISOWeek(firstDay), getISOWeekYear(firstDay));
 
   return (
-    <div className="schedule-equal-day-columns space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="schedule-equal-day-columns space-y-5">
+      <header className="space-y-3">
+        <div>
+          <h1 className="text-[26px] font-medium leading-tight text-[#111319]">
+            График службы заботы
+          </h1>
+          <p className="mt-1 text-sm text-[#66778f]">Месячная таблица сотрудников и смен</p>
+        </div>
         <ViewSwitcher kw={kw} month={monthParam} />
-      </div>
+      </header>
+
       <ShiftLegend />
       <MonthGridWrapper month={month} year={year} />
     </div>
