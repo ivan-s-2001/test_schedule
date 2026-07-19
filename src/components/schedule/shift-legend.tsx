@@ -16,12 +16,59 @@ type LegendGroup = {
   variants: ShiftTemplate[];
 };
 
+function ShiftBadge({
+  name,
+  variant,
+}: {
+  name: string;
+  variant: ShiftTemplate;
+}) {
+  const whiteBackground = variant.color.toUpperCase() === "#FFFFFF";
+
+  return (
+    <span
+      className="inline-flex min-h-7 items-center gap-2 rounded-md border px-2.5 py-1 text-sm font-semibold leading-none shadow-[0_1px_1px_rgba(0,0,0,0.08)]"
+      style={{
+        backgroundColor: variant.color,
+        color: variant.textColor,
+        borderColor: whiteBackground ? "#A2B2C3" : "rgba(17, 19, 25, 0.28)",
+      }}
+    >
+      <span>{name}</span>
+      <span
+        className="border-l pl-2 text-xs font-medium tabular-nums"
+        style={{ borderColor: "currentColor", opacity: 0.86 }}
+      >
+        {variant.label}
+      </span>
+    </span>
+  );
+}
+
+function SystemLegendItem({
+  badge,
+  description,
+}: {
+  badge: React.ReactNode;
+  description: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+      {badge}
+      <span className="font-medium text-[#66778F]" aria-hidden="true">
+        —
+      </span>
+      <span className="text-[#2F3336]">{description}</span>
+    </div>
+  );
+}
+
 export function ShiftLegend() {
   const { data, isLoading } = useQuery<ShiftPoolResponse>({
     queryKey: ["shift-pool"],
     queryFn: async () => {
       const response = await fetch("/api/shift-pool");
-      if (!response.ok) throw new Error("Не удалось загрузить легенду");
+      if (!response.ok) throw new Error("Не удалось загрузить обозначения");
       return response.json();
     },
   });
@@ -39,6 +86,7 @@ export function ShiftLegend() {
         description,
         variants: [],
       };
+
       group.variants.push(template);
       result.set(key, group);
     }
@@ -47,52 +95,89 @@ export function ShiftLegend() {
   }, [data?.templates]);
 
   return (
-    <details className="rounded-md border bg-white" open>
-      <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-700">
+    <details className="rounded-lg border border-[#DAE1E9] bg-white" open>
+      <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-[#111319]">
         Обозначения
       </summary>
 
-      <div className="space-y-2 border-t px-3 py-2.5">
+      <div className="space-y-3 border-t border-[#DAE1E9] px-4 py-4">
         {isLoading ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" />
+          <div className="flex items-center gap-2 text-sm text-[#4E5C6E]">
+            <Loader2 className="size-4 animate-spin" />
             Загрузка…
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <div className="space-y-2.5">
               {groups.map((group) => (
-                <div key={group.key} className="min-w-0 text-xs">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-semibold text-slate-900">{group.name}</span>
+                <div
+                  key={group.key}
+                  className="flex min-w-0 flex-wrap items-center gap-2"
+                >
+                  <div className="flex flex-wrap gap-1.5">
                     {group.variants.map((variant) => (
-                      <span
+                      <ShiftBadge
                         key={variant.id}
-                        className="inline-flex items-center gap-1 rounded border bg-white px-1.5 py-0.5 font-medium text-slate-700"
-                      >
-                        <span
-                          className="size-2.5 rounded-sm border border-black/20"
-                          style={{ backgroundColor: variant.color }}
-                        />
-                        {variant.label}
-                      </span>
+                        name={group.name}
+                        variant={variant}
+                      />
                     ))}
                   </div>
-                  {group.description && (
-                    <div className="mt-0.5 max-w-md text-[10px] leading-tight text-slate-500">
-                      {group.description}
-                    </div>
-                  )}
+
+                  <span
+                    className="font-medium text-[#66778F]"
+                    aria-hidden="true"
+                  >
+                    —
+                  </span>
+                  <span className="min-w-0 text-sm leading-5 text-[#2F3336]">
+                    {group.description ?? "Обычная рабочая смена"}
+                  </span>
                 </div>
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-2 text-[10px] text-slate-600">
-              <span><b>−</b> выходной</span>
-              <span><b>Отпуск</b> период отсутствия</span>
-              <span><b>Больничный</b> период отсутствия</span>
-              <span><b>П +N ч</b> сумма переработки до и после смены</span>
-              <span><b className="text-emerald-700">Зелёный фон</b> выходной или праздник РФ</span>
+            <div className="grid gap-2 border-t border-[#DAE1E9] pt-3 md:grid-cols-2 xl:grid-cols-3">
+              <SystemLegendItem
+                badge={
+                  <span className="inline-flex min-h-7 min-w-9 items-center justify-center rounded-md border border-[#A2B2C3] bg-white px-2 text-sm font-semibold text-[#111319]">
+                    −
+                  </span>
+                }
+                description="Выходной сотрудника"
+              />
+              <SystemLegendItem
+                badge={
+                  <span className="inline-flex min-h-7 items-center rounded-md border border-[#A2B2C3] bg-white px-2.5 text-sm font-semibold text-[#111319]">
+                    Отпуск
+                  </span>
+                }
+                description="Период отпуска"
+              />
+              <SystemLegendItem
+                badge={
+                  <span className="inline-flex min-h-7 items-center rounded-md border border-[#F5A3B5] bg-[#FFF1F4] px-2.5 text-sm font-semibold text-[#A40E32]">
+                    Больничный
+                  </span>
+                }
+                description="Период больничного"
+              />
+              <SystemLegendItem
+                badge={
+                  <span className="inline-flex min-h-7 items-center rounded-md bg-[#111319] px-2.5 text-sm font-semibold text-white">
+                    П +N ч
+                  </span>
+                }
+                description="Сумма переработки до и после смены"
+              />
+              <SystemLegendItem
+                badge={
+                  <span className="inline-flex min-h-7 items-center rounded-md border border-[#9BC9A9] bg-[#E8F5EC] px-2.5 text-sm font-semibold text-[#216E39]">
+                    Зелёный фон
+                  </span>
+                }
+                description="Суббота, воскресенье или официальный нерабочий день РФ"
+              />
             </div>
           </>
         )}
