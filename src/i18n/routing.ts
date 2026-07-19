@@ -6,4 +6,5 @@ export const routing = defineRouting({
   localePrefix: "never",
 });
 
+export const LOCALE_COOKIE = "APP_LOCALE";
 export type AppLocale = (typeof routing.locales)[number];
