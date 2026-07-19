@@ -3,7 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, CalendarDays, Sparkles } from "lucide-react";
+import {
+  CalendarIcon,
+  MenuIcon,
+  SparklesIcon,
+} from "@/components/icons/outline-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,24 +30,24 @@ export function MobileNav() {
 
   const itemClass = (active: boolean) =>
     cn(
-      "flex min-h-[30px] items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium text-[#4e5c6e] transition-colors",
+      "flex min-h-8 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
       active
-        ? "bg-[#cdd8e5] text-[#111319]"
-        : "hover:bg-[#dee5ed] hover:text-[#111319]"
+        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     );
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="size-5" />
+          <MenuIcon className="size-5" />
           <span className="sr-only">Навигация</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 border-[#dae1e9] bg-[#eef2f6] p-0">
-        <SheetHeader className="border-b border-[#dae1e9] px-4 py-3">
-          <SheetTitle className="flex items-center gap-2 text-base font-semibold text-[#111319]">
-            <CalendarDays className="size-5 text-[#4e5c6e]" />
+      <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
+        <SheetHeader className="border-b border-sidebar-border px-4 py-3">
+          <SheetTitle className="flex items-center gap-2 text-base font-semibold text-sidebar-primary-foreground">
+            <CalendarIcon className="size-5 text-sidebar-foreground" />
             QuickTickets
           </SheetTitle>
         </SheetHeader>
@@ -68,7 +72,7 @@ export function MobileNav() {
             onClick={() => setOpen(false)}
             className={itemClass(pathname.startsWith("/ai"))}
           >
-            <Sparkles className="size-4" />
+            <SparklesIcon className="size-4" />
             ИИ-ассистент
           </Link>
         </nav>

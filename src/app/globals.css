@@ -47,8 +47,7 @@
   --radius-4xl: calc(var(--radius) + 12px);
 }
 
-:root,
-.dark {
+:root {
   color-scheme: light;
 
   --outline-font-sans:
@@ -72,10 +71,13 @@
   --outline-warning: #f08a24;
   --outline-success: #3ad984;
   --outline-info: #a0d3e8;
-  --outline-sidebar-background: #eef2f6;
-  --outline-sidebar-hover: #dee5ed;
-  --outline-sidebar-active: #cdd8e5;
-  --outline-sidebar-text: #394351;
+  --outline-sidebar-background: hsl(212 31% 95%);
+  --outline-sidebar-hover: hsl(212 31% 90%);
+  --outline-sidebar-active: hsl(212 31% 85%);
+  --outline-sidebar-text: #4e5c6e;
+  --outline-menu-shadow:
+    0 0 0 1px rgb(0 0 0 / 2%), 0 4px 8px rgb(0 0 0 / 8%),
+    0 30px 40px rgb(0 0 0 / 8%);
 
   --radius: 0.5rem;
   --background: #ffffff;
@@ -86,29 +88,88 @@
   --popover-foreground: #111319;
   --primary: #0366d6;
   --primary-foreground: #ffffff;
-  --secondary: #eef2f6;
+  --secondary: hsl(212 31% 95%);
   --secondary-foreground: #2f3336;
   --muted: #f4f7fa;
   --muted-foreground: #4e5c6e;
-  --accent: #dee5ed;
+  --accent: hsl(212 31% 90%);
   --accent-foreground: #111319;
   --destructive: #ed2651;
   --border: #dae1e9;
-  --input: #c6d3e1;
-  --ring: #0366d6;
+  --input: #dae1e9;
+  --ring: #66778f;
   --chart-1: #0366d6;
   --chart-2: #3ad984;
   --chart-3: #f08a24;
   --chart-4: #9e5cf7;
   --chart-5: #2bc2ff;
-  --sidebar: #eef2f6;
-  --sidebar-foreground: #394351;
-  --sidebar-primary: #cdd8e5;
+  --sidebar: hsl(212 31% 95%);
+  --sidebar-foreground: #4e5c6e;
+  --sidebar-primary: hsl(212 31% 85%);
   --sidebar-primary-foreground: #111319;
-  --sidebar-accent: #dee5ed;
+  --sidebar-accent: hsl(212 31% 90%);
   --sidebar-accent-foreground: #111319;
   --sidebar-border: #dae1e9;
-  --sidebar-ring: #0366d6;
+  --sidebar-ring: #66778f;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --outline-almost-black: #e6e6e6;
+  --outline-light-black: #d7d9dd;
+  --outline-white: #ffffff;
+  --outline-accent: #137ffb;
+  --outline-accent-hover: #2b8cff;
+  --outline-slate: #66778f;
+  --outline-slate-light: #394351;
+  --outline-slate-dark: #9aa7b8;
+  --outline-smoke: #1d202a;
+  --outline-smoke-light: #1f232e;
+  --outline-smoke-dark: #2a2f3e;
+  --outline-danger: #ed2651;
+  --outline-warning: #f08a24;
+  --outline-success: #3ad984;
+  --outline-info: #a0d3e8;
+  --outline-sidebar-background: #08090c;
+  --outline-sidebar-hover: #12151c;
+  --outline-sidebar-active: #1b202a;
+  --outline-sidebar-text: #8291a5;
+  --outline-menu-shadow:
+    0 0 0 1px rgb(34 40 52), 0 8px 16px rgb(0 0 0 / 30%),
+    0 2px 4px rgb(0 0 0 / 8%);
+
+  --background: #111319;
+  --foreground: #e6e6e6;
+  --card: #181c25;
+  --card-foreground: #e6e6e6;
+  --popover: #181c25;
+  --popover-foreground: #e6e6e6;
+  --primary: #137ffb;
+  --primary-foreground: #ffffff;
+  --secondary: #1f232e;
+  --secondary-foreground: #e6e6e6;
+  --muted: #1d202a;
+  --muted-foreground: #9aa7b8;
+  --accent: #252b36;
+  --accent-foreground: #e6e6e6;
+  --destructive: #ed2651;
+  --border: #2b303b;
+  --input: #394351;
+  --ring: #66778f;
+  --chart-1: #137ffb;
+  --chart-2: #3ad984;
+  --chart-3: #f08a24;
+  --chart-4: #9e5cf7;
+  --chart-5: #2bc2ff;
+  --sidebar: #08090c;
+  --sidebar-foreground: #8291a5;
+  --sidebar-primary: #1b202a;
+  --sidebar-primary-foreground: #e6e6e6;
+  --sidebar-accent: #12151c;
+  --sidebar-accent-foreground: #e6e6e6;
+  --sidebar-border: #252a34;
+  --sidebar-ring: #66778f;
 }
 
 @layer base {
@@ -138,9 +199,15 @@
   h4,
   h5,
   h6 {
-    color: var(--outline-almost-black);
+    color: var(--foreground);
     font-weight: 600;
     line-height: 1.25;
+  }
+
+  label {
+    color: var(--secondary-foreground);
+    font-size: 0.875rem;
+    font-weight: 500;
   }
 
   a,
@@ -153,30 +220,95 @@
   }
 
   ::selection {
-    background: rgb(3 102 214 / 18%);
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
   }
 }
 
-/* Floating surfaces only. Ordinary cards and tables stay flat. */
+/* Outline forms: compact controls, restrained focus, no decorative depth. */
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"] {
+  border-color: var(--input);
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus-visible,
+[data-slot="select-trigger"]:focus-visible {
+  border-color: var(--outline-slate);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--outline-slate) 18%, transparent);
+}
+
+[data-slot="input"]::placeholder,
+[data-slot="textarea"]::placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.72;
+}
+
+[data-slot="button"] {
+  min-height: 2rem;
+  border-radius: 0.375rem;
+  box-shadow: none;
+}
+
+[data-slot="button"][data-variant="outline"] {
+  border-color: var(--border);
+  background: var(--background);
+}
+
+[data-slot="button"][data-variant="outline"]:hover,
+[data-slot="button"][data-variant="secondary"]:hover,
+[data-slot="button"][data-variant="ghost"]:hover {
+  background: var(--secondary);
+}
+
+/* Ordinary content stays flat. Menus and dialogs are the floating layer. */
+[data-slot="card"],
+[data-slot="table-container"] {
+  box-shadow: none;
+}
+
 [data-slot="dialog-overlay"] {
   background: rgb(0 0 0 / 25%) !important;
 }
 
+.dark [data-slot="dialog-overlay"] {
+  background: rgb(0 0 0 / 50%) !important;
+}
+
 [data-slot="dialog-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="select-content"],
 [data-radix-popper-content-wrapper] > * {
-  box-shadow:
-    0 4px 8px rgb(0 0 0 / 8%),
-    0 30px 40px rgb(0 0 0 / 8%);
+  border-color: var(--border);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--outline-menu-shadow);
+}
+
+[data-slot="dropdown-menu-item"],
+[data-slot="select-item"] {
+  color: var(--secondary-foreground);
+}
+
+[data-slot="dropdown-menu-item"]:focus,
+[data-slot="select-item"]:focus,
+[data-slot="dropdown-menu-item"][data-highlighted],
+[data-slot="select-item"][data-highlighted] {
+  background: var(--secondary);
+  color: var(--foreground);
 }
 
 [data-slot="tooltip-content"] {
-  background: #111319;
-  color: #ffffff;
+  background: var(--foreground);
+  color: var(--background);
 }
 
-/* Schedule keeps the Excel colors but uses clear, high-contrast UI text. */
+/* Schedule keeps the Excel shift colors while its structure follows Outline. */
 .schedule-equal-day-columns {
-  color: #111319;
+  color: var(--foreground);
 }
 
 .schedule-equal-day-columns > div,
@@ -186,7 +318,7 @@
 }
 
 .schedule-equal-day-columns .text-muted-foreground {
-  color: #4e5c6e !important;
+  color: var(--muted-foreground) !important;
 }
 
 .schedule-equal-day-columns table {
@@ -209,15 +341,15 @@
 }
 
 .schedule-equal-day-columns table th {
-  border-color: rgb(218 225 233 / 90%);
-  color: #2f3336;
+  border-color: var(--border);
+  color: var(--secondary-foreground);
   font-size: 13px;
   font-weight: 600;
 }
 
 .schedule-equal-day-columns table td {
-  border-color: rgb(218 225 233 / 90%);
-  color: #111319;
+  border-color: var(--border);
+  color: var(--foreground);
 }
 
 /* Weekly schedule overtime badge. */

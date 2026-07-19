@@ -15,6 +15,7 @@ import {
 } from "@/components/schedule/shift-assignment-editor";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import { resolveShiftTemplate } from "@/lib/schedule/shift-pool";
+import { getThemeColorStyle } from "@/lib/utils/theme-color";
 import { cn } from "@/lib/utils";
 import type {
   BookingUser,
@@ -265,11 +266,11 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
 
   return (
     <>
-      <div className="overflow-x-auto rounded-md border border-slate-400 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-md border border-border bg-card shadow-none">
         <table className="w-full min-w-[1080px] border-collapse text-xs">
           <thead>
             <tr>
-              <th className="sticky left-0 z-20 w-52 min-w-52 border-b border-r border-slate-400 bg-[#0000FF] px-3 py-3 text-left font-semibold text-white">
+              <th className="sticky left-0 z-20 w-52 min-w-52 border-b border-r border-border bg-secondary px-3 py-3 text-left font-semibold text-foreground">
                 Сотрудник
               </th>
               {weekDates.map((date, index) => {
@@ -283,13 +284,13 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                   <th
                     key={date.toISOString()}
                     className={cn(
-                      "min-w-36 border-b border-r border-slate-400 px-2 py-2 text-center align-top text-white",
-                      nonWorking ? "bg-emerald-700" : "bg-[#0000FF]",
-                      today && "ring-2 ring-inset ring-yellow-300"
+                      "min-w-36 border-b border-r border-border px-2 py-2 text-center align-top text-foreground",
+                      nonWorking ? "bg-emerald-500/15" : "bg-secondary",
+                      today && "ring-2 ring-inset ring-primary/35"
                     )}
                   >
                     <div className="text-sm font-bold">{DAY_NAMES[index]}</div>
-                    <div className="mt-0.5 text-[11px] font-normal">
+                    <div className="mt-0.5 text-[11px] font-normal text-muted-foreground">
                       {format(date, "d MMMM", { locale: ru })}
                     </div>
                     <DayNotesEditor
@@ -341,7 +342,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                     <td
                       key={`absence-${absence.id}-${index}`}
                       colSpan={span}
-                      className="h-14 border-b border-r border-slate-300 p-1 align-middle"
+                      className="h-14 border-b border-r border-border p-1 align-middle"
                     >
                       <button
                         type="button"
@@ -350,10 +351,10 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                           openCell(row.user, dayOfWeek, null, null, absence)
                         }
                         className={cn(
-                          "flex min-h-11 w-full items-center justify-center rounded-sm border px-2 py-1 text-center font-bold transition hover:ring-2 hover:ring-indigo-400",
+                          "flex min-h-11 w-full items-center justify-center rounded-md border px-2 py-1 text-center font-bold transition hover:ring-2 hover:ring-ring/25",
                           kind === "VACATION"
-                            ? "border-slate-400 bg-white text-slate-900"
-                            : "border-red-300 bg-red-50 text-red-900"
+                            ? "border-input bg-background text-foreground"
+                            : "border-destructive/35 bg-destructive/10 text-destructive"
                         )}
                       >
                         <span>
@@ -401,9 +402,9 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                   <td
                     key={dayOfWeek}
                     className={cn(
-                      "h-14 border-b border-r border-slate-300 p-1 text-center align-middle",
-                      nonWorking && "bg-emerald-50",
-                      isToday(date) && "ring-1 ring-inset ring-yellow-300"
+                      "h-14 border-b border-r border-border p-1 text-center align-middle",
+                      nonWorking && "bg-emerald-500/5",
+                      isToday(date) && "ring-1 ring-inset ring-primary/30"
                     )}
                   >
                     <button
@@ -414,25 +415,18 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                         openCell(row.user, dayOfWeek, assignment, dayOff, null)
                       }
                       className={cn(
-                        "relative flex min-h-11 w-full items-center justify-center overflow-visible rounded-sm border px-1.5 py-1 text-[11px] font-semibold leading-tight transition",
+                        "relative flex min-h-11 w-full items-center justify-center overflow-visible rounded-md border px-1.5 py-1 text-[11px] font-semibold leading-tight transition",
                         hasOvertime && "pt-4",
                         assignment
-                          ? "shadow-sm"
+                          ? "shadow-none [background-color:var(--user-color-light-bg)] [border-color:var(--user-color-light-border)] [color:var(--user-color-light-text)] dark:[background-color:var(--user-color-dark-bg)] dark:[border-color:var(--user-color-dark-border)] dark:[color:var(--user-color-dark-text)]"
                           : dayOff
-                            ? "border-slate-300 bg-white text-xl text-slate-700"
-                            : "border-transparent bg-transparent text-slate-400",
-                        clickable && "hover:ring-2 hover:ring-indigo-400"
+                            ? "border-input bg-background text-xl text-foreground"
+                            : "border-transparent bg-transparent text-muted-foreground/65",
+                        clickable && "hover:ring-2 hover:ring-ring/25"
                       )}
                       style={
                         assignment && template
-                          ? {
-                              backgroundColor: template.color,
-                              color: template.textColor,
-                              borderColor:
-                                template.color === "#FFFFFF"
-                                  ? "#94A3B8"
-                                  : template.color,
-                            }
+                          ? getThemeColorStyle(template.color, template.textColor)
                           : undefined
                       }
                     >
@@ -445,12 +439,12 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                       ) : null}
 
                       {assignment && overtimeMinutes > 0 && (
-                        <span className="absolute right-0.5 top-0.5 z-10 whitespace-nowrap rounded-full border border-white/80 bg-slate-900 px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white shadow-sm">
+                        <span className="absolute right-0.5 top-0.5 z-10 whitespace-nowrap rounded-full border border-white/70 bg-[#111319]/95 px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white shadow-sm dark:border-white/25">
                           П +{formatHours(overtimeMinutes / 60)} ч
                         </span>
                       )}
                       {assignment && overtimeMinutes === 0 && legacyOvertime && (
-                        <span className="absolute right-0.5 top-0.5 z-10 rounded-full border border-white/80 bg-slate-900 px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white shadow-sm">
+                        <span className="absolute right-0.5 top-0.5 z-10 rounded-full border border-white/70 bg-[#111319]/95 px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white shadow-sm dark:border-white/25">
                           П
                         </span>
                       )}
@@ -462,7 +456,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
 
               return (
                 <tr key={row.user.id} className="group">
-                  <td className="sticky left-0 z-10 border-b border-r border-slate-300 bg-white px-3 py-2">
+                  <td className="sticky left-0 z-10 border-b border-r border-border bg-background px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Avatar size="sm">
                         <AvatarFallback className="text-[9px]">
@@ -470,10 +464,10 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <div className="truncate font-semibold text-slate-900">
+                        <div className="truncate font-semibold text-foreground">
                           {row.user.firstName}
                         </div>
-                        <div className="truncate text-[10px] text-slate-500">
+                        <div className="truncate text-[10px] text-muted-foreground">
                           {getFullName(row.user)}
                         </div>
                       </div>
@@ -499,15 +493,15 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
 
 function EmployeeGridSkeleton() {
   return (
-    <div className="overflow-hidden rounded-md border">
-      <div className="flex gap-4 bg-[#0000FF] px-3 py-4">
+    <div className="overflow-hidden rounded-md border border-border bg-card">
+      <div className="flex gap-4 bg-secondary px-3 py-4">
         <Skeleton className="h-5 w-40" />
         {Array.from({ length: 7 }).map((_, index) => (
           <Skeleton key={index} className="h-12 w-28" />
         ))}
       </div>
       {Array.from({ length: 10 }).map((_, index) => (
-        <div key={index} className="flex gap-4 border-t px-3 py-2">
+        <div key={index} className="flex gap-4 border-t border-border px-3 py-2">
           <Skeleton className="h-10 w-40" />
           {Array.from({ length: 7 }).map((__, day) => (
             <Skeleton key={day} className="h-10 w-28" />

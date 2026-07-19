@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DivisionEditButton } from "./division-form";
+import { getThemeColorStyle } from "@/lib/utils/theme-color";
 import { cn } from "@/lib/utils";
 
 type Division = {
@@ -51,7 +52,6 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
   const [expanded, setExpanded] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch members when expanded
   const {
     data: membersData,
     isLoading: membersLoading,
@@ -65,7 +65,6 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
     enabled: expanded,
   });
 
-  // Delete division mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/divisions/${division.id}`, {
@@ -86,7 +85,6 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
     },
   });
 
-  // Unassign member mutation
   const unassignMutation = useMutation({
     mutationFn: async (userId: string) => {
       const res = await fetch(`/api/divisions/${division.id}/members`, {
@@ -125,15 +123,16 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
 
   return (
     <Card className="overflow-hidden">
-      {/* Color accent - top bar */}
-      <div className="h-1.5" style={{ backgroundColor: division.color }} />
+      <div
+        className="h-1.5 [background-color:var(--user-color-light-accent)] dark:[background-color:var(--user-color-dark-accent)]"
+        style={getThemeColorStyle(division.color)}
+      />
 
       <div className="p-4">
-        {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold truncate">{division.title}</h3>
+              <h3 className="truncate font-semibold">{division.title}</h3>
               {division.isSystem && (
                 <Badge
                   variant="outline"
@@ -145,15 +144,14 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
               )}
             </div>
             {division.description && (
-              <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                 {division.description}
               </p>
             )}
           </div>
 
-          {/* Action buttons - only for non-system divisions, admin+ only */}
           {isAdmin && !division.isSystem && (
-            <div className="flex items-center gap-0.5 shrink-0">
+            <div className="flex shrink-0 items-center gap-0.5">
               <DivisionEditButton division={division} />
               <Button
                 variant="ghost"
@@ -172,7 +170,6 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
           )}
         </div>
 
-        {/* Member count + expand button */}
         <div className="mt-3 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Users className="size-4" />
@@ -202,7 +199,6 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
           </Button>
         </div>
 
-        {/* Expanded: member list */}
         {expanded && (
           <div className="mt-3 border-t pt-3">
             {membersLoading && (
@@ -219,7 +215,7 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
             {!membersLoading &&
               membersData?.members &&
               membersData.members.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-2">
+                <p className="py-2 text-center text-sm text-muted-foreground">
                   Keine Mitarbeiter zugewiesen
                 </p>
               )}
@@ -233,7 +229,7 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
                       key={m.id}
                       className={cn(
                         "flex items-center gap-2 rounded-md px-2 py-1.5",
-                        "hover:bg-muted/50 transition-colors"
+                        "transition-colors hover:bg-muted/50"
                       )}
                     >
                       <Avatar size="sm">
@@ -244,14 +240,14 @@ export function DivisionCard({ division, isAdmin }: DivisionCardProps) {
                           {getInitials(m.firstName, m.lastName)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm flex-1 truncate">
+                      <span className="flex-1 truncate text-sm">
                         {m.lastName}, {m.firstName}
                       </span>
                       {isAdmin && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-6 text-muted-foreground hover:text-destructive shrink-0"
+                          className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
                           onClick={() => unassignMutation.mutate(m.id)}
                           disabled={unassignMutation.isPending}
                         >

@@ -1,0 +1,81 @@
+/*
+ * Theme compatibility for legacy screens that still use fixed Tailwind
+ * light-theme utilities. User-configured colors are rendered through
+ * theme-color.ts and are intentionally not overridden here.
+ */
+
+.dark .bg-white {
+  background-color: var(--card) !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-100 {
+  background-color: var(--secondary) !important;
+}
+
+.dark .bg-slate-800,
+.dark .bg-slate-900,
+.dark .bg-slate-950 {
+  background-color: var(--background) !important;
+}
+
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: var(--foreground) !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: var(--muted-foreground) !important;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-slate-400,
+.dark .border-slate-700,
+.dark .border-slate-800 {
+  border-color: var(--border) !important;
+}
+
+.dark .bg-emerald-50 {
+  background-color: rgb(16 185 129 / 8%) !important;
+}
+
+.dark .bg-red-50 {
+  background-color: rgb(237 38 81 / 10%) !important;
+}
+
+.dark .text-red-900,
+.dark .text-red-700,
+.dark .text-red-600 {
+  color: #ff7693 !important;
+}
+
+.dark .border-red-300 {
+  border-color: rgb(237 38 81 / 45%) !important;
+}
+
+/* Fixed color-input controls remain compact and visually flat. */
+input[type="color"] {
+  overflow: hidden;
+  padding: 0.2rem;
+  border-radius: 0.375rem;
+  background: var(--background);
+  box-shadow: none;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
+
+input[type="color"]::-moz-color-swatch {
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
