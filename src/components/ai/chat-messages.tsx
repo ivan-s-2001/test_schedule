@@ -28,7 +28,7 @@ const TOOL_LABELS: Record<string, string> = {
   getSchedule: "Schichtplan abgerufen",
   getEmployeeHours: "Stunden abgerufen",
   searchEmployees: "Mitarbeiter gesucht",
-  createShift: "Schicht erstellt",
+  createShift: "Смена создана",
   bookEmployee: "Mitarbeiter eingebucht",
   getAbsences: "Abwesenheiten abgerufen",
 };
@@ -172,7 +172,7 @@ function ToolResultCard({ tool }: { tool: ToolResultInfo }) {
 // ─── Helpers ────────────────────────────────────────────────────────
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString("de-DE", {
+  return date.toLocaleTimeString("ru-RU", {
     hour: "2-digit",
     minute: "2-digit",
   });

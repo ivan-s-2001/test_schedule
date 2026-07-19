@@ -86,13 +86,13 @@ function getInitials(firstName: string, lastName: string) {
 function getRoleLabel(role: string) {
   switch (role) {
     case "OWNER":
-      return "Owner";
+      return "Владелец";
     case "ADMIN":
-      return "Admin";
+      return "Администратор";
     case "MANAGER":
-      return "Manager";
+      return "Руководитель";
     default:
-      return "Mitarbeiter";
+      return "Сотрудники";
   }
 }
 
@@ -235,7 +235,7 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Fehler beim Speichern");
+        throw new Error(err.error || "Ошибка сохранения");
       }
       return res.json();
     },
@@ -305,7 +305,7 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Fehler beim Speichern der Notiz");
+        throw new Error(err.error || "Ошибка сохранения der Notiz");
       }
       return res.json();
     },
@@ -372,14 +372,14 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
                 {getRoleLabel(employee.role)}
               </Badge>
               {!employee.isActive && (
-                <Badge variant="destructive">Inaktiv</Badge>
+                <Badge variant="destructive">Неактивен</Badge>
               )}
               {employee.isActive && !employee.isActivated && (
                 <Badge
                   variant="outline"
                   className="border-amber-500 text-amber-600"
                 >
-                  Nicht freigeschaltet
+                  Не активированы
                 </Badge>
               )}
             </div>
@@ -390,7 +390,7 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
         {(canChangeRole || canDelete) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">Aktionen</Button>
+              <Button variant="outline">Действия</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {canDelete && employee.isActive && (
@@ -446,7 +446,7 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
             <div className="space-y-3">
               {/* Name */}
               <div className="grid grid-cols-[120px_1fr] items-center">
-                <span className="text-sm text-muted-foreground">Vorname</span>
+                <span className="text-sm text-muted-foreground">Имя</span>
                 <InlineEdit
                   value={employee.user.firstName}
                   onSave={(v) => updateMutation.mutate({ firstName: v })}
@@ -454,7 +454,7 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
                 />
               </div>
               <div className="grid grid-cols-[120px_1fr] items-center">
-                <span className="text-sm text-muted-foreground">Nachname</span>
+                <span className="text-sm text-muted-foreground">Фамилия</span>
                 <InlineEdit
                   value={employee.user.lastName}
                   onSave={(v) => updateMutation.mutate({ lastName: v })}
@@ -502,7 +502,7 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
             {/* Role change (inline) */}
             {canChangeRole && (
               <div className="grid grid-cols-[120px_1fr] items-center pt-2 border-t">
-                <span className="text-sm text-muted-foreground">Rolle</span>
+                <span className="text-sm text-muted-foreground">Роль</span>
                 <Select
                   value={employee.role}
                   onValueChange={(v) => roleMutation.mutate(v)}
@@ -512,9 +512,9 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                    <SelectItem value="MANAGER">Manager</SelectItem>
-                    <SelectItem value="EMPLOYEE">Mitarbeiter</SelectItem>
+                    <SelectItem value="ADMIN">Администратор</SelectItem>
+                    <SelectItem value="MANAGER">Руководитель</SelectItem>
+                    <SelectItem value="EMPLOYEE">Сотрудники</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -583,7 +583,7 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
                         </span>
                         <span>-</span>
                         <span>
-                          {new Date(note.createdAt).toLocaleDateString("de-DE", {
+                          {new Date(note.createdAt).toLocaleDateString("ru-RU", {
                             day: "2-digit",
                             month: "2-digit",
                             year: "numeric",
@@ -628,7 +628,7 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Beigetreten</span>
                 <span>
-                  {new Date(employee.joinedAt).toLocaleDateString("de-DE", {
+                  {new Date(employee.joinedAt).toLocaleDateString("ru-RU", {
                     day: "2-digit",
                     month: "2-digit",
                     year: "numeric",
@@ -636,14 +636,14 @@ export function EmployeeDetail({ memberId }: { memberId: string }) {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Status</span>
+                <span className="text-muted-foreground">Статус</span>
                 <span>
-                  {employee.isActive ? "Aktiv" : "Inaktiv"}
+                  {employee.isActive ? "Активен" : "Неактивен"}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Freigeschaltet</span>
-                <span>{employee.isActivated ? "Ja" : "Nein"}</span>
+                <span>{employee.isActivated ? "Да" : "Нет"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Member-ID</span>

@@ -9,7 +9,7 @@ export async function GET(
 ) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -48,11 +48,11 @@ export async function DELETE(
 ) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isAdminOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   const { id } = await params;

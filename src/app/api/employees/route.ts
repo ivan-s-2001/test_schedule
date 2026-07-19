@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentMember, isAdminOrAbove } from "@/lib/auth-helpers";
-import bcrypt from "bcryptjs";
+
+type PatronymicRow = {
+  id: string;
+  patronymic: string | null;
+};
 
 // GET /api/employees - List all org members
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const { searchParams } = request.nextUrl;
@@ -16,26 +20,31 @@ export async function GET(request: NextRequest) {
   const role = searchParams.get("role") || "";
   const status = searchParams.get("status") || "";
 
-  // Build where clause
   const where: Record<string, unknown> = {
     organizationId: member.organizationId,
   };
 
-  // Status filter
   if (status === "inactive") {
     where.isActive = false;
   } else if (status === "not_activated") {
     where.isActive = true;
     where.isActivated = false;
   } else if (status !== "all") {
-    // Default: show active
     where.isActive = true;
   }
 
-  // Role filter
   if (role && role !== "all") {
     where.role = role.toUpperCase();
   }
+
+  const patronymicMatches = search
+    ? await db.$queryRaw<{ id: string }[]>`
+        SELECT "id"
+        FROM "users"
+        WHERE "patronymic" ILIKE ${`%${search}%`}
+      `
+    : [];
+  const patronymicMatchIds = patronymicMatches.map((item) => item.id);
 
   const members = await db.organizationMember.findMany({
     where: {
@@ -47,6 +56,9 @@ export async function GET(request: NextRequest) {
                 { firstName: { contains: search, mode: "insensitive" as const } },
                 { lastName: { contains: search, mode: "insensitive" as const } },
                 { email: { contains: search, mode: "insensitive" as const } },
+                ...(patronymicMatchIds.length > 0
+                  ? [{ id: { in: patronymicMatchIds } }]
+                  : []),
               ],
             },
           }
@@ -68,29 +80,53 @@ export async function GET(request: NextRequest) {
     orderBy: { joinedAt: "asc" },
   });
 
-  // Also get counts per category for the tabs
+  const patronymics = await db.$queryRaw<PatronymicRow[]>`
+    SELECT u."id", u."patronymic"
+    FROM "users" u
+    INNER JOIN "organization_members" om ON om."userId" = u."id"
+    WHERE om."organizationId" = ${member.organizationId}
+  `;
+  const patronymicByUser = new Map(
+    patronymics.map((item) => [item.id, item.patronymic])
+  );
+
+  const membersWithPatronymic = members.map((organizationMember) => ({
+    ...organizationMember,
+    user: {
+      ...organizationMember.user,
+      patronymic: patronymicByUser.get(organizationMember.user.id) ?? null,
+    },
+  }));
+
   const allMembers = await db.organizationMember.findMany({
     where: { organizationId: member.organizationId },
     select: { role: true, isActive: true, isActivated: true },
   });
 
   const counts = {
-    all: allMembers.filter((m) => m.isActive).length,
-    admin: allMembers.filter((m) => m.isActive && m.role === "ADMIN").length,
-    manager: allMembers.filter((m) => m.isActive && m.role === "MANAGER").length,
-    not_activated: allMembers.filter((m) => m.isActive && !m.isActivated).length,
-    inactive: allMembers.filter((m) => !m.isActive).length,
+    all: allMembers.filter((item) => item.isActive).length,
+    admin: allMembers.filter(
+      (item) => item.isActive && (item.role === "OWNER" || item.role === "ADMIN")
+    ).length,
+    manager: allMembers.filter(
+      (item) => item.isActive && item.role === "MANAGER"
+    ).length,
+    not_activated: allMembers.filter(
+      (item) => item.isActive && !item.isActivated
+    ).length,
+    inactive: allMembers.filter((item) => !item.isActive).length,
   };
 
-  return NextResponse.json({ members, counts });
+  return NextResponse.json({ members: membersWithPatronymic, counts });
 }
 
 // POST /api/employees - Create new employee(s)
 const createEmployeeSchema = z.object({
   employees: z.array(
     z.object({
-      firstName: z.string().min(1),
-      lastName: z.string().min(1),
+      lastName: z.string().trim().min(1),
+      firstName: z.string().trim().min(1),
+      patronymic: z.string().trim().min(1),
       email: z.string().email(),
       role: z.enum(["ADMIN", "MANAGER", "EMPLOYEE"]),
     })
@@ -100,97 +136,106 @@ const createEmployeeSchema = z.object({
 export async function POST(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isAdminOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   const parsed = createEmployeeSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
+      { error: "Ошибка проверки данных", details: parsed.error.issues },
       { status: 400 }
     );
   }
 
   const { employees } = parsed.data;
+  const normalizedEmployees = employees.map((employee) => ({
+    ...employee,
+    email: employee.email.toLowerCase(),
+  }));
+  const emails = normalizedEmployees.map((employee) => employee.email);
 
-  // Check for duplicate emails
-  const emails = employees.map((e) => e.email.toLowerCase());
+  if (new Set(emails).size !== emails.length) {
+    return NextResponse.json(
+      { error: "В списке повторяются адреса электронной почты" },
+      { status: 400 }
+    );
+  }
+
   const existingUsers = await db.user.findMany({
     where: { email: { in: emails } },
     select: { id: true, email: true },
   });
+  const existingUserByEmail = new Map(
+    existingUsers.map((user) => [user.email.toLowerCase(), user])
+  );
 
-  const existingEmails = new Set(existingUsers.map((u) => u.email.toLowerCase()));
-
-  // Check if any existing users are already in this org
   if (existingUsers.length > 0) {
     const existingMemberships = await db.organizationMember.findMany({
       where: {
         organizationId: member.organizationId,
-        userId: { in: existingUsers.map((u) => u.id) },
+        userId: { in: existingUsers.map((user) => user.id) },
       },
-      select: { userId: true },
+      include: { user: { select: { email: true } } },
     });
-    const alreadyMemberIds = new Set(existingMemberships.map((m) => m.userId));
-    const alreadyMemberEmails = existingUsers
-      .filter((u) => alreadyMemberIds.has(u.id))
-      .map((u) => u.email);
 
-    if (alreadyMemberEmails.length > 0) {
+    if (existingMemberships.length > 0) {
       return NextResponse.json(
         {
-          error: "Some employees are already members",
-          emails: alreadyMemberEmails,
+          error: "Некоторые сотрудники уже добавлены",
+          emails: existingMemberships.map((membership) => membership.user.email),
         },
         { status: 409 }
       );
     }
   }
 
-  // Create users and memberships in a transaction
   const createdMembers = await db.$transaction(async (tx) => {
     const results = [];
 
-    for (const emp of employees) {
-      let user;
-      if (existingEmails.has(emp.email.toLowerCase())) {
-        user = existingUsers.find(
-          (u) => u.email.toLowerCase() === emp.email.toLowerCase()
-        )!;
-      } else {
-        // Create user with a temporary password hash
-        const tempHash = await bcrypt.hash(
-          Math.random().toString(36).slice(2),
-          10
-        );
-        user = await tx.user.create({
-          data: {
-            email: emp.email.toLowerCase(),
-            firstName: emp.firstName,
-            lastName: emp.lastName,
-            passwordHash: tempHash,
-          },
-        });
-      }
+    for (const employee of normalizedEmployees) {
+      const existingUser = existingUserByEmail.get(employee.email);
+      const user = existingUser
+        ? await tx.user.update({
+            where: { id: existingUser.id },
+            data: {
+              firstName: employee.firstName,
+              lastName: employee.lastName,
+            },
+          })
+        : await tx.user.create({
+            data: {
+              email: employee.email,
+              firstName: employee.firstName,
+              lastName: employee.lastName,
+              emailVerified: new Date(),
+            },
+          });
+
+      await tx.$executeRaw`
+        UPDATE "users"
+        SET "patronymic" = ${employee.patronymic}
+        WHERE "id" = ${user.id}
+      `;
 
       const membership = await tx.organizationMember.create({
         data: {
           organizationId: member.organizationId,
           userId: user.id,
-          role: emp.role,
-          isActivated: false,
-          activationToken: crypto.randomUUID(),
+          role: employee.role,
+          isActive: true,
+          isActivated: true,
+          activationToken: null,
         },
         include: {
           user: {
@@ -207,7 +252,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      results.push(membership);
+      results.push({
+        ...membership,
+        user: {
+          ...membership.user,
+          patronymic: employee.patronymic,
+        },
+      });
     }
 
     return results;

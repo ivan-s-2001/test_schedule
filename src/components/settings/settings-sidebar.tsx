@@ -13,32 +13,32 @@ import { cn } from "@/lib/utils";
 const sections = [
   {
     key: "schedule",
-    label: "Schichtplan",
+    label: "График смен",
     icon: Calendar,
   },
   {
     key: "time",
-    label: "Zeiterfassung",
+    label: "Учёт времени",
     icon: Clock,
   },
   {
     key: "wishplan",
-    label: "Wunschplaene",
+    label: "Пожелания по сменам",
     icon: FileHeart,
   },
   {
     key: "employees",
-    label: "Mitarbeiter",
+    label: "Сотрудники",
     icon: Users,
   },
   {
     key: "absences",
-    label: "Abwesenheiten",
+    label: "Отсутствия",
     icon: Umbrella,
   },
   {
     key: "account",
-    label: "Account",
+    label: "Учётная запись",
     icon: Building2,
   },
 ] as const;

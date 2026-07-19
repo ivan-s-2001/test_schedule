@@ -10,7 +10,7 @@ export async function GET(
 ) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -37,16 +37,32 @@ export async function GET(
   });
 
   if (!employee) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   }
 
-  return NextResponse.json(employee);
+  const patronymicRows = await db.$queryRaw<
+    { patronymic: string | null }[]
+  >`
+    SELECT "patronymic"
+    FROM "users"
+    WHERE "id" = ${employee.user.id}
+    LIMIT 1
+  `;
+
+  return NextResponse.json({
+    ...employee,
+    user: {
+      ...employee.user,
+      patronymic: patronymicRows[0]?.patronymic ?? null,
+    },
+  });
 }
 
 // PATCH /api/employees/[id] - Update employee data
 const updateEmployeeSchema = z.object({
-  firstName: z.string().min(1).optional(),
-  lastName: z.string().min(1).optional(),
+  firstName: z.string().trim().min(1).optional(),
+  lastName: z.string().trim().min(1).optional(),
+  patronymic: z.string().trim().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
   nickname: z.string().optional(),
@@ -58,12 +74,11 @@ export async function PATCH(
 ) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const { id } = await params;
 
-  // Verify the target is in the same org
   const target = await db.organizationMember.findFirst({
     where: {
       id,
@@ -72,33 +87,31 @@ export async function PATCH(
   });
 
   if (!target) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   }
 
-  // Only admin+ or the user themselves can edit
   const isSelf = target.userId === member.userId;
   if (!isSelf && !isAdminOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   const parsed = updateEmployeeSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
+      { error: "Ошибка проверки данных", details: parsed.error.issues },
       { status: 400 }
     );
   }
 
   const data = parsed.data;
 
-  // Check email uniqueness if changing email
   if (data.email) {
     const existing = await db.user.findFirst({
       where: {
@@ -108,30 +121,52 @@ export async function PATCH(
     });
     if (existing) {
       return NextResponse.json(
-        { error: "Email already in use" },
+        { error: "Электронная почта уже используется" },
         { status: 409 }
       );
     }
   }
 
-  const updated = await db.user.update({
-    where: { id: target.userId },
-    data: {
-      ...(data.firstName !== undefined && { firstName: data.firstName }),
-      ...(data.lastName !== undefined && { lastName: data.lastName }),
-      ...(data.email !== undefined && { email: data.email.toLowerCase() }),
-      ...(data.phone !== undefined && { phone: data.phone || null }),
-      ...(data.nickname !== undefined && { nickname: data.nickname || null }),
-    },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-      nickname: true,
-      profileImage: true,
-    },
+  const updated = await db.$transaction(async (tx) => {
+    const user = await tx.user.update({
+      where: { id: target.userId },
+      data: {
+        ...(data.firstName !== undefined && { firstName: data.firstName }),
+        ...(data.lastName !== undefined && { lastName: data.lastName }),
+        ...(data.email !== undefined && { email: data.email.toLowerCase() }),
+        ...(data.phone !== undefined && { phone: data.phone || null }),
+        ...(data.nickname !== undefined && { nickname: data.nickname || null }),
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        nickname: true,
+        profileImage: true,
+      },
+    });
+
+    if (data.patronymic !== undefined) {
+      await tx.$executeRaw`
+        UPDATE "users"
+        SET "patronymic" = ${data.patronymic || null}
+        WHERE "id" = ${target.userId}
+      `;
+    }
+
+    const rows = await tx.$queryRaw<{ patronymic: string | null }[]>`
+      SELECT "patronymic"
+      FROM "users"
+      WHERE "id" = ${target.userId}
+      LIMIT 1
+    `;
+
+    return {
+      ...user,
+      patronymic: rows[0]?.patronymic ?? null,
+    };
   });
 
   return NextResponse.json(updated);
@@ -144,11 +179,11 @@ export async function DELETE(
 ) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isAdminOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -161,21 +196,19 @@ export async function DELETE(
   });
 
   if (!target) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   }
 
-  // Cannot deactivate yourself
   if (target.userId === member.userId) {
     return NextResponse.json(
-      { error: "Cannot deactivate yourself" },
+      { error: "Нельзя деактивировать собственную учётную запись" },
       { status: 400 }
     );
   }
 
-  // Cannot deactivate the owner
   if (target.role === "OWNER") {
     return NextResponse.json(
-      { error: "Cannot deactivate the owner" },
+      { error: "Нельзя деактивировать владельца" },
       { status: 400 }
     );
   }

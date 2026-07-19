@@ -23,11 +23,11 @@ interface RouteContext {
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   if (!isManagerOrAbove(member.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -36,13 +36,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   const parsed = updateScheduleSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
+      { error: "Ошибка проверки данных", details: parsed.error.issues },
       { status: 400 }
     );
   }

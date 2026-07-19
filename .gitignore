@@ -43,3 +43,16 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Local environment
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+
+# Private company data
+*.xlsx
+scripts/migration/care-schedule-2026-01-07.json
+scripts/migration/care-day-notes-2026.json
+scripts/migration/care-cell-statuses-2026.json

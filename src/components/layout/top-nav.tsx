@@ -7,7 +7,6 @@ import {
   CalendarDays,
   Clock,
   Users,
-  Building2,
   MessageSquare,
   BarChart3,
   Settings,
@@ -19,13 +18,12 @@ import { MobileNav } from "./mobile-nav";
 import { ConnectionStatus } from "./connection-status";
 
 const navItems = [
-  { key: "schedule", icon: CalendarDays, href: "/schedule/flexible", label: "Schichtplaene" },
-  { key: "time", icon: Clock, href: "/time", label: "Zeiterfassung" },
-  { key: "employees", icon: Users, href: "/employees", label: "Mitarbeiter" },
-  { key: "divisions", icon: Building2, href: "/divisions", label: "Arbeitsbereiche" },
-  { key: "portal", icon: MessageSquare, href: "/portal/inbox", label: "Portal" },
-  { key: "reporting", icon: BarChart3, href: "/reporting", label: "Auswertung" },
-  { key: "settings", icon: Settings, href: "/settings", label: "Einstellungen" },
+  { key: "schedule", icon: CalendarDays, href: "/schedule/employee", label: "График" },
+  { key: "time", icon: Clock, href: "/time", label: "Учёт времени" },
+  { key: "employees", icon: Users, href: "/employees", label: "Сотрудники" },
+  { key: "portal", icon: MessageSquare, href: "/portal/inbox", label: "Портал" },
+  { key: "reporting", icon: BarChart3, href: "/reporting", label: "Отчёты" },
+  { key: "settings", icon: Settings, href: "/settings", label: "Настройки" },
 ] as const;
 
 export { navItems };
@@ -46,41 +44,37 @@ export function TopNav() {
     return pathname.startsWith(segment);
   }
 
+  const itemClass = (active: boolean) =>
+    cn(
+      "relative flex min-h-8 items-center gap-1.5 rounded-sm px-2.5 text-sm font-medium text-[#4e5c6e] transition-colors duration-150",
+      active
+        ? "bg-[#cdd8e5] text-[#111319]"
+        : "hover:bg-[#dee5ed] hover:text-[#111319]"
+    );
+
   return (
-    <header className="sticky top-0 z-40 border-b bg-white dark:bg-slate-900 dark:border-slate-800">
-      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-4">
-        {/* Mobile hamburger */}
+    <header className="sticky top-0 z-40 border-b border-[#dae1e9] bg-[#eef2f6]">
+      <div className="mx-auto flex h-12 max-w-[1600px] items-center gap-2 px-4 md:px-6 lg:px-8">
         <MobileNav />
 
-        {/* Logo */}
         <Link
-          href="/schedule/flexible"
-          className="mr-4 flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400"
+          href="/schedule/employee"
+          className="mr-3 flex min-w-0 items-center gap-2 rounded-sm px-1.5 py-1 text-sm font-semibold text-[#111319] hover:bg-[#dee5ed]"
         >
-          <CalendarDays className="size-5" />
-          <span className="hidden sm:inline">Schichtplaner</span>
+          <CalendarDays className="size-5 text-[#4e5c6e]" />
+          <span className="hidden truncate sm:inline">QuickTickets</span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex md:items-center md:gap-1">
+        <nav className="hidden items-center gap-0.5 md:flex">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             return (
-              <Link
-                key={item.key}
-                href={item.href}
-                className={cn(
-                  "relative flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                )}
-              >
+              <Link key={item.key} href={item.href} className={itemClass(active)}>
                 <Icon className="size-4" />
                 <span className="hidden lg:inline">{item.label}</span>
                 {item.key === "portal" && unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-[#ed2651] text-[10px] font-semibold text-white">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
@@ -89,20 +83,10 @@ export function TopNav() {
           })}
         </nav>
 
-        {/* Right side */}
-        <div className="ml-auto flex items-center gap-2">
-          {/* AI button */}
-          <Link
-            href="/ai/chat"
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              pathname.startsWith("/ai")
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            )}
-          >
+        <div className="ml-auto flex items-center gap-1">
+          <Link href="/ai/chat" className={itemClass(pathname.startsWith("/ai"))}>
             <Sparkles className="size-4" />
-            <span className="hidden lg:inline">KI</span>
+            <span className="hidden lg:inline">ИИ</span>
           </Link>
 
           <ConnectionStatus />

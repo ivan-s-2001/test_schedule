@@ -129,7 +129,7 @@ export function Stopwatch() {
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Stoppuhr gestartet");
+      toast.success("Секундомер запущен");
       queryClient.invalidateQueries({ queryKey: ["time-watch"] });
     },
     onError: (error: Error) => {
@@ -156,7 +156,7 @@ export function Stopwatch() {
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Stoppuhr gestoppt und gespeichert");
+      toast.success("Секундомер остановлен, запись сохранена");
       queryClient.invalidateQueries({ queryKey: ["time-watch"] });
       queryClient.invalidateQueries({ queryKey: ["time-records"] });
       setShowStopForm(false);
@@ -193,7 +193,7 @@ export function Stopwatch() {
         </div>
         {running && (
           <p className="text-sm text-muted-foreground mt-1">
-            Laeuft seit {running.timeFrom} Uhr
+            Запущен с {running.timeFrom} Uhr
           </p>
         )}
       </div>
@@ -233,19 +233,19 @@ export function Stopwatch() {
       {/* Stop form (category + comment before saving) */}
       {showStopForm && (
         <div className="space-y-3 border-t pt-3">
-          <p className="text-sm font-medium">Erfassung abschliessen</p>
+          <p className="text-sm font-medium">Завершить запись</p>
 
           {categories.length > 0 && (
             <div className="space-y-1.5">
-              <Label>Kategorie</Label>
+              <Label>Категория</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Keine Kategorie" />
+                  <SelectValue placeholder="Без категории" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">
                     <span className="text-muted-foreground">
-                      Keine Kategorie
+                      Без категории
                     </span>
                   </SelectItem>
                   {categories.map((cat) => (

@@ -93,13 +93,13 @@ export function formatDateLong(date: Date): string {
 
 /** German day abbreviations (Mon-Sun in ISO order). */
 export const dayNames = [
-  "Mo",
-  "Di",
-  "Mi",
-  "Do",
-  "Fr",
-  "Sa",
-  "So",
+  "Пн",
+  "Вт",
+  "Ср",
+  "Чт",
+  "Пт",
+  "Сб",
+  "Вс",
 ] as const;
 
 /** English day abbreviations (Mon-Sun in ISO order). */

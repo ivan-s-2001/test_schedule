@@ -12,7 +12,7 @@ import { getEmployeeScores } from "@/lib/ai/employee-recommender";
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const { searchParams } = request.nextUrl;
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
   if (!shift) {
     return NextResponse.json(
-      { error: "Schicht nicht gefunden" },
+      { error: "Смена не найдена" },
       { status: 404 }
     );
   }

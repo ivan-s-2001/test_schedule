@@ -147,7 +147,7 @@ export function WishRequestButton({
       },
       DECLINED: {
         icon: XCircle,
-        label: "Abgelehnt",
+        label: "Отклонено",
         color: "text-red-600",
         bg: "bg-red-50",
       },
@@ -463,7 +463,7 @@ function WishRequestsList({ requests, scheduleId }: WishRequestsListProps) {
               <button
                 type="button"
                 className="size-6 rounded-md flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                title="Ablehnen"
+                title="Отклонить"
                 onClick={() => declineMutation.mutate(req.id)}
                 disabled={isPending}
               >

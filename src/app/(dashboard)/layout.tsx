@@ -13,17 +13,22 @@ export default function DashboardLayout({
 }) {
   return (
     <SessionProvider>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="light"
+        forcedTheme="light"
+        enableSystem={false}
+      >
         <QueryProvider>
           <SocketProvider>
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+            <div className="min-h-screen bg-white text-[#111319]">
               <TopNav />
-              <main className="mx-auto max-w-[1400px] p-4 md:p-6">
+              <main className="mx-auto w-full max-w-[1600px] px-4 py-5 md:px-6 md:py-6 lg:px-8">
                 {children}
               </main>
             </div>
             <ChatWidget />
-            <Toaster position="top-right" />
+            <Toaster position="top-right" richColors={false} />
           </SocketProvider>
         </QueryProvider>
       </ThemeProvider>

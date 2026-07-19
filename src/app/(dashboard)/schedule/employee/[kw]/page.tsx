@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
-import {
-  parseKW,
-  getCurrentKW,
-  formatKW,
-  getWeekDates,
-} from "@/lib/utils/calendar";
-import { WeekNav } from "@/components/schedule/week-nav";
-import { ViewSwitcher } from "@/components/schedule/view-switcher";
 import { EmployeeGridWrapper } from "@/components/schedule/employee-grid-wrapper";
+import { ShiftLegend } from "@/components/schedule/shift-legend";
+import { ViewSwitcher } from "@/components/schedule/view-switcher";
+import { WeekNav } from "@/components/schedule/week-nav";
+import {
+  formatKW,
+  getCurrentKW,
+  getWeekDates,
+  parseKW,
+} from "@/lib/utils/calendar";
 
 interface EmployeeKWPageProps {
   params: Promise<{ kw: string }>;
@@ -24,14 +25,30 @@ export default async function EmployeeKWPage({ params }: EmployeeKWPageProps) {
 
   const { weekNumber, year } = parsed;
   const weekDates = getWeekDates(weekNumber, year);
-  const weekDateStrings = weekDates.map((d) => d.toISOString());
+  const weekDateStrings = weekDates.map((date) => date.toISOString());
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="schedule-equal-day-columns space-y-5">
+      <header className="space-y-3">
+        <div>
+          <h1 className="text-[26px] font-medium leading-tight text-[#111319]">
+            График службы заботы
+          </h1>
+          <p className="mt-1 text-sm text-[#66778f]">
+            Недельная таблица сотрудников и смен
+          </p>
+        </div>
         <ViewSwitcher kw={kw} />
-      </div>
-      <WeekNav weekNumber={weekNumber} year={year} baseUrl="/schedule/employee" />
+      </header>
+
+      <WeekNav
+        weekNumber={weekNumber}
+        year={year}
+        baseUrl="/schedule/employee"
+      />
+
+      <ShiftLegend />
+
       <EmployeeGridWrapper
         weekNumber={weekNumber}
         year={year}

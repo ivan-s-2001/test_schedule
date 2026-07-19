@@ -1,5 +1,5 @@
 /**
- * Shared types for schedule, shift, and booking data
+ * Shared types for schedule, shift, booking, cell-status and day-note data
  * as returned by the API.
  */
 
@@ -7,6 +7,7 @@ export type BookingUser = {
   id: string;
   firstName: string;
   lastName: string;
+  patronymic?: string | null;
   nickname: string | null;
   profileImage: string | null;
 };
@@ -17,6 +18,9 @@ export type ShiftBooking = {
   userId: string;
   bookedAt: string;
   bookedBy: string | null;
+  overtimeMinutes: number;
+  overtimeBeforeMinutes: number;
+  overtimeAfterMinutes: number;
   user: BookingUser;
 };
 
@@ -38,6 +42,11 @@ export type ShiftData = {
   pauseValue: number;
   title: string | null;
   description: string | null;
+  poolTemplateCode?: string | null;
+  poolLabel?: string | null;
+  poolColor?: string | null;
+  poolTextColor?: string | null;
+  poolDescription?: string | null;
   createdAt: string;
   deletedAt: string | null;
   division: ShiftDivision | null;
@@ -54,6 +63,49 @@ export type BriefingData = {
   updatedAt: string;
 };
 
+export type DayNoteStatus =
+  | "PLANNED"
+  | "DONE"
+  | "PARTIAL"
+  | "POSTPONED"
+  | "SENT"
+  | "ATTENTION";
+
+export type ScheduleDayNote = {
+  id: string;
+  scheduleId: string;
+  dayOfWeek: number;
+  note: string;
+  status: DayNoteStatus;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScheduleDayOff = {
+  id: string;
+  scheduleId: string;
+  userId: string;
+  dayOfWeek: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScheduleAbsence = {
+  id: string;
+  userId: string;
+  dateFrom: string;
+  dateTo: string;
+  note: string | null;
+  status: "PENDING" | "APPROVED" | "DECLINED";
+  category: {
+    id: string;
+    name: string;
+    color: string;
+    isPaid: boolean;
+  };
+};
+
 export type ScheduleData = {
   id: string;
   organizationId: string;
@@ -64,6 +116,9 @@ export type ScheduleData = {
   showTitle: boolean;
   showPauses: boolean;
   shifts: ShiftData[];
+  dayNotes: ScheduleDayNote[];
+  dayOffs: ScheduleDayOff[];
+  absences: ScheduleAbsence[];
 };
 
 export type DivisionOption = {

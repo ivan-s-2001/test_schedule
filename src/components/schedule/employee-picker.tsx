@@ -68,9 +68,9 @@ function getInitials(firstName: string, lastName: string): string {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  OWNER: "Inhaber",
-  ADMIN: "Admin",
-  MANAGER: "Manager",
+  OWNER: "Владелец",
+  ADMIN: "Администратор",
+  MANAGER: "Руководитель",
   EMPLOYEE: "MA",
 };
 
@@ -111,7 +111,7 @@ export function EmployeePicker({
     queryKey: ["employees", "active"],
     queryFn: async () => {
       const res = await fetch("/api/employees?status=active");
-      if (!res.ok) throw new Error("Fehler beim Laden der Mitarbeiter");
+      if (!res.ok) throw new Error("Ошибка загрузки сотрудников");
       return res.json();
     },
     enabled: open,
@@ -163,9 +163,9 @@ export function EmployeePicker({
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start" sideOffset={4}>
         <Command>
-          <CommandInput placeholder="Mitarbeiter suchen..." />
+          <CommandInput placeholder="Найти сотрудника..." />
           <CommandList>
-            <CommandEmpty>Keine Mitarbeiter gefunden</CommandEmpty>
+            <CommandEmpty>Сотрудники не найдены</CommandEmpty>
             <CommandGroup>
               {shiftId && scoresLoading && (
                 <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">

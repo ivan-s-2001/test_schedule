@@ -28,7 +28,7 @@ export async function PATCH(
 ) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -40,7 +40,7 @@ export async function PATCH(
 
   // Check ownership or manager+
   if (!isManagerOrAbove(member.role) && record.userId !== member.user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   // Check same org
@@ -52,20 +52,20 @@ export async function PATCH(
     },
   });
   if (!targetMember) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
+      { error: "Ошибка проверки данных", details: parsed.error.issues },
       { status: 400 }
     );
   }
@@ -103,7 +103,7 @@ export async function DELETE(
 ) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -115,7 +115,7 @@ export async function DELETE(
 
   // Check ownership or manager+
   if (!isManagerOrAbove(member.role) && record.userId !== member.user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   // Check same org
@@ -127,7 +127,7 @@ export async function DELETE(
     },
   });
   if (!targetMember) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав" }, { status: 403 });
   }
 
   await db.timeRecord.delete({ where: { id } });

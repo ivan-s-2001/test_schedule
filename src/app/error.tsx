@@ -35,7 +35,7 @@ export default function Error({
           Etwas ist schiefgelaufen
         </h2>
         <p className="mt-2 text-slate-600 dark:text-slate-400">
-          Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.
+          Ein unerwarteter Fehler ist aufgetreten. Повторите попытку.
         </p>
         {error.digest && (
           <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">

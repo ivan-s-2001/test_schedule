@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const member = await db.organizationMember.findFirst({

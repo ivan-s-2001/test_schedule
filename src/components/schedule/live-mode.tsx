@@ -92,7 +92,7 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
     queryKey: ["live-session", scheduleId],
     queryFn: async () => {
       const res = await fetch(`/api/live?scheduleId=${scheduleId}`);
-      if (!res.ok) throw new Error("Fehler beim Laden der Live-Session");
+      if (!res.ok) throw new Error("Ошибка загрузки der Live-Session");
       return res.json();
     },
     enabled: !!scheduleId,
@@ -184,7 +184,7 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
                 ) : (
                   <Radio className="size-3.5" />
                 )}
-                Live starten
+                Запустить
               </Button>
             ) : (
               <Button
@@ -203,7 +203,7 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
                 ) : (
                   <Square className="size-3.5" />
                 )}
-                Live stoppen
+                Остановить
               </Button>
             )}
           </>
@@ -462,7 +462,7 @@ function LiveLogFeed({ logs }: { logs: LiveLogData[] }) {
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString("de-DE", {
+  return d.toLocaleTimeString("ru-RU", {
     hour: "2-digit",
     minute: "2-digit",
   });

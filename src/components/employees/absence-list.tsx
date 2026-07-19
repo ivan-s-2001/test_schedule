@@ -51,10 +51,10 @@ type FilterTab = "all" | "pending" | "approved" | "declined";
 // ---------- Helpers ----------
 
 const tabs: { key: FilterTab; label: string }[] = [
-  { key: "all", label: "Alle" },
-  { key: "pending", label: "Ausstehend" },
-  { key: "approved", label: "Genehmigt" },
-  { key: "declined", label: "Abgelehnt" },
+  { key: "all", label: "Все" },
+  { key: "pending", label: "На рассмотрении" },
+  { key: "approved", label: "Одобрено" },
+  { key: "declined", label: "Отклонено" },
 ];
 
 function getInitials(firstName: string, lastName: string) {
@@ -94,7 +94,7 @@ export function AbsenceList() {
     queryKey: ["absences", activeTab],
     queryFn: async () => {
       const res = await fetch(`/api/absences?${queryParams.toString()}`);
-      if (!res.ok) throw new Error("Fehler beim Laden der Abwesenheiten");
+      if (!res.ok) throw new Error("Ошибка загрузки der Abwesenheiten");
       return res.json();
     },
   });
@@ -179,19 +179,19 @@ export function AbsenceList() {
       const res = await fetch(`/api/absences/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "Fehler beim Loeschen");
+        throw new Error(d.error || "Ошибка удаления");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Abwesenheit geloescht");
+      toast.success("Отсутствие удалено");
       queryClient.invalidateQueries({ queryKey: ["absences"] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
   function handleDelete(id: string) {
-    if (confirm("Abwesenheit wirklich loeschen?")) {
+    if (confirm("Abwesenheit действительно удалить?")) {
       deleteMutation.mutate(id);
     }
   }
@@ -206,7 +206,7 @@ export function AbsenceList() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Abwesenheiten</h1>
+          <h1 className="text-2xl font-bold">Отсутствия</h1>
           <p className="text-sm text-muted-foreground">
             Abwesenheitsanfragen verwalten und genehmigen
           </p>
@@ -275,7 +275,7 @@ export function AbsenceList() {
       {/* Error */}
       {error && (
         <Card className="p-6 text-center text-destructive">
-          Fehler beim Laden der Abwesenheiten. Bitte versuche es erneut.
+          Ошибка загрузки der Abwesenheiten. Повторите попытку.
         </Card>
       )}
 
@@ -289,7 +289,7 @@ export function AbsenceList() {
           <p className="text-lg font-medium">Keine Abwesenheiten</p>
           <p className="text-sm text-muted-foreground mt-1">
             {search
-              ? "Keine Ergebnisse fuer die Suche."
+              ? "По вашему запросу ничего не найдено."
               : "Noch keine Abwesenheitsanfragen vorhanden."}
           </p>
         </Card>
@@ -302,12 +302,12 @@ export function AbsenceList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Mitarbeiter</TableHead>
-                  <TableHead>Kategorie</TableHead>
+                  <TableHead>Сотрудники</TableHead>
+                  <TableHead>Категория</TableHead>
                   <TableHead>Zeitraum</TableHead>
                   <TableHead className="text-center">Tage</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aktionen</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -370,7 +370,7 @@ export function AbsenceList() {
                                 size="icon-xs"
                                 onClick={() => declineMutation.mutate(absence.id)}
                                 disabled={declineMutation.isPending}
-                                title="Ablehnen"
+                                title="Отклонить"
                               >
                                 <X className="size-3.5 text-red-500" />
                               </Button>
@@ -380,7 +380,7 @@ export function AbsenceList() {
                             variant="ghost"
                             size="icon-xs"
                             onClick={() => handleEdit(absence)}
-                            title="Bearbeiten"
+                            title="Изменить"
                           >
                             <Pencil className="size-3" />
                           </Button>
@@ -390,7 +390,7 @@ export function AbsenceList() {
                               size="icon-xs"
                               onClick={() => handleDelete(absence.id)}
                               disabled={deleteMutation.isPending}
-                              title="Loeschen"
+                              title="Удалить"
                             >
                               <Trash2 className="size-3 text-destructive" />
                             </Button>

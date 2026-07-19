@@ -140,14 +140,14 @@ function VisibilityToggle({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isPublic: newValue }),
       });
-      if (!res.ok) throw new Error("Fehler beim Aktualisieren");
+      if (!res.ok) throw new Error("Ошибка обновления");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
     },
     onError: () => {
-      toast.error("Fehler beim Aendern der Sichtbarkeit");
+      toast.error("Ошибка изменения видимости");
     },
   });
 
@@ -171,16 +171,16 @@ function VisibilityToggle({
       <PopoverContent align="start" className="w-72">
         <div className="space-y-3">
           <div className="space-y-1">
-            <p className="text-sm font-medium">Sichtbarkeit</p>
+            <p className="text-sm font-medium">Видимость</p>
             <p className="text-xs text-muted-foreground">
               {isPublic
-                ? "Der Schichtplan ist fuer alle Mitarbeiter sichtbar."
-                : "Der Schichtplan ist nur fuer Manager sichtbar. Mitarbeiter koennen ihn nicht einsehen."}
+                ? "График доступен всем сотрудникам."
+                : "График доступен только руководителям."}
             </p>
           </div>
           <div className="flex items-center justify-between">
             <Label htmlFor="visibility-switch" className="text-sm">
-              {isPublic ? "Oeffentlich" : "Privat"}
+              {isPublic ? "Открытый" : "Закрытый"}
             </Label>
             <Switch
               id="visibility-switch"
@@ -210,7 +210,7 @@ function DivisionFilter({
     queryKey: ["divisions"],
     queryFn: async () => {
       const res = await fetch("/api/divisions");
-      if (!res.ok) throw new Error("Fehler beim Laden der Bereiche");
+      if (!res.ok) throw new Error("Ошибка загрузки подразделений");
       return res.json();
     },
   });
@@ -232,12 +232,12 @@ function DivisionFilter({
               {selectedDivision.title}
             </>
           ) : (
-            "Bereich"
+            "Подразделение"
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuLabel>Bereich filtern</DropdownMenuLabel>
+        <DropdownMenuLabel>Фильтр подразделений</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => onDivisionFilterChange(null)}
@@ -290,14 +290,14 @@ function OptionsMenu({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Fehler beim Aktualisieren");
+      if (!res.ok) throw new Error("Ошибка обновления");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
     },
     onError: () => {
-      toast.error("Fehler beim Speichern");
+      toast.error("Ошибка сохранения");
     },
   });
 
@@ -310,7 +310,7 @@ function OptionsMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel>Anzeige</DropdownMenuLabel>
+        <DropdownMenuLabel>Отображение</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
         {/* Layout Toggle */}
@@ -321,7 +321,7 @@ function OptionsMenu({
           }
         >
           <Layout className="size-3.5" />
-          Layout 1 (Schatten)
+          Вид 1 (тень)
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={settingsLayout === "LAYOUT_2"}
@@ -330,7 +330,7 @@ function OptionsMenu({
           }
         >
           <Layout className="size-3.5" />
-          Layout 2 (Farbrand)
+          Вид 2 (цветная рамка)
         </DropdownMenuCheckboxItem>
 
         <DropdownMenuSeparator />
@@ -343,7 +343,7 @@ function OptionsMenu({
           }
         >
           <Type className="size-3.5" />
-          Titel anzeigen
+          Показывать название
         </DropdownMenuCheckboxItem>
 
         {/* Show/hide pauses */}
@@ -354,7 +354,7 @@ function OptionsMenu({
           }
         >
           <Pause className="size-3.5" />
-          Pausen anzeigen
+          Показывать перерывы
         </DropdownMenuCheckboxItem>
 
         <DropdownMenuSeparator />
@@ -367,10 +367,10 @@ function OptionsMenu({
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuItem disabled>
-              PDF (kommt bald)
+              PDF (скоро)
             </DropdownMenuItem>
             <DropdownMenuItem disabled>
-              Excel (kommt bald)
+              Excel (скоро)
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
@@ -399,7 +399,7 @@ function BriefingButton({
     queryKey: ["briefing", scheduleId],
     queryFn: async () => {
       const res = await fetch(`/api/schedules/${scheduleId}/briefing`);
-      if (!res.ok) throw new Error("Fehler beim Laden");
+      if (!res.ok) throw new Error("Ошибка загрузки");
       return res.json();
     },
     enabled: !!scheduleId,
@@ -439,12 +439,12 @@ function BriefingButton({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Speichern");
+        throw new Error(data.error || "Ошибка сохранения");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Briefing gespeichert");
+      toast.success("Информация сохранена");
       queryClient.invalidateQueries({ queryKey: ["briefing", scheduleId] });
       setInitialText(text);
     },
@@ -459,17 +459,17 @@ function BriefingButton({
       const res = await fetch(`/api/schedules/${scheduleId}/briefing`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Fehler beim Loeschen");
+      if (!res.ok) throw new Error("Ошибка удаления");
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Briefing geloescht");
+      toast.success("Информация удалена");
       queryClient.invalidateQueries({ queryKey: ["briefing", scheduleId] });
       setText("");
       setInitialText("");
     },
     onError: () => {
-      toast.error("Fehler beim Loeschen des Briefings");
+      toast.error("Ошибка удаления информации");
     },
   });
 
@@ -493,10 +493,9 @@ function BriefingButton({
       </SheetTrigger>
       <SheetContent side="right" className="flex flex-col">
         <SheetHeader>
-          <SheetTitle>Wochen-Briefing</SheetTitle>
+          <SheetTitle>Информация на неделю</SheetTitle>
           <SheetDescription>
-            Informationen und Hinweise fuer diese Woche. Sichtbar fuer alle
-            Mitarbeiter.
+            Информация и указания на эту неделю. Доступны всем сотрудникам.
           </SheetDescription>
         </SheetHeader>
 
@@ -510,7 +509,7 @@ function BriefingButton({
               ref={textareaRef}
               value={text}
               onChange={handleTextChange}
-              placeholder="Briefing-Text eingeben..."
+              placeholder="Введите информацию..."
               className="min-h-[200px] resize-none"
               disabled={isPending}
             />
@@ -520,7 +519,7 @@ function BriefingButton({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">
-              Kein Briefing fuer diese Woche.
+              На эту неделю информации нет.
             </p>
           )}
         </div>
@@ -532,7 +531,7 @@ function BriefingButton({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (confirm("Briefing wirklich loeschen?")) {
+                  if (confirm("Удалить информацию?")) {
                     deleteMutation.mutate();
                   }
                 }}
@@ -581,7 +580,7 @@ function AiBriefingButton({ scheduleId }: { scheduleId: string }) {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Generieren");
+        throw new Error(data.error || "Ошибка формирования");
       }
       return res.json();
     },
@@ -594,9 +593,9 @@ function AiBriefingButton({ scheduleId }: { scheduleId: string }) {
       });
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: ["briefing", scheduleId] });
-        toast.success("KI-Briefing erstellt und gespeichert");
+        toast.success("ИИ-сводка создана и сохранена");
       } else {
-        toast.success("KI-Briefing erstellt (manuell speichern)");
+        toast.success("ИИ-сводка создана — сохраните её вручную");
       }
     },
     onError: (error: Error) => {

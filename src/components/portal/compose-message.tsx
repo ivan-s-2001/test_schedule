@@ -107,13 +107,13 @@ export function ComposeMessage({ open, onOpenChange, defaultRecipientIds, defaul
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o); }}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Neue Nachricht</DialogTitle>
+          <DialogTitle>Новое сообщение</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Recipients */}
           <div>
-            <Label>Empfaenger</Label>
+            <Label>Получатели</Label>
             <div className="mt-1.5">
               <Popover open={recipientPickerOpen} onOpenChange={setRecipientPickerOpen}>
                 <PopoverTrigger asChild>
@@ -140,7 +140,7 @@ export function ComposeMessage({ open, onOpenChange, defaultRecipientIds, defaul
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-0" align="start">
                   <Command>
-                    <CommandInput placeholder="Mitarbeiter suchen..." />
+                    <CommandInput placeholder="Найти сотрудника..." />
                     <CommandList>
                       <CommandEmpty>Kein Mitarbeiter gefunden.</CommandEmpty>
                       <CommandGroup>
@@ -174,7 +174,7 @@ export function ComposeMessage({ open, onOpenChange, defaultRecipientIds, defaul
 
           {/* Subject */}
           <div>
-            <Label>Betreff</Label>
+            <Label>Тема</Label>
             <Input
               className="mt-1.5"
               value={subject}
@@ -185,7 +185,7 @@ export function ComposeMessage({ open, onOpenChange, defaultRecipientIds, defaul
 
           {/* Body */}
           <div>
-            <Label>Nachricht</Label>
+            <Label>Сообщение</Label>
             <Textarea
               className="mt-1.5 min-h-[160px]"
               value={body}
@@ -205,7 +205,7 @@ export function ComposeMessage({ open, onOpenChange, defaultRecipientIds, defaul
               className="gap-2"
             >
               <Send className="size-4" />
-              {sendMutation.isPending ? "Sende..." : "Senden"}
+              {sendMutation.isPending ? "Sende..." : "Отправить"}
             </Button>
           </div>
         </div>

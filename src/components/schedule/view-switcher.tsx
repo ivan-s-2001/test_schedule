@@ -1,114 +1,102 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutGrid, Table2, User, CalendarDays } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { CalendarDays, Layers3, Table2 } from "lucide-react";
+import { useCurrentMember } from "@/lib/hooks/use-current-member";
+import { formatKW, getCurrentKW } from "@/lib/utils/calendar";
 import { cn } from "@/lib/utils";
 
 interface ViewSwitcherProps {
-  /** Current KW string like "09-2026" or null for month view */
   kw?: string;
-  /** Current month string like "03-2026" or null for KW views */
   month?: string;
 }
 
-const views: {
-  key: string;
-  label: string;
-  icon: typeof LayoutGrid;
-  getHref: (kw: string, month: string) => string;
-}[] = [
-  {
-    key: "flexible",
-    label: "Flexibel",
-    icon: LayoutGrid,
-    getHref: (kw: string, _month: string) => `/schedule/flexible/${kw}`,
-  },
-  {
-    key: "classic",
-    label: "Klassisch",
-    icon: Table2,
-    getHref: (kw: string, _month: string) => `/schedule/classic/${kw}`,
-  },
-  {
-    key: "employee",
-    label: "Mitarbeiter",
-    icon: User,
-    getHref: (kw: string, _month: string) => `/schedule/employee/${kw}`,
-  },
-  {
-    key: "month",
-    label: "Monat",
-    icon: CalendarDays,
-    getHref: (_kw: string, month: string) => `/schedule/month/${month}`,
-  },
-];
-
-/**
- * Derive month string "MM-YYYY" from a KW string "WW-YYYY".
- * Uses the Thursday of the ISO week to determine the month.
- */
 function kwToMonth(kw: string): string {
   const match = kw.match(/^(\d{1,2})-(\d{4})$/);
   if (!match) {
     const now = new Date();
     return `${String(now.getMonth() + 1).padStart(2, "0")}-${now.getFullYear()}`;
   }
-  const weekNumber = parseInt(match[1], 10);
-  const year = parseInt(match[2], 10);
-  // Jan 4 is always in ISO week 1
+
+  const weekNumber = Number.parseInt(match[1], 10);
+  const year = Number.parseInt(match[2], 10);
   const jan4 = new Date(year, 0, 4);
   const dayOfWeek = jan4.getDay() || 7;
-  const startOfWeek1 = new Date(jan4);
-  startOfWeek1.setDate(jan4.getDate() - dayOfWeek + 1);
-  // Thursday of target week
-  const thursday = new Date(startOfWeek1);
-  thursday.setDate(startOfWeek1.getDate() + (weekNumber - 1) * 7 + 3);
+  const firstMonday = new Date(jan4);
+  firstMonday.setDate(jan4.getDate() - dayOfWeek + 1);
+  const thursday = new Date(firstMonday);
+  thursday.setDate(firstMonday.getDate() + (weekNumber - 1) * 7 + 3);
+
   return `${String(thursday.getMonth() + 1).padStart(2, "0")}-${thursday.getFullYear()}`;
 }
 
 export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
   const pathname = usePathname();
+  const { data: currentMember } = useCurrentMember();
+  const now = new Date();
+  const currentKW = getCurrentKW();
+  const effectiveKW = kw ?? formatKW(currentKW.weekNumber, currentKW.year);
+  const effectiveMonth =
+    month ??
+    (kw
+      ? kwToMonth(effectiveKW)
+      : `${String(now.getMonth() + 1).padStart(2, "0")}-${now.getFullYear()}`);
+  const monthActive = pathname.includes("/schedule/month");
+  const poolActive = pathname.includes("/schedule/pool");
+  const canManagePool =
+    currentMember?.role === "OWNER" ||
+    currentMember?.role === "ADMIN" ||
+    currentMember?.role === "MANAGER";
 
-  // Determine the effective KW and month for link generation
-  const effectiveKW = kw ?? "01-2026";
-  const effectiveMonth = month ?? kwToMonth(effectiveKW);
-
-  // Determine active view from current pathname
-  const activeView = pathname.includes("/schedule/classic")
-    ? "classic"
-    : pathname.includes("/schedule/employee")
-      ? "employee"
-      : pathname.includes("/schedule/month")
-        ? "month"
-        : "flexible";
+  const views = [
+    {
+      key: "week",
+      label: "Неделя",
+      icon: Table2,
+      href: `/schedule/employee/${effectiveKW}`,
+      active: !monthActive && !poolActive,
+      visible: true,
+    },
+    {
+      key: "month",
+      label: "Месяц",
+      icon: CalendarDays,
+      href: `/schedule/month/${effectiveMonth}`,
+      active: monthActive,
+      visible: true,
+    },
+    {
+      key: "pool",
+      label: "Пул смен",
+      icon: Layers3,
+      href: "/schedule/pool",
+      active: poolActive,
+      visible: canManagePool,
+    },
+  ];
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
-      {views.map((view) => {
-        const isActive = activeView === view.key;
-        const Icon = view.icon;
-        const href =
-          view.key === "month"
-            ? view.getHref(effectiveKW, effectiveMonth)
-            : view.getHref(effectiveKW, effectiveMonth);
+    <nav className="flex items-end gap-6 border-b border-[#dae1e9]">
+      {views
+        .filter((view) => view.visible)
+        .map((view) => {
+          const Icon = view.icon;
 
-        return (
-          <Link
-            key={view.key}
-            href={href}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
-              isActive
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-            )}
-          >
-            <Icon className="size-3.5" />
-            <span className="hidden sm:inline">{view.label}</span>
-          </Link>
-        );
-      })}
-    </div>
+          return (
+            <Link
+              key={view.key}
+              href={view.href}
+              className={cn(
+                "relative flex items-center gap-1.5 px-0.5 py-2 text-sm font-medium text-[#66778f] transition-colors hover:text-[#394351]",
+                view.active && "text-[#394351] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:rounded-t after:bg-[#394351]"
+              )}
+            >
+              <Icon className="size-3.5" />
+              <span>{view.label}</span>
+            </Link>
+          );
+        })}
+    </nav>
   );
 }

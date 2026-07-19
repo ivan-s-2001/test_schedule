@@ -162,13 +162,13 @@ export const chatTools: ChatTool[] = [
 /** Day name lookup */
 const DAY_NAMES = [
   "",
-  "Montag",
-  "Dienstag",
-  "Mittwoch",
-  "Donnerstag",
-  "Freitag",
-  "Samstag",
-  "Sonntag",
+  "Понедельник",
+  "Вторник",
+  "Среда",
+  "Четверг",
+  "Пятница",
+  "Суббота",
+  "Воскресенье",
 ];
 
 /** Get the Monday of an ISO week. */
@@ -470,7 +470,7 @@ async function executeCreateShift(
   const day = DAY_NAMES[dayOfWeek] ?? `Tag ${dayOfWeek}`;
 
   return {
-    content: `Schicht erstellt: ${day} ${shiftFrom}-${shiftTo} (max. ${maxEmployees} MA) in KW ${weekNumber}/${year} [ID: ${shift.id}]`,
+    content: `Смена создана: ${day} ${shiftFrom}-${shiftTo} (max. ${maxEmployees} MA) in KW ${weekNumber}/${year} [ID: ${shift.id}]`,
     requiresConfirmation: true,
     data: shift,
   };
@@ -498,7 +498,7 @@ async function executeBookEmployee(
   });
 
   if (!shift) {
-    return { content: "Schicht nicht gefunden." };
+    return { content: "Смена не найдена." };
   }
 
   if (shift.bookings.length >= shift.maxEmployees) {

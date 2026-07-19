@@ -82,7 +82,7 @@ export function DivisionForm({ division, trigger }: DivisionFormProps) {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Speichern");
+        throw new Error(data.error || "Ошибка сохранения");
       }
       return res.json();
     },
@@ -119,7 +119,7 @@ export function DivisionForm({ division, trigger }: DivisionFormProps) {
         {trigger ?? (
           <Button>
             <Plus className="size-4" />
-            Neuen Arbeitsbereich erstellen
+            Создать подразделение
           </Button>
         )}
       </DialogTrigger>
@@ -129,7 +129,7 @@ export function DivisionForm({ division, trigger }: DivisionFormProps) {
             <DialogTitle>
               {isEdit
                 ? "Arbeitsbereich bearbeiten"
-                : "Neuen Arbeitsbereich erstellen"}
+                : "Создать подразделение"}
             </DialogTitle>
             <DialogDescription>
               {isEdit
@@ -156,7 +156,7 @@ export function DivisionForm({ division, trigger }: DivisionFormProps) {
 
             {/* Description */}
             <div className="space-y-1.5">
-              <Label htmlFor="division-description">Beschreibung</Label>
+              <Label htmlFor="division-description">Описание</Label>
               <Textarea
                 id="division-description"
                 value={description}
@@ -168,7 +168,7 @@ export function DivisionForm({ division, trigger }: DivisionFormProps) {
 
             {/* Color Picker */}
             <div className="space-y-1.5">
-              <Label>Farbe</Label>
+              <Label>Цвет</Label>
               <div className="flex flex-wrap gap-2">
                 {PRESET_COLORS.map((preset) => (
                   <button
@@ -206,7 +206,7 @@ export function DivisionForm({ division, trigger }: DivisionFormProps) {
               {mutation.isPending && (
                 <Loader2 className="size-4 animate-spin" />
               )}
-              {isEdit ? "Speichern" : "Erstellen"}
+              {isEdit ? "Сохранить" : "Создать"}
             </Button>
           </DialogFooter>
         </form>

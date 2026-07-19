@@ -8,7 +8,7 @@ import { emitToOrg } from "@/lib/emit";
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const folder = request.nextUrl.searchParams.get("folder") || "inbox";
@@ -95,20 +95,20 @@ const sendSchema = z.object({
 export async function POST(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   const parsed = sendSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
+      { error: "Ошибка проверки данных", details: parsed.error.issues },
       { status: 400 }
     );
   }

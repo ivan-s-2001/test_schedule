@@ -152,7 +152,7 @@ export default function AiChatPage() {
             <Sparkles className="size-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">KI-Assistent</h1>
+            <h1 className="text-xl font-bold">ИИ-помощник</h1>
             <p className="text-sm text-muted-foreground">
               Frag mich alles rund um deinen Schichtplan
             </p>

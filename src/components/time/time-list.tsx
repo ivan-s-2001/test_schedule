@@ -26,7 +26,7 @@ import {
   subMonths,
   getISOWeek,
 } from "date-fns";
-import { de } from "date-fns/locale";
+import { ru } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,7 @@ type TimeResponse = {
 
 // ---------- Helpers ----------
 
-const DAY_NAMES_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const DAY_NAMES_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 
 function getInitials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -138,7 +138,7 @@ export function TimeList() {
     queryKey: ["time-records", monthKey],
     queryFn: async () => {
       const res = await fetch(`/api/time?month=${monthKey}`);
-      if (!res.ok) throw new Error("Fehler beim Laden der Zeiterfassung");
+      if (!res.ok) throw new Error("Ошибка загрузки учёта времени");
       return res.json();
     },
   });
@@ -246,12 +246,12 @@ export function TimeList() {
       const res = await fetch(`/api/time/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "Fehler beim Loeschen");
+        throw new Error(d.error || "Ошибка удаления");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Erfassung geloescht");
+      toast.success("Запись удалена");
       queryClient.invalidateQueries({ queryKey: ["time-records"] });
     },
     onError: (err: Error) => {
@@ -260,7 +260,7 @@ export function TimeList() {
   });
 
   function handleDelete(id: string) {
-    if (confirm("Zeiterfassung wirklich loeschen?")) {
+    if (confirm("Удалить запись рабочего времени?")) {
       deleteMutation.mutate(id);
     }
   }
@@ -276,7 +276,7 @@ export function TimeList() {
     return records.filter((r) => r.date.slice(0, 10) === dateStr);
   }
 
-  const monthLabel = format(currentMonth, "MMMM yyyy", { locale: de });
+  const monthLabel = format(currentMonth, "MMMM yyyy", { locale: ru });
   const isCurrentMonth =
     format(currentMonth, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
@@ -285,9 +285,9 @@ export function TimeList() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Zeiterfassung</h1>
+          <h1 className="text-2xl font-bold">Учёт времени</h1>
           <p className="text-sm text-muted-foreground">
-            Arbeitszeiten erfassen und verwalten
+            Учитывайте рабочее время сотрудников
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -297,7 +297,7 @@ export function TimeList() {
             onClick={() => setShowStopwatch(!showStopwatch)}
           >
             <Timer className="size-4" />
-            <span className="hidden sm:inline">Stoppuhr</span>
+            <span className="hidden sm:inline">Секундомер</span>
           </Button>
           <Button
             size="sm"
@@ -351,7 +351,7 @@ export function TimeList() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Mitarbeiter suchen..."
+            placeholder="Найти сотрудника..."
             className="pl-9"
           />
         </div>
@@ -363,7 +363,7 @@ export function TimeList() {
       {/* Error */}
       {error && (
         <Card className="p-6 text-center text-destructive">
-          Fehler beim Laden der Zeiterfassung. Bitte versuche es erneut.
+          Не удалось загрузить данные. Повторите попытку.
         </Card>
       )}
 
@@ -371,11 +371,11 @@ export function TimeList() {
       {!isLoading && !error && filteredEmployees.length === 0 && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <Clock className="size-12 text-muted-foreground/50 mb-3" />
-          <p className="text-lg font-medium">Keine Zeiterfassungen</p>
+          <p className="text-lg font-medium">Записей рабочего времени нет</p>
           <p className="text-sm text-muted-foreground mt-1">
             {search
-              ? "Keine Ergebnisse fuer die Suche."
-              : "Noch keine Zeiten fuer diesen Monat erfasst."}
+              ? "По вашему запросу ничего не найдено."
+              : "За этот месяц записей пока нет."}
           </p>
         </Card>
       )}

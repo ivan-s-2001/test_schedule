@@ -24,22 +24,30 @@ export function MobileNav() {
     return pathname.startsWith(segment);
   }
 
+  const itemClass = (active: boolean) =>
+    cn(
+      "flex min-h-[30px] items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium text-[#4e5c6e] transition-colors",
+      active
+        ? "bg-[#cdd8e5] text-[#111319]"
+        : "hover:bg-[#dee5ed] hover:text-[#111319]"
+    );
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden">
           <Menu className="size-5" />
-          <span className="sr-only">Navigation</span>
+          <span className="sr-only">Навигация</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
-        <SheetHeader className="border-b px-4 py-3">
-          <SheetTitle className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-            <CalendarDays className="size-5" />
-            Schichtplaner
+      <SheetContent side="left" className="w-72 border-[#dae1e9] bg-[#eef2f6] p-0">
+        <SheetHeader className="border-b border-[#dae1e9] px-4 py-3">
+          <SheetTitle className="flex items-center gap-2 text-base font-semibold text-[#111319]">
+            <CalendarDays className="size-5 text-[#4e5c6e]" />
+            QuickTickets
           </SheetTitle>
         </SheetHeader>
-        <nav className="flex flex-col gap-1 p-3">
+        <nav className="flex flex-col gap-0.5 p-3">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -48,31 +56,20 @@ export function MobileNav() {
                 key={item.key}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                )}
+                className={itemClass(active)}
               >
-                <Icon className="size-5" />
+                <Icon className="size-4" />
                 {item.label}
               </Link>
             );
           })}
-          {/* AI link */}
           <Link
             href="/ai/chat"
             onClick={() => setOpen(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-              pathname.startsWith("/ai")
-                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            )}
+            className={itemClass(pathname.startsWith("/ai"))}
           >
-            <Sparkles className="size-5" />
-            KI-Assistent
+            <Sparkles className="size-4" />
+            ИИ-ассистент
           </Link>
         </nav>
       </SheetContent>

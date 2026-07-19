@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { de } from "date-fns/locale";
+import { ru } from "date-fns/locale";
 import {
   Mail,
   MailOpen,
@@ -117,9 +117,9 @@ export function MessageList({ folder }: Props) {
   }
 
   const folderLabels = {
-    inbox: "Posteingang",
-    sent: "Gesendete",
-    trash: "Papierkorb",
+    inbox: "Входящие",
+    sent: "Отправленные",
+    trash: "Корзина",
   };
 
   return (
@@ -129,7 +129,7 @@ export function MessageList({ folder }: Props) {
         <h1 className="text-2xl font-bold">{folderLabels[folder]}</h1>
         <Button onClick={() => setComposeOpen(true)} className="gap-2">
           <MailPlus className="size-4" />
-          Neue Nachricht
+          Новое сообщение
         </Button>
       </div>
 
@@ -137,7 +137,7 @@ export function MessageList({ folder }: Props) {
       {selected.size > 0 && (
         <div className="mb-3 flex items-center gap-2 rounded-md bg-slate-100 p-2 dark:bg-slate-800">
           <span className="text-sm text-slate-600 dark:text-slate-400">
-            {selected.size} ausgewaehlt
+            {selected.size} выбрано
           </span>
           {folder === "inbox" && (
             <>
@@ -200,7 +200,7 @@ export function MessageList({ folder }: Props) {
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-slate-500">
           <Mail className="mb-3 size-10 text-slate-300" />
           <p className="text-sm">
-            {folder === "inbox" && "Keine Nachrichten im Posteingang"}
+            {folder === "inbox" && "Сообщений нет im Posteingang"}
             {folder === "sent" && "Keine gesendeten Nachrichten"}
             {folder === "trash" && "Papierkorb ist leer"}
           </p>
@@ -269,7 +269,7 @@ export function MessageList({ folder }: Props) {
 
                   {/* Date */}
                   <time className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
-                    {format(new Date(msg.createdAt), "dd. MMM yyyy, HH:mm", { locale: de })}
+                    {format(new Date(msg.createdAt), "dd. MMM yyyy, HH:mm", { locale: ru })}
                   </time>
                 </div>
               </div>

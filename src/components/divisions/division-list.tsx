@@ -65,7 +65,7 @@ export function DivisionList() {
     queryKey: ["divisions"],
     queryFn: async () => {
       const res = await fetch("/api/divisions");
-      if (!res.ok) throw new Error("Fehler beim Laden der Arbeitsbereiche");
+      if (!res.ok) throw new Error("Ошибка загрузки подразделений");
       return res.json();
     },
   });
@@ -75,7 +75,7 @@ export function DivisionList() {
     queryKey: ["employees", "all"],
     queryFn: async () => {
       const res = await fetch("/api/employees?status=all");
-      if (!res.ok) throw new Error("Fehler beim Laden");
+      if (!res.ok) throw new Error("Ошибка загрузки");
       return res.json();
     },
     enabled: assignDialogOpen,
@@ -97,12 +97,12 @@ export function DivisionList() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Zuweisen");
+        throw new Error(data.error || "Ошибка назначения");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Mitarbeiter wurde zugewiesen");
+      toast.success("Сотрудник назначен");
       queryClient.invalidateQueries({ queryKey: ["divisions"] });
       queryClient.invalidateQueries({
         queryKey: ["division-members", assignDivisionId],
@@ -140,9 +140,9 @@ export function DivisionList() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Arbeitsbereiche</h1>
+          <h1 className="text-2xl font-bold">Подразделения</h1>
           <p className="text-sm text-muted-foreground">
-            Organisiere dein Team in Arbeitsbereiche
+            Распределяйте сотрудников по подразделениям
           </p>
         </div>
         {isAdmin && <DivisionForm />}
@@ -151,7 +151,7 @@ export function DivisionList() {
       {/* Error */}
       {error && (
         <Card className="p-6 text-center text-destructive">
-          Fehler beim Laden der Arbeitsbereiche. Bitte versuche es erneut.
+          Не удалось загрузить подразделения. Повторите попытку.
         </Card>
       )}
 
@@ -163,10 +163,10 @@ export function DivisionList() {
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <Layers className="size-12 text-muted-foreground/50 mb-3" />
           <p className="text-lg font-medium">
-            Keine Arbeitsbereiche vorhanden
+            Подразделений пока нет
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            Erstelle deinen ersten Arbeitsbereich.
+            Создайте первое подразделение.
           </p>
         </Card>
       )}
@@ -187,7 +187,7 @@ export function DivisionList() {
                     onClick={() => openAssignDialog(division.id)}
                   >
                     <UserPlus className="size-3.5" />
-                    Mitarbeiter zuweisen
+                    Назначить сотрудников
                   </Button>
                 </div>
               )}
@@ -201,7 +201,7 @@ export function DivisionList() {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleAssign}>
             <DialogHeader>
-              <DialogTitle>Mitarbeiter zuweisen</DialogTitle>
+              <DialogTitle>Назначить сотрудников</DialogTitle>
               <DialogDescription>
                 Weise einen Mitarbeiter dem Arbeitsbereich{" "}
                 &quot;{assignDivision?.title}&quot; zu.
@@ -214,7 +214,7 @@ export function DivisionList() {
                 onValueChange={setSelectedUserId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Mitarbeiter waehlen..." />
+                  <SelectValue placeholder="Выберите сотрудника..." />
                 </SelectTrigger>
                 <SelectContent>
                   {employeesData?.members?.map((emp) => (

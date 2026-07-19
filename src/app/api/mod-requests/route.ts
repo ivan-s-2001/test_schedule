@@ -13,7 +13,7 @@ import { emitToSchedule } from "@/lib/emit";
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   const { searchParams } = request.nextUrl;
@@ -88,20 +88,20 @@ const createSchema = z.object({
 export async function POST(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
+      { error: "Ошибка проверки данных", details: parsed.error.issues },
       { status: 400 }
     );
   }
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
 
   if (!shift || shift.schedule.organizationId !== member.organizationId) {
     return NextResponse.json(
-      { error: "Schicht nicht gefunden" },
+      { error: "Смена не найдена" },
       { status: 404 }
     );
   }
