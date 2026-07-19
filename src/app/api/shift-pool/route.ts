@@ -140,22 +140,24 @@ export async function GET(request: NextRequest) {
 
   await db.$transaction((tx) => ensureDefaultPool(tx, member.organizationId));
 
-  const rows = await db.$queryRaw<ShiftPoolRow[]>`
-    SELECT
-      "code",
-      "name",
-      "shiftFrom",
-      "shiftTo",
-      "color",
-      "textColor",
-      "description",
-      "sortOrder",
-      "isActive"
-    FROM "shift_pool_templates"
-    WHERE "organizationId" = ${member.organizationId}
-      AND (${includeInactive} OR "isActive" = true)
-    ORDER BY "sortOrder" ASC, "createdAt" ASC
-  `;
+  const rows = includeInactive
+    ? await db.$queryRaw<ShiftPoolRow[]>`
+        SELECT
+          "code", "name", "shiftFrom", "shiftTo", "color", "textColor",
+          "description", "sortOrder", "isActive"
+        FROM "shift_pool_templates"
+        WHERE "organizationId" = ${member.organizationId}
+        ORDER BY "sortOrder" ASC, "createdAt" ASC
+      `
+    : await db.$queryRaw<ShiftPoolRow[]>`
+        SELECT
+          "code", "name", "shiftFrom", "shiftTo", "color", "textColor",
+          "description", "sortOrder", "isActive"
+        FROM "shift_pool_templates"
+        WHERE "organizationId" = ${member.organizationId}
+          AND "isActive" = true
+        ORDER BY "sortOrder" ASC, "createdAt" ASC
+      `;
 
   return NextResponse.json({
     templates: rows.map(toTemplate),
@@ -297,7 +299,6 @@ export async function PATCH(request: NextRequest) {
         SET
           "shiftFrom" = ${values.shiftFrom},
           "shiftTo" = ${values.shiftTo},
-          "description" = ${values.description ?? null},
           "poolLabel" = ${values.name},
           "poolColor" = ${values.color},
           "poolTextColor" = ${values.textColor},
