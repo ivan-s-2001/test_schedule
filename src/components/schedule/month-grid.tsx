@@ -49,6 +49,10 @@ type MonthScheduleResult = {
   schedules: ScheduleData[];
 };
 
+type HolidayCalendarResponse = {
+  nonWorkingDates: string[];
+};
+
 type MonthAssignment = ShiftAssignment & {
   scheduleId: string;
   dayOfWeek: number;
@@ -134,6 +138,22 @@ export function MonthGrid({ month, year }: MonthGridProps) {
     },
   });
 
+  const { data: holidayCalendar } = useQuery<HolidayCalendarResponse>({
+    queryKey: ["holiday-calendar", year],
+    queryFn: async () => {
+      const response = await fetch(`/api/holidays?year=${year}`);
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить производственный календарь");
+      }
+      return response.json();
+    },
+  });
+
+  const nonWorkingDates = useMemo(
+    () => new Set(holidayCalendar?.nonWorkingDates ?? []),
+    [holidayCalendar]
+  );
+
   const schedules = schedulesData?.schedules ?? [];
 
   const scheduleByWeek = useMemo(() => {
@@ -193,7 +213,7 @@ export function MonthGrid({ month, year }: MonthGridProps) {
     [monthStart, router]
   );
 
-  async function invalidateMonth(scheduleId: string) {
+  async function invalidateMonth() {
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: ["month-schedules", month, year],
@@ -262,20 +282,26 @@ export function MonthGrid({ month, year }: MonthGridProps) {
               <th className="sticky left-0 z-20 w-52 min-w-52 border-b border-r border-slate-400 bg-[#0000FF] px-3 py-2 text-left font-semibold text-white">
                 Сотрудник
               </th>
-              {monthDates.map((date) => (
-                <th
-                  key={date.toISOString()}
-                  className={cn(
-                    "h-12 min-w-9 border-b border-r border-slate-400 bg-[#0000FF] px-0.5 py-1 text-center text-white",
-                    isToday(date) && "ring-2 ring-inset ring-yellow-300"
-                  )}
-                >
-                  <span className="block text-xs font-bold">{format(date, "d")}</span>
-                  <span className="block text-[8px] font-normal uppercase">
-                    {format(date, "EEEEEE", { locale: ru })}
-                  </span>
-                </th>
-              ))}
+              {monthDates.map((date) => {
+                const dateKey = format(date, "yyyy-MM-dd");
+                const nonWorking = nonWorkingDates.has(dateKey);
+
+                return (
+                  <th
+                    key={date.toISOString()}
+                    className={cn(
+                      "h-12 min-w-9 border-b border-r border-slate-400 px-0.5 py-1 text-center text-white",
+                      nonWorking ? "bg-emerald-700" : "bg-[#0000FF]",
+                      isToday(date) && "ring-2 ring-inset ring-yellow-300"
+                    )}
+                  >
+                    <span className="block text-xs font-bold">{format(date, "d")}</span>
+                    <span className="block text-[8px] font-normal uppercase">
+                      {format(date, "EEEEEE", { locale: ru })}
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
@@ -307,6 +333,7 @@ export function MonthGrid({ month, year }: MonthGridProps) {
 
                 {monthDates.map((date) => {
                   const dateKey = format(date, "yyyy-MM-dd");
+                  const nonWorking = nonWorkingDates.has(dateKey);
                   const assignment = assignments.get(
                     `${member.user.id}:${dateKey}`
                   );
@@ -330,7 +357,8 @@ export function MonthGrid({ month, year }: MonthGridProps) {
                       key={dateKey}
                       className={cn(
                         "h-8 min-w-9 border-b border-r border-slate-300 p-0.5",
-                        isToday(date) && "bg-yellow-50"
+                        nonWorking && "bg-emerald-50",
+                        isToday(date) && "ring-1 ring-inset ring-yellow-300"
                       )}
                     >
                       <button
@@ -342,7 +370,7 @@ export function MonthGrid({ month, year }: MonthGridProps) {
                           "h-7 w-full rounded-sm border transition",
                           assignment
                             ? "shadow-sm"
-                            : "border-transparent bg-white",
+                            : "border-transparent bg-transparent",
                           clickable && "hover:ring-2 hover:ring-indigo-400"
                         )}
                         style={
