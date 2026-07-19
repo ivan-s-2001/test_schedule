@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Table2 } from "lucide-react";
+import { CalendarDays, Layers3, Table2 } from "lucide-react";
+import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import { cn } from "@/lib/utils";
 
 interface ViewSwitcherProps {
@@ -31,12 +32,16 @@ function kwToMonth(kw: string): string {
 
 export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
   const pathname = usePathname();
+  const { data: currentMember } = useCurrentMember();
   const now = new Date();
-  const effectiveKW =
-    kw ?? `01-${now.getFullYear()}`;
-  const effectiveMonth =
-    month ?? kwToMonth(effectiveKW);
+  const effectiveKW = kw ?? `01-${now.getFullYear()}`;
+  const effectiveMonth = month ?? kwToMonth(effectiveKW);
   const monthActive = pathname.includes("/schedule/month");
+  const poolActive = pathname.includes("/schedule/pool");
+  const canManagePool =
+    currentMember?.role === "OWNER" ||
+    currentMember?.role === "ADMIN" ||
+    currentMember?.role === "MANAGER";
 
   const views = [
     {
@@ -44,7 +49,8 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
       label: "Неделя",
       icon: Table2,
       href: `/schedule/employee/${effectiveKW}`,
-      active: !monthActive,
+      active: !monthActive && !poolActive,
+      visible: true,
     },
     {
       key: "month",
@@ -52,30 +58,41 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
       icon: CalendarDays,
       href: `/schedule/month/${effectiveMonth}`,
       active: monthActive,
+      visible: true,
+    },
+    {
+      key: "pool",
+      label: "Пул смен",
+      icon: Layers3,
+      href: "/schedule/pool",
+      active: poolActive,
+      visible: canManagePool,
     },
   ];
 
   return (
     <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
-      {views.map((view) => {
-        const Icon = view.icon;
+      {views
+        .filter((view) => view.visible)
+        .map((view) => {
+          const Icon = view.icon;
 
-        return (
-          <Link
-            key={view.key}
-            href={view.href}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
-              view.active
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
-            )}
-          >
-            <Icon className="size-3.5" />
-            <span>{view.label}</span>
-          </Link>
-        );
-      })}
+          return (
+            <Link
+              key={view.key}
+              href={view.href}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                view.active
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+              )}
+            >
+              <Icon className="size-3.5" />
+              <span>{view.label}</span>
+            </Link>
+          );
+        })}
     </div>
   );
 }
