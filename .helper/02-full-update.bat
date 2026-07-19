@@ -81,8 +81,10 @@ call npx tsx --env-file=.env scripts/migration/import-care-day-notes.ts --apply
 if errorlevel 1 goto :fail
 
 echo.
-echo [9/12] Импорт выходных, отпусков и больничных из Excel...
+echo [9/12] Импорт состояний ячеек и синхронизация пула смен...
 call npx tsx --env-file=.env scripts/migration/import-care-cell-statuses.ts --apply --force
+if errorlevel 1 goto :fail
+call npx tsx --env-file=.env scripts/migration/sync-shift-pool-snapshots.ts
 if errorlevel 1 goto :fail
 
 echo.
