@@ -47,8 +47,7 @@ async function ensurePool(organizationId: string) {
   }
 
   await db.$executeRaw`
-    UPDATE "shift_pool_templates"
-    SET "isActive" = false, "updatedAt" = CURRENT_TIMESTAMP
+    DELETE FROM "shift_pool_templates"
     WHERE "organizationId" = ${organizationId}
       AND LOWER(TRIM("name")) = LOWER('Переработка')
   `;
