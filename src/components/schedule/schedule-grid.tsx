@@ -27,6 +27,7 @@ interface ScheduleGridProps {
 export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps) {
   const { data: member } = useCurrentMember();
   const t = useTranslations("schedule.grid");
+  const tCommon = useTranslations("common");
   const tErrors = useTranslations("errors");
   const format = useFormatter();
   const isManager =
@@ -178,7 +179,7 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
           <div className="flex items-center gap-2">
             {today && (
               <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                {t("officialDayOff").includes("Official") ? "Today" : "Сегодня"}
+                {tCommon("today")}
               </span>
             )}
             {mobile && dayShifts.length > 0 && (
