@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { isToday } from "date-fns";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { dayNames, formatDateShort } from "@/lib/utils/calendar";
@@ -15,14 +15,23 @@ import { EmployeeNav } from "./employee-nav";
 import { ScheduleOptions } from "./schedule-options";
 import { LiveMode, LiveBorder } from "./live-mode";
 import { AISuggestButton } from "./ai-suggest-button";
-import { WishFilterToggle } from "./wish-plan";
-import type { WishRequest } from "./wish-plan";
+import { WishFilterToggle, type WishRequest } from "./wish-plan";
 import type { ScheduleData, ShiftData } from "@/types/schedule";
 
 interface ScheduleGridProps {
   weekNumber: number;
   year: number;
   weekDates: Date[];
+}
+
+function shiftWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return "смена";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return "смены";
+  }
+  return "смен";
 }
 
 export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps) {
@@ -32,19 +41,21 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
     member?.role === "ADMIN" ||
     member?.role === "MANAGER";
 
-  // Employee filter state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
-
-  // Division filter state
   const [divisionFilter, setDivisionFilter] = useState<string | null>(null);
+  const [wishFilterEnabled, setWishFilterEnabled] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [formDay, setFormDay] = useState(1);
+  const [editingShift, setEditingShift] = useState<ShiftData | null>(null);
 
-  // Fetch schedule with shifts via the schedule endpoint
   const { data, isLoading } = useQuery<{ schedule: ScheduleData }>({
     queryKey: ["schedule", weekNumber, year],
     queryFn: async () => {
-      const res = await fetch(`/api/schedules?kw=${weekNumber}&year=${year}`);
-      if (!res.ok) throw new Error("Ошибка загрузки der Schichten");
-      return res.json();
+      const response = await fetch(
+        `/api/schedules?kw=${weekNumber}&year=${year}`
+      );
+      if (!response.ok) throw new Error("Не удалось загрузить график");
+      return response.json();
     },
   });
 
@@ -55,115 +66,175 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
   const showTitle = schedule?.showTitle ?? true;
   const showPauses = schedule?.showPauses ?? true;
 
-  // Query live session state for the purple border
-  const { data: liveData } = useQuery<{ session: { isActive: boolean } | null }>({
+  const { data: liveData } = useQuery<{
+    session: { isActive: boolean } | null;
+  }>({
     queryKey: ["live-session", scheduleId],
     queryFn: async () => {
-      const res = await fetch(`/api/live?scheduleId=${scheduleId}`);
-      if (!res.ok) return { session: null };
-      return res.json();
+      const response = await fetch(`/api/live?scheduleId=${scheduleId}`);
+      if (!response.ok) return { session: null };
+      return response.json();
     },
-    enabled: !!scheduleId,
+    enabled: Boolean(scheduleId),
   });
-  const isLiveActive = liveData?.session?.isActive ?? false;
 
-  // Wish filter state
-  const [wishFilterEnabled, setWishFilterEnabled] = useState(false);
-
-  // Query wish requests for this schedule
   const { data: wishData } = useQuery<{ requests: WishRequest[] }>({
     queryKey: ["mod-requests", scheduleId],
     queryFn: async () => {
-      const res = await fetch(`/api/mod-requests?scheduleId=${scheduleId}`);
-      if (!res.ok) return { requests: [] };
-      return res.json();
+      const response = await fetch(`/api/mod-requests?scheduleId=${scheduleId}`);
+      if (!response.ok) return { requests: [] };
+      return response.json();
     },
-    enabled: !!scheduleId,
+    enabled: Boolean(scheduleId),
   });
 
   const wishRequests = wishData?.requests ?? [];
-  const openWishCount = wishRequests.filter((r) => r.state === "OPEN").length;
+  const openWishCount = wishRequests.filter(
+    (request) => request.state === "OPEN"
+  ).length;
 
-  // Map wish requests by shiftId for quick lookup
   const wishByShift = useMemo(() => {
-    const map = new Map<string, WishRequest[]>();
-    for (const req of wishRequests) {
-      const existing = map.get(req.shiftId) ?? [];
-      existing.push(req);
-      map.set(req.shiftId, existing);
+    const result = new Map<string, WishRequest[]>();
+    for (const request of wishRequests) {
+      const list = result.get(request.shiftId) ?? [];
+      list.push(request);
+      result.set(request.shiftId, list);
     }
-    return map;
+    return result;
   }, [wishRequests]);
 
-  // Get the current user's wish requests
   const userWishMap = useMemo(() => {
-    const map = new Map<string, WishRequest>();
+    const result = new Map<string, WishRequest>();
     const userId = member?.user?.id;
-    if (!userId) return map;
-    for (const req of wishRequests) {
-      if (req.userId === userId) {
-        map.set(req.shiftId, req);
-      }
+    if (!userId) return result;
+
+    for (const request of wishRequests) {
+      if (request.userId === userId) result.set(request.shiftId, request);
     }
-    return map;
+    return result;
   }, [wishRequests, member?.user?.id]);
 
-  // Group shifts by dayOfWeek, applying division filter and wish filter
   const shiftsByDay = useMemo(() => {
     let filtered = divisionFilter
-      ? shifts.filter((s) => s.divisionId === divisionFilter)
+      ? shifts.filter((shift) => shift.divisionId === divisionFilter)
       : shifts;
 
-    // Wish filter: only show shifts that have open wish requests
     if (wishFilterEnabled) {
-      filtered = filtered.filter((s) => {
-        const reqs = wishByShift.get(s.id);
-        return reqs && reqs.some((r) => r.state === "OPEN");
-      });
+      filtered = filtered.filter((shift) =>
+        wishByShift.get(shift.id)?.some((request) => request.state === "OPEN")
+      );
     }
 
     const grouped: Record<number, ShiftData[]> = {};
-    for (let d = 1; d <= 7; d++) {
-      grouped[d] = [];
-    }
-    for (const shift of filtered) {
-      if (grouped[shift.dayOfWeek]) {
-        grouped[shift.dayOfWeek].push(shift);
-      }
-    }
-    // Sort each day's shifts by shiftFrom
+    for (let day = 1; day <= 7; day++) grouped[day] = [];
+
+    for (const shift of filtered) grouped[shift.dayOfWeek]?.push(shift);
     for (const day of Object.keys(grouped)) {
-      grouped[Number(day)].sort((a, b) => a.shiftFrom.localeCompare(b.shiftFrom));
+      grouped[Number(day)].sort((left, right) =>
+        left.shiftFrom.localeCompare(right.shiftFrom)
+      );
     }
+
     return grouped;
   }, [shifts, divisionFilter, wishFilterEnabled, wishByShift]);
 
-  // Dialog state
-  const [formOpen, setFormOpen] = useState(false);
-  const [formDay, setFormDay] = useState(1);
-  const [editingShift, setEditingShift] = useState<ShiftData | null>(null);
-
-  function handleAddShift(dayOfWeek: number) {
+  function openCreateForm(dayOfWeek: number) {
     setEditingShift(null);
     setFormDay(dayOfWeek);
     setFormOpen(true);
   }
 
-  function handleEditShift(shift: ShiftData) {
+  function openEditForm(shift: ShiftData) {
     setEditingShift(shift);
     setFormDay(shift.dayOfWeek);
     setFormOpen(true);
   }
 
-  if (isLoading) {
-    return <ScheduleGridSkeleton />;
-  }
+  if (isLoading) return <ScheduleGridSkeleton />;
+
+  const renderDay = (date: Date, index: number, mobile: boolean) => {
+    const dayOfWeek = index + 1;
+    const dayShifts = shiftsByDay[dayOfWeek] ?? [];
+    const today = isToday(date);
+
+    return (
+      <div
+        key={dayOfWeek}
+        className={cn(
+          "rounded-lg border bg-card",
+          !mobile && "flex min-h-[200px] flex-col",
+          today && "bg-primary/[0.02] ring-2 ring-primary/50"
+        )}
+      >
+        <div
+          className={cn(
+            "rounded-t-lg border-b px-3 py-2",
+            mobile && "flex items-center justify-between px-4 py-2.5",
+            today ? "bg-primary/10" : "bg-muted/30"
+          )}
+        >
+          <div>
+            <div className="text-sm font-semibold">{dayNames[index]}</div>
+            <div className="text-xs text-muted-foreground">
+              {formatDateShort(date)}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {today && (
+              <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                Сегодня
+              </span>
+            )}
+            {mobile && dayShifts.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {dayShifts.length} {shiftWord(dayShifts.length)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className={cn("space-y-2 p-2", mobile && "p-3", !mobile && "flex-1")}>
+          {dayShifts.length === 0 && (
+            <div className="py-4 text-center text-xs text-muted-foreground">
+              Смен нет
+            </div>
+          )}
+
+          {dayShifts.map((shift) => (
+            <ShiftCard
+              key={shift.id}
+              shift={shift}
+              onEdit={openEditForm}
+              isManager={isManager}
+              currentUserId={member?.user?.id}
+              highlightUserId={selectedEmployeeId}
+              layout={layout}
+              showTitle={showTitle}
+              showPauses={showPauses}
+              userWishRequest={userWishMap.get(shift.id) ?? null}
+            />
+          ))}
+
+          {isManager && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full border border-dashed text-muted-foreground hover:text-foreground"
+              onClick={() => openCreateForm(dayOfWeek)}
+            >
+              <Plus className="size-3.5" />
+              Добавить смену
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
-      {/* Schedule Options toolbar */}
       {schedule && (
-        <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
           <ScheduleOptions
             schedule={schedule}
             isManager={isManager}
@@ -171,7 +242,6 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
             onDivisionFilterChange={setDivisionFilter}
           />
           <div className="flex items-center gap-2">
-            {/* Wish filter toggle (manager only) */}
             {isManager && (
               <WishFilterToggle
                 enabled={wishFilterEnabled}
@@ -179,15 +249,12 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
                 wishCount={openWishCount}
               />
             )}
-            {/* AI Suggest button (manager only) */}
             {isManager && <AISuggestButton scheduleId={scheduleId} />}
-            {/* Live Mode controls */}
             <LiveMode scheduleId={scheduleId} isManager={isManager} />
           </div>
         </div>
       )}
 
-      {/* Employee filter bar */}
       {shifts.length > 0 && (
         <div className="mb-4">
           <EmployeeNav
@@ -198,173 +265,18 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
         </div>
       )}
 
-      {/* Desktop: 7-column grid */}
-      <LiveBorder isActive={isLiveActive}>
-        <div className="hidden md:grid md:grid-cols-7 gap-2">
-          {weekDates.map((date, index) => {
-            const dayOfWeek = index + 1; // 1=Mon..7=Sun
-            const dayShifts = shiftsByDay[dayOfWeek] ?? [];
-            const todayHighlight = isToday(date);
-
-            return (
-              <div
-                key={dayOfWeek}
-                className={cn(
-                  "min-h-[200px] rounded-lg border bg-card flex flex-col",
-                  todayHighlight && "ring-2 ring-primary/50 bg-primary/[0.02]"
-                )}
-              >
-                {/* Day Header */}
-                <div
-                  className={cn(
-                    "border-b px-3 py-2 rounded-t-lg",
-                    todayHighlight ? "bg-primary/10" : "bg-muted/30"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">
-                      {dayNames[index]}
-                    </div>
-                    {todayHighlight && (
-                      <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                        Heute
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatDateShort(date)}
-                  </div>
-                </div>
-
-                {/* Day Content */}
-                <div className="flex-1 p-2 space-y-2">
-                  {dayShifts.length === 0 && (
-                    <div className="flex items-center justify-center py-4">
-                      <span className="text-xs text-muted-foreground">
-                        Keine Schichten
-                      </span>
-                    </div>
-                  )}
-
-                  {dayShifts.map((shift) => (
-                    <ShiftCard
-                      key={shift.id}
-                      shift={shift}
-                      onEdit={handleEditShift}
-                      isManager={isManager}
-                      currentUserId={member?.user?.id}
-                      highlightUserId={selectedEmployeeId}
-                      layout={layout}
-                      showTitle={showTitle}
-                      showPauses={showPauses}
-                      userWishRequest={userWishMap.get(shift.id) ?? null}
-                    />
-                  ))}
-
-                  {/* Add shift button */}
-                  {isManager && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full border border-dashed text-muted-foreground hover:text-foreground"
-                      onClick={() => handleAddShift(dayOfWeek)}
-                    >
-                      <Plus className="size-3.5" />
-                      Schicht
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      <LiveBorder isActive={liveData?.session?.isActive ?? false}>
+        <div className="hidden gap-2 md:grid md:grid-cols-7">
+          {weekDates.map((date, index) => renderDay(date, index, false))}
         </div>
       </LiveBorder>
 
-      {/* Mobile: day-by-day vertical cards */}
-      <LiveBorder isActive={isLiveActive}>
-        <div className="md:hidden space-y-3">
-          {weekDates.map((date, index) => {
-            const dayOfWeek = index + 1;
-            const dayShifts = shiftsByDay[dayOfWeek] ?? [];
-            const todayHighlight = isToday(date);
-
-            return (
-              <div
-                key={dayOfWeek}
-                className={cn(
-                  "rounded-lg border bg-card",
-                  todayHighlight && "ring-2 ring-primary/50 bg-primary/[0.02]"
-                )}
-              >
-                {/* Day Header */}
-                <div
-                  className={cn(
-                    "border-b px-4 py-2.5 rounded-t-lg flex items-center justify-between",
-                    todayHighlight ? "bg-primary/10" : "bg-muted/30"
-                  )}
-                >
-                  <div>
-                    <span className="text-sm font-semibold">{dayNames[index]}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      {formatDateShort(date)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {todayHighlight && (
-                      <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                        Heute
-                      </span>
-                    )}
-                    {dayShifts.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        {dayShifts.length} {dayShifts.length === 1 ? "Schicht" : "Schichten"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Day Content */}
-                <div className="p-3 space-y-2">
-                  {dayShifts.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-2">
-                      Keine Schichten
-                    </p>
-                  )}
-
-                  {dayShifts.map((shift) => (
-                    <ShiftCard
-                      key={shift.id}
-                      shift={shift}
-                      onEdit={handleEditShift}
-                      isManager={isManager}
-                      currentUserId={member?.user?.id}
-                      highlightUserId={selectedEmployeeId}
-                      layout={layout}
-                      showTitle={showTitle}
-                      showPauses={showPauses}
-                      userWishRequest={userWishMap.get(shift.id) ?? null}
-                    />
-                  ))}
-
-                  {isManager && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full border border-dashed text-muted-foreground hover:text-foreground"
-                      onClick={() => handleAddShift(dayOfWeek)}
-                    >
-                      <Plus className="size-3.5" />
-                      Schicht hinzufuegen
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      <LiveBorder isActive={liveData?.session?.isActive ?? false}>
+        <div className="space-y-3 md:hidden">
+          {weekDates.map((date, index) => renderDay(date, index, true))}
         </div>
       </LiveBorder>
 
-      {/* Shift Form Dialog */}
       {scheduleId && (
         <ShiftForm
           open={formOpen}
@@ -378,17 +290,16 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
   );
 }
 
-/** Loading skeleton for the grid */
 function ScheduleGridSkeleton() {
   return (
-    <div className="hidden md:grid md:grid-cols-7 gap-2">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="min-h-[200px] rounded-lg border bg-card">
-          <div className="border-b bg-muted/30 px-3 py-2 rounded-t-lg">
+    <div className="hidden gap-2 md:grid md:grid-cols-7">
+      {Array.from({ length: 7 }).map((_, index) => (
+        <div key={index} className="min-h-[200px] rounded-lg border bg-card">
+          <div className="rounded-t-lg border-b bg-muted/30 px-3 py-2">
             <Skeleton className="h-4 w-8" />
-            <Skeleton className="h-3 w-12 mt-1" />
+            <Skeleton className="mt-1 h-3 w-12" />
           </div>
-          <div className="p-2 space-y-2">
+          <div className="space-y-2 p-2">
             <Skeleton className="h-20 w-full rounded-lg" />
             <Skeleton className="h-8 w-full rounded-md" />
           </div>
