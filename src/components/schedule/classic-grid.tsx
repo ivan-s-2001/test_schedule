@@ -21,6 +21,7 @@ export function ClassicGrid({
   weekDates,
 }: ClassicGridProps) {
   const t = useTranslations("schedule.grid");
+  const tEditor = useTranslations("schedule.editor");
   const tErrors = useTranslations("errors");
   const format = useFormatter();
 
@@ -97,7 +98,7 @@ export function ClassicGrid({
         <thead>
           <tr className="bg-muted/30">
             <th className="w-32 border-r px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
-              {t("createShift").replace(/^Create |^Создать /, "")}
+              {tEditor("shift")}
             </th>
             {weekDates.map((date) => {
               const today = isToday(date);
