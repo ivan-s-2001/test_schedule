@@ -25,6 +25,22 @@ if /I not "%CONFIRM%"=="DELETE" (
 )
 
 echo.
+echo Проверка приватных файлов импорта...
+if not exist "scripts\migration\care-schedule-2026-01-07.json" (
+  echo ОШИБКА: не найден scripts\migration\care-schedule-2026-01-07.json
+  goto :fail
+)
+if not exist "scripts\migration\care-day-notes-2026.json" (
+  echo ОШИБКА: не найден scripts\migration\care-day-notes-2026.json
+  goto :fail
+)
+if not exist "scripts\migration\care-cell-statuses-2026.json" (
+  echo ОШИБКА: не найден scripts\migration\care-cell-statuses-2026.json
+  echo Без этого файла отпуска, больничные и выходные не будут восстановлены.
+  goto :fail
+)
+
+echo.
 echo [1/12] Переключение на develop...
 git switch develop
 if errorlevel 1 goto :fail
@@ -56,33 +72,18 @@ if errorlevel 1 goto :fail
 
 echo.
 echo [7/12] Повторный импорт графика службы заботы...
-if exist "scripts\migration\care-schedule-2026-01-07.json" (
-  call npx tsx --env-file=.env scripts/migration/import-care-schedule.ts --apply
-  if errorlevel 1 goto :fail
-) else (
-  echo Файл scripts\migration\care-schedule-2026-01-07.json не найден.
-  echo Миграции и seed выполнены, но график службы заботы не импортирован.
-)
+call npx tsx --env-file=.env scripts/migration/import-care-schedule.ts --apply
+if errorlevel 1 goto :fail
 
 echo.
 echo [8/12] Импорт пометок и статусов из Excel...
-if exist "scripts\migration\care-day-notes-2026.json" (
-  call npx tsx --env-file=.env scripts/migration/import-care-day-notes.ts --apply
-  if errorlevel 1 goto :fail
-) else (
-  echo Файл scripts\migration\care-day-notes-2026.json не найден.
-  echo Пометки Excel не импортированы.
-)
+call npx tsx --env-file=.env scripts/migration/import-care-day-notes.ts --apply
+if errorlevel 1 goto :fail
 
 echo.
-echo [9/12] Импорт выходных и отсутствий из Excel...
-if exist "scripts\migration\care-cell-statuses-2026.json" (
-  call npx tsx --env-file=.env scripts/migration/import-care-cell-statuses.ts --apply
-  if errorlevel 1 goto :fail
-) else (
-  echo Файл scripts\migration\care-cell-statuses-2026.json не найден.
-  echo Выходные и отсутствия Excel не импортированы.
-)
+echo [9/12] Импорт выходных, отпусков и больничных из Excel...
+call npx tsx --env-file=.env scripts/migration/import-care-cell-statuses.ts --apply --force
+if errorlevel 1 goto :fail
 
 echo.
 echo [10/12] Остановка предыдущего сервера на порту %APP_PORT%...
