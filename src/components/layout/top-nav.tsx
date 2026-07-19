@@ -3,96 +3,149 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import {
-  CalendarIcon,
-  ClockIcon,
-  TeamIcon,
-  CommentIcon,
-  GraphIcon,
-  SettingsIcon,
-  SparklesIcon,
-} from "@/components/icons/outline-icons";
+import { CalendarIcon } from "@/components/icons/outline-icons";
 import { cn } from "@/lib/utils";
-import { UserMenu } from "./user-menu";
 import { MobileNav } from "./mobile-nav";
+import { UserMenu } from "./user-menu";
 import { ConnectionStatus } from "./connection-status";
+import {
+  isNavigationItemActive,
+  navigationGroups,
+  utilityNavigationItems,
+  type NavigationItem,
+} from "./navigation";
 
-const navItems = [
-  { key: "schedule", icon: CalendarIcon, href: "/schedule/employee", label: "График" },
-  { key: "time", icon: ClockIcon, href: "/time", label: "Учёт времени" },
-  { key: "employees", icon: TeamIcon, href: "/employees", label: "Сотрудники" },
-  { key: "portal", icon: CommentIcon, href: "/portal/inbox", label: "Портал" },
-  { key: "reporting", icon: GraphIcon, href: "/reporting", label: "Отчёты" },
-  { key: "settings", icon: SettingsIcon, href: "/settings", label: "Настройки" },
-] as const;
+function SidebarLink({
+  item,
+  pathname,
+  unreadCount = 0,
+}: {
+  item: NavigationItem;
+  pathname: string;
+  unreadCount?: number;
+}) {
+  const Icon = item.icon;
+  const active = isNavigationItemActive(pathname, item.href);
 
-export { navItems };
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-[14px] font-medium transition-colors",
+        active
+          ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+          : "text-sidebar-foreground hover:bg-[var(--accent-subtle)] hover:text-sidebar-accent-foreground"
+      )}
+    >
+      <Icon
+        className={cn(
+          "size-[18px] shrink-0 transition-colors",
+          active
+            ? "text-[var(--accent-strong)]"
+            : "text-sidebar-foreground/80 group-hover:text-sidebar-accent-foreground"
+        )}
+      />
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {item.key === "portal" && unreadCount > 0 && (
+        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 export function TopNav() {
   const pathname = usePathname();
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["messages", "unread-count"],
-    queryFn: () => fetch("/api/messages/unread-count").then((r) => r.json()),
+    queryFn: () => fetch("/api/messages/unread-count").then((response) => response.json()),
     refetchInterval: 30000,
   });
 
   const unreadCount = unreadData?.count ?? 0;
 
-  function isActive(href: string) {
-    const segment = "/" + href.split("/")[1];
-    return pathname.startsWith(segment);
-  }
-
-  const itemClass = (active: boolean) =>
-    cn(
-      "relative flex min-h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors duration-150",
-      active
-        ? "bg-accent text-foreground"
-        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-    );
-
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/88">
-      <div className="mx-auto flex h-12 max-w-[1600px] items-center gap-2 px-4 md:px-6 lg:px-8">
-        <MobileNav />
+    <>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+        <div className="flex h-14 items-center px-3">
+          <Link
+            href="/schedule/employee"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1.5 py-1.5 hover:bg-[var(--accent-subtle)]"
+          >
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[inset_0_0_0_1px_rgb(255_255_255/18%)]">
+              <CalendarIcon className="size-[18px]" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[14px] font-semibold leading-4 text-sidebar-accent-foreground">
+                QuickTickets
+              </span>
+              <span className="block truncate text-[11px] leading-4 text-sidebar-foreground">
+                Планирование смен
+              </span>
+            </span>
+          </Link>
+        </div>
 
-        <Link
-          href="/schedule/employee"
-          className="mr-3 flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-sm font-semibold text-foreground hover:bg-secondary"
-        >
-          <CalendarIcon className="size-5 text-muted-foreground" />
-          <span className="hidden truncate sm:inline">QuickTickets</span>
-        </Link>
-
-        <nav className="hidden items-center gap-0.5 md:flex">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            return (
-              <Link key={item.key} href={item.href} className={itemClass(active)}>
-                <Icon className="size-4" />
-                <span className="hidden lg:inline">{item.label}</span>
-                {item.key === "portal" && unreadCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+        <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-3 pt-2">
+          {navigationGroups.map((group, groupIndex) => (
+            <section
+              key={group.label}
+              className={cn(groupIndex > 0 && "mt-5")}
+              aria-label={group.label}
+            >
+              <div className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground/65">
+                {group.label}
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <SidebarLink
+                    key={item.key}
+                    item={item}
+                    pathname={pathname}
+                    unreadCount={unreadCount}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1">
-          <Link href="/ai/chat" className={itemClass(pathname.startsWith("/ai"))}>
-            <SparklesIcon className="size-4" />
-            <span className="hidden lg:inline">ИИ</span>
-          </Link>
-
-          <ConnectionStatus />
-          <UserMenu />
+        <div className="border-t border-sidebar-border p-2">
+          <div className="space-y-0.5 pb-2">
+            {utilityNavigationItems.map((item) => (
+              <SidebarLink
+                key={item.key}
+                item={item}
+                pathname={pathname}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-1 border-t border-sidebar-border pt-2">
+            <UserMenu className="min-w-0 flex-1 justify-start" />
+            <ConnectionStatus compact />
+          </div>
         </div>
-      </div>
-    </header>
+      </aside>
+
+      <header className="sticky top-0 z-40 flex h-[52px] items-center border-b border-border bg-background/96 px-2 backdrop-blur lg:hidden">
+        <MobileNav />
+        <Link
+          href="/schedule/employee"
+          className="ml-1 flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1"
+        >
+          <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
+            <CalendarIcon className="size-4" />
+          </span>
+          <span className="truncate text-sm font-semibold">QuickTickets</span>
+        </Link>
+        <div className="ml-auto flex items-center gap-0.5">
+          <ConnectionStatus compact />
+          <UserMenu showName={false} />
+        </div>
+      </header>
+    </>
   );
 }
