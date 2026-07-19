@@ -27,6 +27,15 @@ type OvertimeRow = {
   overtimeMinutes: number;
 };
 
+type ShiftSnapshotRow = {
+  shiftId: string;
+  poolTemplateCode: string | null;
+  poolLabel: string | null;
+  poolColor: string | null;
+  poolTextColor: string | null;
+  poolDescription: string | null;
+};
+
 function getWeekRange(year: number, weekNumber: number) {
   const januaryFourth = new Date(Date.UTC(year, 0, 4));
   const januaryFourthDay = januaryFourth.getUTCDay() || 7;
@@ -44,13 +53,6 @@ function getWeekRange(year: number, weekNumber: number) {
   return { start, end };
 }
 
-/**
- * GET /api/schedules?kw=09&year=2026
- *
- * Get or auto-create a schedule for the given calendar week + year.
- * Returns shifts, employee bookings, overtime, day-offs, approved absences
- * and structured date-level notes.
- */
 export async function GET(request: NextRequest) {
   const member = await getCurrentMember();
   if (!member) {
@@ -139,81 +141,94 @@ export async function GET(request: NextRequest) {
 
   const { start: weekStart, end: weekEnd } = getWeekRange(year, weekNumber);
 
-  const [dayNotes, dayOffs, absences, overtimeRows] = await Promise.all([
-    db.$queryRaw<DayNoteRow[]>`
-      SELECT
-        "id",
-        "scheduleId",
-        "dayOfWeek",
-        "note",
-        "status",
-        "sortOrder",
-        "createdAt",
-        "updatedAt"
-      FROM "schedule_day_notes"
-      WHERE "scheduleId" = ${schedule.id}
-      ORDER BY "dayOfWeek" ASC, "sortOrder" ASC, "createdAt" ASC
-    `,
-    db.$queryRaw<DayOffRow[]>`
-      SELECT
-        "id",
-        "scheduleId",
-        "userId",
-        "dayOfWeek",
-        "createdAt",
-        "updatedAt"
-      FROM "schedule_day_offs"
-      WHERE "scheduleId" = ${schedule.id}
-      ORDER BY "dayOfWeek" ASC, "createdAt" ASC
-    `,
-    db.absence.findMany({
-      where: {
-        status: "APPROVED",
-        dateFrom: { lte: weekEnd },
-        dateTo: { gte: weekStart },
-        user: {
-          memberships: {
-            some: {
-              organizationId: orgId,
-              isActive: true,
+  const [dayNotes, dayOffs, absences, overtimeRows, snapshotRows] =
+    await Promise.all([
+      db.$queryRaw<DayNoteRow[]>`
+        SELECT
+          "id", "scheduleId", "dayOfWeek", "note", "status", "sortOrder",
+          "createdAt", "updatedAt"
+        FROM "schedule_day_notes"
+        WHERE "scheduleId" = ${schedule.id}
+        ORDER BY "dayOfWeek" ASC, "sortOrder" ASC, "createdAt" ASC
+      `,
+      db.$queryRaw<DayOffRow[]>`
+        SELECT
+          "id", "scheduleId", "userId", "dayOfWeek", "createdAt", "updatedAt"
+        FROM "schedule_day_offs"
+        WHERE "scheduleId" = ${schedule.id}
+        ORDER BY "dayOfWeek" ASC, "createdAt" ASC
+      `,
+      db.absence.findMany({
+        where: {
+          status: "APPROVED",
+          dateFrom: { lte: weekEnd },
+          dateTo: { gte: weekStart },
+          user: {
+            memberships: {
+              some: {
+                organizationId: orgId,
+                isActive: true,
+              },
             },
           },
         },
-      },
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            isPaid: true,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+              isPaid: true,
+            },
           },
         },
-      },
-      orderBy: [{ dateFrom: "asc" }, { createdAt: "asc" }],
-    }),
-    db.$queryRaw<OvertimeRow[]>`
-      SELECT
-        b."id" AS "bookingId",
-        b."overtimeMinutes" AS "overtimeMinutes"
-      FROM "bookings" b
-      INNER JOIN "shifts" s ON s."id" = b."shiftId"
-      WHERE s."scheduleId" = ${schedule.id}
-        AND s."deletedAt" IS NULL
-    `,
-  ]);
+        orderBy: [{ dateFrom: "asc" }, { createdAt: "asc" }],
+      }),
+      db.$queryRaw<OvertimeRow[]>`
+        SELECT
+          b."id" AS "bookingId",
+          b."overtimeMinutes" AS "overtimeMinutes"
+        FROM "bookings" b
+        INNER JOIN "shifts" s ON s."id" = b."shiftId"
+        WHERE s."scheduleId" = ${schedule.id}
+          AND s."deletedAt" IS NULL
+      `,
+      db.$queryRaw<ShiftSnapshotRow[]>`
+        SELECT
+          "id" AS "shiftId",
+          "poolTemplateCode",
+          "poolLabel",
+          "poolColor",
+          "poolTextColor",
+          "poolDescription"
+        FROM "shifts"
+        WHERE "scheduleId" = ${schedule.id}
+          AND "deletedAt" IS NULL
+      `,
+    ]);
 
   const overtimeByBooking = new Map(
     overtimeRows.map((row) => [row.bookingId, row.overtimeMinutes])
   );
+  const snapshotByShift = new Map(
+    snapshotRows.map((row) => [row.shiftId, row])
+  );
 
-  const shifts = schedule.shifts.map((shift) => ({
-    ...shift,
-    bookings: shift.bookings.map((booking) => ({
-      ...booking,
-      overtimeMinutes: overtimeByBooking.get(booking.id) ?? 0,
-    })),
-  }));
+  const shifts = schedule.shifts.map((shift) => {
+    const snapshot = snapshotByShift.get(shift.id);
+    return {
+      ...shift,
+      poolTemplateCode: snapshot?.poolTemplateCode ?? null,
+      poolLabel: snapshot?.poolLabel ?? null,
+      poolColor: snapshot?.poolColor ?? null,
+      poolTextColor: snapshot?.poolTextColor ?? null,
+      poolDescription: snapshot?.poolDescription ?? null,
+      bookings: shift.bookings.map((booking) => ({
+        ...booking,
+        overtimeMinutes: overtimeByBooking.get(booking.id) ?? 0,
+      })),
+    };
+  });
 
   return NextResponse.json({
     schedule: {
