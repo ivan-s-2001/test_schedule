@@ -11,12 +11,10 @@ import {
   MessageSquare,
   BarChart3,
   Settings,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { UserMenu } from "./user-menu";
 import { MobileNav } from "./mobile-nav";
-import { ConnectionStatus } from "./connection-status";
+import { LocaleSwitcher } from "./locale-switcher";
 
 export const navItems = [
   { key: "schedule", icon: CalendarDays, href: "/schedule/employee" },
@@ -33,7 +31,8 @@ export function TopNav() {
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["messages", "unread-count"],
-    queryFn: () => fetch("/api/messages/unread-count").then((response) => response.json()),
+    queryFn: () =>
+      fetch("/api/messages/unread-count").then((response) => response.json()),
     refetchInterval: 30_000,
   });
 
@@ -84,15 +83,7 @@ export function TopNav() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1">
-          <Link href="/ai/chat" className={itemClass(pathname.startsWith("/ai"))}>
-            <Sparkles className="size-4" />
-            <span className="hidden lg:inline">{t("ai")}</span>
-          </Link>
-
-          <ConnectionStatus />
-          <UserMenu />
-        </div>
+        <LocaleSwitcher />
       </div>
     </header>
   );
