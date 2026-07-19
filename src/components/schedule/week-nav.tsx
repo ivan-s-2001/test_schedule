@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useFormatter, useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight, Calendar, ArrowRight } from "lucide-react";
 import { getISOWeek } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -11,9 +12,6 @@ import {
   getWeekDates,
   getMonthKWs,
   formatKW,
-  formatDateShort,
-  formatDateLong,
-  monthNames,
 } from "@/lib/utils/calendar";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +31,8 @@ export function WeekNav({
   baseUrl = "/schedule/flexible",
 }: WeekNavProps) {
   const router = useRouter();
+  const t = useTranslations("schedule.navigation");
+  const format = useFormatter();
   const currentWeek = useMemo(() => getCurrentKW(), []);
   const weekDates = useMemo(
     () => getWeekDates(weekNumber, year),
@@ -132,8 +132,15 @@ export function WeekNav({
 
   const isCurrentWeek =
     weekNumber === currentWeek.weekNumber && year === currentWeek.year;
-  const monday = formatDateShort(weekDates[0]);
-  const sunday = formatDateLong(weekDates[6]);
+  const monday = format.dateTime(weekDates[0], {
+    day: "2-digit",
+    month: "2-digit",
+  });
+  const sunday = format.dateTime(weekDates[6], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   return (
     <div className="space-y-3">
@@ -151,6 +158,10 @@ export function WeekNav({
           const isExpanded =
             expandedMonth?.month === month &&
             expandedMonth.year === monthYear;
+          const monthName = format.dateTime(
+            new Date(monthYear, month - 1, 1),
+            { month: "short" }
+          );
 
           return (
             <Button
@@ -159,14 +170,14 @@ export function WeekNav({
               size="sm"
               onClick={() => toggleMonth(month, monthYear)}
               className={cn(
-                "relative",
+                "relative capitalize",
                 containsCurrentWeek &&
                   !containsSelectedWeek &&
                   "ring-2 ring-primary/30",
                 isExpanded && !containsSelectedWeek && "bg-accent"
               )}
             >
-              {monthNames[month - 1]}
+              {monthName}
               {monthYear !== year && (
                 <span className="ml-1 text-xs opacity-60">{monthYear}</span>
               )}
@@ -200,7 +211,7 @@ export function WeekNav({
                   isCurrent && !isSelected && "ring-1 ring-primary/40"
                 )}
               >
-                Неделя {week.weekNumber}
+                {t("week", { number: week.weekNumber })}
               </Button>
             );
           })}
@@ -213,7 +224,7 @@ export function WeekNav({
             variant="outline"
             size="icon-sm"
             onClick={navigatePrev}
-            aria-label="Предыдущая неделя"
+            aria-label={t("previousWeek")}
           >
             <ChevronLeft className="size-4" />
           </Button>
@@ -221,7 +232,9 @@ export function WeekNav({
           <div className="flex flex-wrap items-center gap-2">
             <Calendar className="size-4 text-muted-foreground" />
             <span className="text-lg font-semibold">
-              Неделя {String(weekNumber).padStart(2, "0")}
+              {t("week", {
+                number: String(weekNumber).padStart(2, "0"),
+              })}
             </span>
             <span className="text-muted-foreground">·</span>
             <span className="text-sm text-muted-foreground">
@@ -229,7 +242,7 @@ export function WeekNav({
             </span>
             {isCurrentWeek && (
               <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                Текущая неделя
+                {t("currentWeek")}
               </span>
             )}
           </div>
@@ -238,7 +251,7 @@ export function WeekNav({
             variant="outline"
             size="icon-sm"
             onClick={navigateNext}
-            aria-label="Следующая неделя"
+            aria-label={t("nextWeek")}
           >
             <ChevronRight className="size-4" />
           </Button>
@@ -246,25 +259,25 @@ export function WeekNav({
 
         <div className="flex items-center gap-1.5">
           <span className="hidden text-xs text-muted-foreground sm:inline">
-            Перейти к неделе:
+            {t("jumpToWeek")}
           </span>
           <Input
             type="number"
             min={1}
             max={53}
-            placeholder="№"
+            placeholder="#"
             value={targetWeek}
             onChange={(event) => setTargetWeek(event.target.value)}
             onKeyDown={handleKeyDown}
             className="h-8 w-16 text-center text-sm"
-            aria-label="Номер недели"
+            aria-label={t("weekNumber")}
           />
           <Button
             variant="outline"
             size="icon-sm"
             onClick={handleJumpToWeek}
             disabled={!targetWeek}
-            aria-label="Перейти"
+            aria-label={t("go")}
           >
             <ArrowRight className="size-3.5" />
           </Button>
