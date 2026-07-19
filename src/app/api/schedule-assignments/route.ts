@@ -5,13 +5,34 @@ import { db } from "@/lib/db";
 import { getCurrentMember, isManagerOrAbove } from "@/lib/auth-helpers";
 import { emitToOrg, emitToSchedule } from "@/lib/emit";
 
-const assignmentSchema = z.object({
-  scheduleId: z.string().min(1),
-  userId: z.string().min(1),
-  dayOfWeek: z.number().int().min(1).max(7),
-  templateId: z.string().min(1),
-  overtimeHours: z.number().min(0).max(24).multipleOf(0.5).default(0),
-});
+const overtimeHoursSchema = z.number().min(0).max(24).multipleOf(0.5);
+
+const assignmentSchema = z
+  .object({
+    scheduleId: z.string().min(1),
+    userId: z.string().min(1),
+    dayOfWeek: z.number().int().min(1).max(7),
+    templateId: z.string().min(1),
+    overtimeBeforeHours: overtimeHoursSchema.default(0),
+    overtimeAfterHours: overtimeHoursSchema.default(0),
+    overtimeHours: overtimeHoursSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    const legacyAfter =
+      value.overtimeBeforeHours === 0 && value.overtimeAfterHours === 0
+        ? value.overtimeHours ?? 0
+        : 0;
+    const total =
+      value.overtimeBeforeHours + value.overtimeAfterHours + legacyAfter;
+
+    if (total > 24) {
+      context.addIssue({
+        code: "custom",
+        message: "Суммарная переработка не может превышать 24 часа",
+        path: ["overtimeAfterHours"],
+      });
+    }
+  });
 
 const removeSchema = assignmentSchema.pick({
   scheduleId: true,
@@ -111,7 +132,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { member } = access;
-  const { scheduleId, userId, dayOfWeek, templateId, overtimeHours } = parsed.data;
+  const {
+    scheduleId,
+    userId,
+    dayOfWeek,
+    templateId,
+    overtimeBeforeHours,
+    overtimeAfterHours,
+    overtimeHours,
+  } = parsed.data;
 
   const templates = await db.$queryRaw<ShiftPoolRow[]>`
     SELECT
@@ -162,7 +191,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Сотрудник не найден" }, { status: 404 });
   }
 
-  const overtimeMinutes = Math.round(overtimeHours * 60);
+  const legacyAfterHours =
+    overtimeBeforeHours === 0 && overtimeAfterHours === 0
+      ? overtimeHours ?? 0
+      : 0;
+  const overtimeBeforeMinutes = Math.round(overtimeBeforeHours * 60);
+  const overtimeAfterMinutes = Math.round(
+    (overtimeAfterHours + legacyAfterHours) * 60
+  );
+  const overtimeMinutes = overtimeBeforeMinutes + overtimeAfterMinutes;
 
   const result = await db.$transaction(async (tx) => {
     await removeExistingAssignment(tx, scheduleId, userId, dayOfWeek);
@@ -194,18 +231,18 @@ export async function POST(request: NextRequest) {
           description: template.description,
         },
       });
-
-      await tx.$executeRaw`
-        UPDATE "shifts"
-        SET
-          "poolTemplateCode" = ${template.code},
-          "poolLabel" = ${template.name},
-          "poolColor" = ${template.color},
-          "poolTextColor" = ${template.textColor},
-          "poolDescription" = ${template.description}
-        WHERE "id" = ${shift.id}
-      `;
     }
+
+    await tx.$executeRaw`
+      UPDATE "shifts"
+      SET
+        "poolTemplateCode" = ${template.code},
+        "poolLabel" = ${template.name},
+        "poolColor" = ${template.color},
+        "poolTextColor" = ${template.textColor},
+        "poolDescription" = ${template.description}
+      WHERE "id" = ${shift.id}
+    `;
 
     const booking = await tx.booking.create({
       data: {
@@ -217,11 +254,20 @@ export async function POST(request: NextRequest) {
 
     await tx.$executeRaw`
       UPDATE "bookings"
-      SET "overtimeMinutes" = ${overtimeMinutes}
+      SET
+        "overtimeMinutes" = ${overtimeMinutes},
+        "overtimeBeforeMinutes" = ${overtimeBeforeMinutes},
+        "overtimeAfterMinutes" = ${overtimeAfterMinutes}
       WHERE "id" = ${booking.id}
     `;
 
-    return { shiftId: shift.id, bookingId: booking.id, overtimeMinutes };
+    return {
+      shiftId: shift.id,
+      bookingId: booking.id,
+      overtimeMinutes,
+      overtimeBeforeMinutes,
+      overtimeAfterMinutes,
+    };
   });
 
   emitToOrg(member.organizationId, "schedule:updated", {
