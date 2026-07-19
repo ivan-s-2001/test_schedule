@@ -32,8 +32,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
-// ─── Types ───────────────────────────────────────────────────────────
-
 export type WishRequest = {
   id: string;
   shiftId: string;
@@ -63,27 +61,42 @@ export type WishRequest = {
   };
 };
 
-// ─── Employee: "Wunsch senden" Button ────────────────────────────────
-
 interface WishRequestButtonProps {
   shiftId: string;
   currentUserId: string;
-  /** Existing requests for this shift by this user */
   existingRequest?: WishRequest | null;
+}
+
+function requestWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return "заявка";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return "заявки";
+  }
+  return "заявок";
+}
+
+function getInitials(firstName: string, lastName: string): string {
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
 export function WishRequestButton({
   shiftId,
-  currentUserId,
   existingRequest,
 }: WishRequestButtonProps) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [note, setNote] = useState("");
 
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["mod-requests"] });
+    queryClient.invalidateQueries({ queryKey: ["schedule"] });
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/mod-requests", {
+      const response = await fetch("/api/mod-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -91,67 +104,61 @@ export function WishRequestButton({
           note: note.trim() || undefined,
         }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Fehler beim Senden");
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Не удалось отправить заявку");
       }
-      return res.json();
+
+      return response.json();
     },
     onSuccess: () => {
-      toast.success("Wunsch gesendet");
-      queryClient.invalidateQueries({ queryKey: ["mod-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      toast.success("Заявка на смену отправлена");
+      refresh();
       setDialogOpen(false);
       setNote("");
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const cancelMutation = useMutation({
     mutationFn: async (requestId: string) => {
-      const res = await fetch(`/api/mod-requests/${requestId}`, {
+      const response = await fetch(`/api/mod-requests/${requestId}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Fehler beim Stornieren");
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Не удалось отозвать заявку");
       }
-      return res.json();
+
+      return response.json();
     },
     onSuccess: () => {
-      toast.success("Wunsch storniert");
-      queryClient.invalidateQueries({ queryKey: ["mod-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      toast.success("Заявка отозвана");
+      refresh();
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
-  // If there's already a request
   if (existingRequest) {
     const stateConfig = {
       OPEN: {
         icon: Clock,
-        label: "Wunsch offen",
-        color: "text-amber-600",
-        bg: "bg-amber-50",
+        label: "На рассмотрении",
+        className: "bg-amber-50 text-amber-700",
       },
       ACCEPTED: {
         icon: CheckCircle2,
-        label: "Angenommen",
-        color: "text-green-600",
-        bg: "bg-green-50",
+        label: "Одобрено",
+        className: "bg-green-50 text-green-700",
       },
       DECLINED: {
         icon: XCircle,
         label: "Отклонено",
-        color: "text-red-600",
-        bg: "bg-red-50",
+        className: "bg-red-50 text-red-700",
       },
-    };
+    } as const;
     const config = stateConfig[existingRequest.state];
     const Icon = config.icon;
 
@@ -159,18 +166,20 @@ export function WishRequestButton({
       <div className="flex items-center gap-1.5">
         <Badge
           variant="secondary"
-          className={cn("text-[9px] px-1.5 py-0 gap-1", config.color, config.bg)}
+          className={cn("gap-1 px-1.5 py-0 text-[10px]", config.className)}
         >
           <Icon className="size-2.5" />
           {config.label}
         </Badge>
+
         {existingRequest.state === "OPEN" && (
           <button
             type="button"
-            className="text-muted-foreground hover:text-destructive transition-colors"
-            title="Wunsch stornieren"
+            className="text-muted-foreground transition-colors hover:text-destructive"
+            title="Отозвать заявку"
+            aria-label="Отозвать заявку на смену"
             onClick={() => {
-              if (confirm("Wunsch wirklich stornieren?")) {
+              if (confirm("Отозвать заявку на эту смену?")) {
                 cancelMutation.mutate(existingRequest.id);
               }
             }}
@@ -191,37 +200,38 @@ export function WishRequestButton({
     <>
       <button
         type="button"
-        className="flex items-center gap-1 text-[10px] text-amber-600 hover:text-amber-700 transition-colors"
+        className="flex items-center gap-1 text-[10px] text-amber-700 transition-colors hover:text-amber-800"
         onClick={() => setDialogOpen(true)}
       >
         <Star className="size-3" />
-        Wunsch
+        Хочу эту смену
       </button>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Wunsch senden</DialogTitle>
+            <DialogTitle>Заявка на смену</DialogTitle>
             <DialogDescription>
-              Sende einen Wunsch fuer diese Schicht. Dein Manager wird
-              benachrichtigt.
+              Сообщите руководителю, что хотите работать в эту смену.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+
+          <div className="space-y-2 py-2">
             <Textarea
-              placeholder="Optionaler Kommentar..."
+              placeholder="Комментарий для руководителя — необязательно"
               value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="resize-none min-h-[80px]"
+              onChange={(event) => setNote(event.target.value)}
+              className="min-h-[80px] resize-none"
             />
           </div>
+
           <DialogFooter>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setDialogOpen(false)}
             >
-              Abbrechen
+              Отмена
             </Button>
             <Button
               size="sm"
@@ -234,7 +244,7 @@ export function WishRequestButton({
               ) : (
                 <Star className="size-3.5" />
               )}
-              Wunsch senden
+              Отправить заявку
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -242,8 +252,6 @@ export function WishRequestButton({
     </>
   );
 }
-
-// ─── Manager: Wish Count Badge ───────────────────────────────────────
 
 interface WishCountBadgeProps {
   shiftId: string;
@@ -254,19 +262,18 @@ export function WishCountBadge({ shiftId, scheduleId }: WishCountBadgeProps) {
   const { data } = useQuery<{ requests: WishRequest[] }>({
     queryKey: ["mod-requests", scheduleId],
     queryFn: async () => {
-      const res = await fetch(`/api/mod-requests?scheduleId=${scheduleId}`);
-      if (!res.ok) return { requests: [] };
-      return res.json();
+      const response = await fetch(`/api/mod-requests?scheduleId=${scheduleId}`);
+      if (!response.ok) return { requests: [] };
+      return response.json();
     },
-    enabled: !!scheduleId,
+    enabled: Boolean(scheduleId),
   });
 
-  const requests = data?.requests ?? [];
-  const shiftRequests = requests.filter(
-    (r) => r.shiftId === shiftId && r.state === "OPEN"
+  const requests = (data?.requests ?? []).filter(
+    (request) => request.shiftId === shiftId && request.state === "OPEN"
   );
 
-  if (shiftRequests.length === 0) return null;
+  if (requests.length === 0) return null;
 
   return (
     <Popover>
@@ -274,204 +281,178 @@ export function WishCountBadge({ shiftId, scheduleId }: WishCountBadgeProps) {
         <button
           type="button"
           className="relative"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+          title={`${requests.length} ${requestWord(requests.length)}`}
         >
           <Badge
             variant="secondary"
-            className="text-[9px] px-1.5 py-0 gap-1 bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer"
+            className="cursor-pointer gap-1 bg-amber-50 px-1.5 py-0 text-[10px] text-amber-700 hover:bg-amber-100"
           >
             <Star className="size-2.5 fill-amber-500" />
-            {shiftRequests.length}
+            {requests.length}
           </Badge>
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-72 p-0"
-        onClick={(e) => e.stopPropagation()}
+        className="w-80 p-0"
+        onClick={(event) => event.stopPropagation()}
       >
-        <WishRequestsList
-          requests={shiftRequests}
-          scheduleId={scheduleId}
-        />
+        <WishRequestsList requests={requests} scheduleId={scheduleId} />
       </PopoverContent>
     </Popover>
   );
 }
 
-// ─── Manager: Wish Requests List (inside popover) ────────────────────
-
-function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-}
-
-interface WishRequestsListProps {
+function WishRequestsList({
+  requests,
+  scheduleId,
+}: {
   requests: WishRequest[];
   scheduleId: string;
-}
-
-function WishRequestsList({ requests, scheduleId }: WishRequestsListProps) {
+}) {
   const queryClient = useQueryClient();
 
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["mod-requests"] });
+    queryClient.invalidateQueries({ queryKey: ["schedule"] });
+  };
+
+  const updateRequest = async (
+    requestId: string,
+    state: "ACCEPTED" | "DECLINED"
+  ) => {
+    const response = await fetch(`/api/mod-requests/${requestId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state }),
+    });
+
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error || "Не удалось обработать заявку");
+    }
+
+    return response.json();
+  };
+
   const acceptMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const res = await fetch(`/api/mod-requests/${requestId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state: "ACCEPTED" }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Fehler");
-      }
-      return res.json();
-    },
+    mutationFn: (requestId: string) => updateRequest(requestId, "ACCEPTED"),
     onSuccess: () => {
-      toast.success("Wunsch angenommen & Mitarbeiter gebucht");
-      queryClient.invalidateQueries({ queryKey: ["mod-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      toast.success("Заявка одобрена, сотрудник назначен на смену");
+      refresh();
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const declineMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const res = await fetch(`/api/mod-requests/${requestId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state: "DECLINED" }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Fehler");
-      }
-      return res.json();
-    },
+    mutationFn: (requestId: string) => updateRequest(requestId, "DECLINED"),
     onSuccess: () => {
-      toast.success("Wunsch abgelehnt");
-      queryClient.invalidateQueries({ queryKey: ["mod-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      toast.success("Заявка отклонена");
+      refresh();
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
-  const bulkAcceptMutation = useMutation({
+  const acceptAllMutation = useMutation({
     mutationFn: async () => {
       const results = await Promise.allSettled(
-        requests.map(async (r) => {
-          const res = await fetch(`/api/mod-requests/${r.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ state: "ACCEPTED" }),
-          });
-          if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || "Fehler");
-          }
-          return res.json();
-        })
+        requests.map((request) => updateRequest(request.id, "ACCEPTED"))
       );
-      const accepted = results.filter((r) => r.status === "fulfilled").length;
-      const failed = results.filter((r) => r.status === "rejected").length;
-      return { accepted, failed };
+      return {
+        accepted: results.filter((result) => result.status === "fulfilled").length,
+        failed: results.filter((result) => result.status === "rejected").length,
+      };
     },
-    onSuccess: (data) => {
+    onSuccess: ({ accepted, failed }) => {
       toast.success(
-        `${data.accepted} Wuensche angenommen${data.failed > 0 ? `, ${data.failed} fehlgeschlagen` : ""}`
+        failed > 0
+          ? `Одобрено: ${accepted}. Не удалось обработать: ${failed}.`
+          : `Все заявки одобрены: ${accepted}`
       );
-      queryClient.invalidateQueries({ queryKey: ["mod-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      refresh();
     },
-    onError: () => {
-      toast.error("Fehler bei der Massenverarbeitung");
-    },
+    onError: () => toast.error("Не удалось обработать заявки"),
   });
 
   const isPending =
     acceptMutation.isPending ||
     declineMutation.isPending ||
-    bulkAcceptMutation.isPending;
+    acceptAllMutation.isPending;
 
   return (
     <div>
-      <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
+      <div className="flex items-center justify-between border-b bg-muted/30 px-3 py-2">
         <span className="text-xs font-semibold">
-          {requests.length} {requests.length === 1 ? "Wunsch" : "Wuensche"}
+          {requests.length} {requestWord(requests.length)}
         </span>
         {requests.length > 1 && (
           <Button
             variant="ghost"
             size="xs"
-            className="text-[10px] gap-1 text-green-600"
-            onClick={() => bulkAcceptMutation.mutate()}
+            className="gap-1 text-[10px] text-green-700"
+            onClick={() => acceptAllMutation.mutate()}
             disabled={isPending}
           >
-            {bulkAcceptMutation.isPending ? (
+            {acceptAllMutation.isPending ? (
               <Loader2 className="size-3 animate-spin" />
             ) : (
               <Check className="size-3" />
             )}
-            Alle annehmen
+            Одобрить все
           </Button>
         )}
       </div>
-      <div className="max-h-[300px] overflow-y-auto">
-        {requests.map((req) => (
+
+      <div className="max-h-[320px] overflow-y-auto">
+        {requests.map((request) => (
           <div
-            key={req.id}
+            key={request.id}
             className={cn(
-              "px-3 py-2 border-b last:border-b-0 flex items-start gap-2",
-              isPending && "opacity-60 pointer-events-none"
+              "flex items-start gap-2 border-b px-3 py-2 last:border-b-0",
+              isPending && "pointer-events-none opacity-60"
             )}
           >
             <Avatar size="sm" className="mt-0.5">
               <AvatarFallback className="text-[9px]">
-                {getInitials(req.user.firstName, req.user.lastName)}
+                {getInitials(request.user.firstName, request.user.lastName)}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium truncate">
-                {req.user.firstName} {req.user.lastName}
+
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-medium">
+                {request.user.firstName} {request.user.lastName}
               </div>
-              {req.note && (
-                <div className="flex items-start gap-1 mt-0.5">
-                  <MessageSquare className="size-2.5 text-muted-foreground mt-0.5 shrink-0" />
-                  <span className="text-[10px] text-muted-foreground line-clamp-2">
-                    {req.note}
+              {request.note && (
+                <div className="mt-0.5 flex items-start gap-1">
+                  <MessageSquare className="mt-0.5 size-2.5 shrink-0 text-muted-foreground" />
+                  <span className="line-clamp-2 text-[10px] text-muted-foreground">
+                    {request.note}
                   </span>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-1 shrink-0">
+
+            <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
-                className="size-6 rounded-md flex items-center justify-center bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                title="Annehmen"
-                onClick={() => acceptMutation.mutate(req.id)}
+                className="flex size-7 items-center justify-center rounded-md bg-green-50 text-green-700 transition-colors hover:bg-green-100"
+                title="Одобрить"
+                aria-label="Одобрить заявку"
+                onClick={() => acceptMutation.mutate(request.id)}
                 disabled={isPending}
               >
-                {acceptMutation.isPending ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <Check className="size-3" />
-                )}
+                <Check className="size-3.5" />
               </button>
               <button
                 type="button"
-                className="size-6 rounded-md flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                className="flex size-7 items-center justify-center rounded-md bg-red-50 text-red-700 transition-colors hover:bg-red-100"
                 title="Отклонить"
-                onClick={() => declineMutation.mutate(req.id)}
+                aria-label="Отклонить заявку"
+                onClick={() => declineMutation.mutate(request.id)}
                 disabled={isPending}
               >
-                {declineMutation.isPending ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <X className="size-3" />
-                )}
+                <X className="size-3.5" />
               </button>
             </div>
           </div>
@@ -480,8 +461,6 @@ function WishRequestsList({ requests, scheduleId }: WishRequestsListProps) {
     </div>
   );
 }
-
-// ─── Wish Filter Toggle ──────────────────────────────────────────────
 
 interface WishFilterToggleProps {
   enabled: boolean;
@@ -509,12 +488,14 @@ export function WishFilterToggle({
       onClick={() => onToggle(!enabled)}
     >
       <Star className={cn("size-3.5", enabled && "fill-white")} />
-      Wuensche
+      Заявки на смены
       <Badge
         variant="secondary"
         className={cn(
-          "text-[9px] px-1 py-0 ml-0.5",
-          enabled ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-700"
+          "ml-0.5 px-1 py-0 text-[10px]",
+          enabled
+            ? "bg-amber-500 text-white"
+            : "bg-amber-100 text-amber-700"
         )}
       >
         {wishCount}
