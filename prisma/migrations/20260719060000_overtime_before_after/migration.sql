@@ -22,7 +22,5 @@ ALTER TABLE "bookings"
 ADD CONSTRAINT "bookings_overtime_after_nonnegative"
 CHECK ("overtimeAfterMinutes" >= 0);
 
-UPDATE "shift_pool_templates"
-SET "isActive" = false,
-    "updatedAt" = CURRENT_TIMESTAMP
+DELETE FROM "shift_pool_templates"
 WHERE LOWER(TRIM("name")) = LOWER('Переработка');
