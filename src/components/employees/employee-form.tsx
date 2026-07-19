@@ -25,15 +25,17 @@ import {
 } from "@/components/ui/select";
 
 type EmployeeRow = {
-  firstName: string;
   lastName: string;
+  firstName: string;
+  patronymic: string;
   email: string;
   role: "ADMIN" | "MANAGER" | "EMPLOYEE";
 };
 
 const emptyRow: EmployeeRow = {
-  firstName: "",
   lastName: "",
+  firstName: "",
+  patronymic: "",
   email: "",
   role: "EMPLOYEE",
 };
@@ -45,59 +47,61 @@ export function EmployeeForm() {
 
   const createMutation = useMutation({
     mutationFn: async (employees: EmployeeRow[]) => {
-      const res = await fetch("/api/employees", {
+      const response = await fetch("/api/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employees }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Ошибка добавления");
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Не удалось добавить сотрудников");
       }
-      return res.json();
+
+      return response.json();
     },
     onSuccess: (data) => {
       const count = data.members?.length ?? 0;
       toast.success(
-        count === 1
-          ? "Сотрудник добавлен"
-          : `${count} сотрудников добавлено`
+        count === 1 ? "Сотрудник добавлен" : `Добавлено сотрудников: ${count}`
       );
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       setOpen(false);
       setRows([{ ...emptyRow }]);
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   function updateRow(index: number, field: keyof EmployeeRow, value: string) {
-    setRows((prev) =>
-      prev.map((row, i) =>
-        i === index ? { ...row, [field]: value } : row
+    setRows((previous) =>
+      previous.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, [field]: value } : row
       )
     );
   }
 
   function addRow() {
-    setRows((prev) => [...prev, { ...emptyRow }]);
+    setRows((previous) => [...previous, { ...emptyRow }]);
   }
 
   function removeRow(index: number) {
     if (rows.length === 1) return;
-    setRows((prev) => prev.filter((_, i) => i !== index));
+    setRows((previous) => previous.filter((_, rowIndex) => rowIndex !== index));
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
 
-    // Basic validation
     const valid = rows.every(
-      (r) => r.firstName.trim() && r.lastName.trim() && r.email.trim()
+      (row) =>
+        row.lastName.trim() &&
+        row.firstName.trim() &&
+        row.patronymic.trim() &&
+        row.email.trim()
     );
+
     if (!valid) {
-      toast.error("Заполните все обязательные поля");
+      toast.error("Заполните фамилию, имя, отчество и электронную почту");
       return;
     }
 
@@ -112,70 +116,84 @@ export function EmployeeForm() {
           Добавить сотрудников
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+
+      <DialogContent className="sm:max-w-5xl">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Добавить сотрудников</DialogTitle>
             <DialogDescription>
-              Добавьте одного или нескольких сотрудников.
+              ФИО хранится раздельно: фамилия, имя и отчество.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 space-y-4 max-h-[50vh] overflow-y-auto">
+          <div className="mt-4 max-h-[58vh] space-y-4 overflow-y-auto">
             {rows.map((row, index) => (
               <div
                 key={index}
-                className="grid grid-cols-[1fr_1fr_1fr_auto_auto] items-end gap-2 rounded-md border p-3"
+                className="grid grid-cols-1 items-end gap-2 rounded-md border p-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1.25fr_150px_auto]"
               >
                 <div className="space-y-1.5">
-                  <Label>Vorname *</Label>
-                  <Input
-                    value={row.firstName}
-                    onChange={(e) =>
-                      updateRow(index, "firstName", e.target.value)
-                    }
-                    placeholder="Max"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Nachname *</Label>
+                  <Label>Фамилия *</Label>
                   <Input
                     value={row.lastName}
-                    onChange={(e) =>
-                      updateRow(index, "lastName", e.target.value)
+                    onChange={(event) =>
+                      updateRow(index, "lastName", event.target.value)
                     }
-                    placeholder="Mustermann"
+                    placeholder="Иванов"
                   />
                 </div>
+
                 <div className="space-y-1.5">
-                  <Label>E-Mail *</Label>
+                  <Label>Имя *</Label>
+                  <Input
+                    value={row.firstName}
+                    onChange={(event) =>
+                      updateRow(index, "firstName", event.target.value)
+                    }
+                    placeholder="Иван"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Отчество *</Label>
+                  <Input
+                    value={row.patronymic}
+                    onChange={(event) =>
+                      updateRow(index, "patronymic", event.target.value)
+                    }
+                    placeholder="Иванович"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Электронная почта *</Label>
                   <Input
                     type="email"
                     value={row.email}
-                    onChange={(e) =>
-                      updateRow(index, "email", e.target.value)
+                    onChange={(event) =>
+                      updateRow(index, "email", event.target.value)
                     }
-                    placeholder="max@beispiel.de"
+                    placeholder="ivanov@qksr.ru"
                   />
                 </div>
+
                 <div className="space-y-1.5">
                   <Label>Роль</Label>
                   <Select
                     value={row.role}
-                    onValueChange={(v) =>
-                      updateRow(index, "role", v)
-                    }
+                    onValueChange={(value) => updateRow(index, "role", value)}
                   >
-                    <SelectTrigger className="w-[130px]">
+                    <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="EMPLOYEE">Сотрудники</SelectItem>
+                      <SelectItem value="EMPLOYEE">Сотрудник</SelectItem>
                       <SelectItem value="MANAGER">Руководитель</SelectItem>
                       <SelectItem value="ADMIN">Администратор</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
                 <Button
                   type="button"
                   variant="ghost"
@@ -202,12 +220,8 @@ export function EmployeeForm() {
           </Button>
 
           <DialogFooter className="mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-            >
-              Abbrechen
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Отмена
             </Button>
             <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending && (
@@ -215,7 +229,7 @@ export function EmployeeForm() {
               )}
               {rows.length === 1
                 ? "Добавить сотрудника"
-                : `${rows.length} Добавить сотрудника`}
+                : `Добавить сотрудников: ${rows.length}`}
             </Button>
           </DialogFooter>
         </form>
