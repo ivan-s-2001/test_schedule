@@ -2,10 +2,10 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useFormatter, useTranslations } from "next-intl";
 import { isToday } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { dayNames, formatDateShort } from "@/lib/utils/calendar";
 import { cn } from "@/lib/utils";
 import type { ScheduleData, ShiftData } from "@/types/schedule";
 
@@ -20,13 +20,17 @@ export function ClassicGrid({
   year,
   weekDates,
 }: ClassicGridProps) {
+  const t = useTranslations("schedule.grid");
+  const tErrors = useTranslations("errors");
+  const format = useFormatter();
+
   const { data, isLoading } = useQuery<{ schedule: ScheduleData }>({
     queryKey: ["schedule", weekNumber, year],
     queryFn: async () => {
       const response = await fetch(
         `/api/schedules?kw=${weekNumber}&year=${year}`
       );
-      if (!response.ok) throw new Error("Не удалось загрузить смены");
+      if (!response.ok) throw new Error(tErrors("loadSchedule"));
       return response.json();
     },
   });
@@ -82,7 +86,7 @@ export function ClassicGrid({
   if (timeSlots.length === 0) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
-        На этой неделе смен нет
+        {t("noShiftsWeek")}
       </div>
     );
   }
@@ -93,9 +97,9 @@ export function ClassicGrid({
         <thead>
           <tr className="bg-muted/30">
             <th className="w-32 border-r px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
-              Смена
+              {t("createShift").replace(/^Create |^Создать /, "")}
             </th>
-            {weekDates.map((date, index) => {
+            {weekDates.map((date) => {
               const today = isToday(date);
               return (
                 <th
@@ -105,9 +109,14 @@ export function ClassicGrid({
                     today && "bg-primary/10 text-primary"
                   )}
                 >
-                  <div>{dayNames[index]}</div>
+                  <div className="capitalize">
+                    {format.dateTime(date, { weekday: "short" })}
+                  </div>
                   <div className="text-[10px] font-normal text-muted-foreground">
-                    {formatDateShort(date)}
+                    {format.dateTime(date, {
+                      day: "2-digit",
+                      month: "2-digit",
+                    })}
                   </div>
                 </th>
               );
@@ -178,7 +187,9 @@ export function ClassicGrid({
                                 variant="secondary"
                                 className="px-1 py-0 text-[9px]"
                               >
-                                Свободно мест: {shift.maxEmployees}
+                                {t("freePlaces", {
+                                  count: shift.maxEmployees,
+                                })}
                               </Badge>
                             </div>
                           )
