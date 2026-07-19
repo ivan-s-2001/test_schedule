@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
   Star,
@@ -67,16 +68,6 @@ interface WishRequestButtonProps {
   existingRequest?: WishRequest | null;
 }
 
-function requestWord(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return "заявка";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-    return "заявки";
-  }
-  return "заявок";
-}
-
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
@@ -86,6 +77,9 @@ export function WishRequestButton({
   existingRequest,
 }: WishRequestButtonProps) {
   const queryClient = useQueryClient();
+  const t = useTranslations("schedule.requests");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [note, setNote] = useState("");
 
@@ -107,13 +101,13 @@ export function WishRequestButton({
 
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || "Не удалось отправить заявку");
+        throw new Error(result.error || tErrors("save"));
       }
 
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Заявка на смену отправлена");
+      toast.success(t("sent"));
       refresh();
       setDialogOpen(false);
       setNote("");
@@ -129,13 +123,13 @@ export function WishRequestButton({
 
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || "Не удалось отозвать заявку");
+        throw new Error(result.error || tErrors("delete"));
       }
 
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Заявка отозвана");
+      toast.success(t("withdrawn"));
       refresh();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -145,17 +139,17 @@ export function WishRequestButton({
     const stateConfig = {
       OPEN: {
         icon: Clock,
-        label: "На рассмотрении",
+        label: t("pending"),
         className: "bg-amber-50 text-amber-700",
       },
       ACCEPTED: {
         icon: CheckCircle2,
-        label: "Одобрено",
+        label: t("accepted"),
         className: "bg-green-50 text-green-700",
       },
       DECLINED: {
         icon: XCircle,
-        label: "Отклонено",
+        label: t("declined"),
         className: "bg-red-50 text-red-700",
       },
     } as const;
@@ -176,10 +170,10 @@ export function WishRequestButton({
           <button
             type="button"
             className="text-muted-foreground transition-colors hover:text-destructive"
-            title="Отозвать заявку"
-            aria-label="Отозвать заявку на смену"
+            title={t("withdraw")}
+            aria-label={t("withdraw")}
             onClick={() => {
-              if (confirm("Отозвать заявку на эту смену?")) {
+              if (confirm(t("withdrawConfirm"))) {
                 cancelMutation.mutate(existingRequest.id);
               }
             }}
@@ -204,21 +198,19 @@ export function WishRequestButton({
         onClick={() => setDialogOpen(true)}
       >
         <Star className="size-3" />
-        Хочу эту смену
+        {t("button")}
       </button>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Заявка на смену</DialogTitle>
-            <DialogDescription>
-              Сообщите руководителю, что хотите работать в эту смену.
-            </DialogDescription>
+            <DialogTitle>{t("title")}</DialogTitle>
+            <DialogDescription>{t("description")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2 py-2">
             <Textarea
-              placeholder="Комментарий для руководителя — необязательно"
+              placeholder={t("commentPlaceholder")}
               value={note}
               onChange={(event) => setNote(event.target.value)}
               className="min-h-[80px] resize-none"
@@ -231,7 +223,7 @@ export function WishRequestButton({
               size="sm"
               onClick={() => setDialogOpen(false)}
             >
-              Отмена
+              {tCommon("cancel")}
             </Button>
             <Button
               size="sm"
@@ -244,7 +236,7 @@ export function WishRequestButton({
               ) : (
                 <Star className="size-3.5" />
               )}
-              Отправить заявку
+              {t("send")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -259,6 +251,7 @@ interface WishCountBadgeProps {
 }
 
 export function WishCountBadge({ shiftId, scheduleId }: WishCountBadgeProps) {
+  const t = useTranslations("schedule.requests");
   const { data } = useQuery<{ requests: WishRequest[] }>({
     queryKey: ["mod-requests", scheduleId],
     queryFn: async () => {
@@ -282,7 +275,7 @@ export function WishCountBadge({ shiftId, scheduleId }: WishCountBadgeProps) {
           type="button"
           className="relative"
           onClick={(event) => event.stopPropagation()}
-          title={`${requests.length} ${requestWord(requests.length)}`}
+          title={t("count", { count: requests.length })}
         >
           <Badge
             variant="secondary"
@@ -298,20 +291,16 @@ export function WishCountBadge({ shiftId, scheduleId }: WishCountBadgeProps) {
         className="w-80 p-0"
         onClick={(event) => event.stopPropagation()}
       >
-        <WishRequestsList requests={requests} scheduleId={scheduleId} />
+        <WishRequestsList requests={requests} />
       </PopoverContent>
     </Popover>
   );
 }
 
-function WishRequestsList({
-  requests,
-  scheduleId,
-}: {
-  requests: WishRequest[];
-  scheduleId: string;
-}) {
+function WishRequestsList({ requests }: { requests: WishRequest[] }) {
   const queryClient = useQueryClient();
+  const t = useTranslations("schedule.requests");
+  const tErrors = useTranslations("errors");
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["mod-requests"] });
@@ -330,7 +319,7 @@ function WishRequestsList({
 
     if (!response.ok) {
       const result = await response.json();
-      throw new Error(result.error || "Не удалось обработать заявку");
+      throw new Error(result.error || tErrors("save"));
     }
 
     return response.json();
@@ -339,7 +328,7 @@ function WishRequestsList({
   const acceptMutation = useMutation({
     mutationFn: (requestId: string) => updateRequest(requestId, "ACCEPTED"),
     onSuccess: () => {
-      toast.success("Заявка одобрена, сотрудник назначен на смену");
+      toast.success(t("acceptedAndAssigned"));
       refresh();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -348,7 +337,7 @@ function WishRequestsList({
   const declineMutation = useMutation({
     mutationFn: (requestId: string) => updateRequest(requestId, "DECLINED"),
     onSuccess: () => {
-      toast.success("Заявка отклонена");
+      toast.success(t("declined"));
       refresh();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -359,20 +348,13 @@ function WishRequestsList({
       const results = await Promise.allSettled(
         requests.map((request) => updateRequest(request.id, "ACCEPTED"))
       );
-      return {
-        accepted: results.filter((result) => result.status === "fulfilled").length,
-        failed: results.filter((result) => result.status === "rejected").length,
-      };
+      return results.some((result) => result.status === "rejected");
     },
-    onSuccess: ({ accepted, failed }) => {
-      toast.success(
-        failed > 0
-          ? `Одобрено: ${accepted}. Не удалось обработать: ${failed}.`
-          : `Все заявки одобрены: ${accepted}`
-      );
+    onSuccess: (hasFailed) => {
+      toast.success(hasFailed ? t("processFailed") : t("allProcessed"));
       refresh();
     },
-    onError: () => toast.error("Не удалось обработать заявки"),
+    onError: () => toast.error(t("processFailed")),
   });
 
   const isPending =
@@ -384,7 +366,7 @@ function WishRequestsList({
     <div>
       <div className="flex items-center justify-between border-b bg-muted/30 px-3 py-2">
         <span className="text-xs font-semibold">
-          {requests.length} {requestWord(requests.length)}
+          {t("count", { count: requests.length })}
         </span>
         {requests.length > 1 && (
           <Button
@@ -399,7 +381,7 @@ function WishRequestsList({
             ) : (
               <Check className="size-3" />
             )}
-            Одобрить все
+            {t("acceptAll")}
           </Button>
         )}
       </div>
@@ -437,8 +419,8 @@ function WishRequestsList({
               <button
                 type="button"
                 className="flex size-7 items-center justify-center rounded-md bg-green-50 text-green-700 transition-colors hover:bg-green-100"
-                title="Одобрить"
-                aria-label="Одобрить заявку"
+                title={t("accept")}
+                aria-label={t("accept")}
                 onClick={() => acceptMutation.mutate(request.id)}
                 disabled={isPending}
               >
@@ -447,8 +429,8 @@ function WishRequestsList({
               <button
                 type="button"
                 className="flex size-7 items-center justify-center rounded-md bg-red-50 text-red-700 transition-colors hover:bg-red-100"
-                title="Отклонить"
-                aria-label="Отклонить заявку"
+                title={t("decline")}
+                aria-label={t("decline")}
                 onClick={() => declineMutation.mutate(request.id)}
                 disabled={isPending}
               >
@@ -473,6 +455,7 @@ export function WishFilterToggle({
   onToggle,
   wishCount,
 }: WishFilterToggleProps) {
+  const t = useTranslations("schedule.requests");
   if (wishCount === 0) return null;
 
   return (
@@ -488,7 +471,7 @@ export function WishFilterToggle({
       onClick={() => onToggle(!enabled)}
     >
       <Star className={cn("size-3.5", enabled && "fill-white")} />
-      Заявки на смены
+      {t("filter")}
       <Badge
         variant="secondary"
         className={cn(
