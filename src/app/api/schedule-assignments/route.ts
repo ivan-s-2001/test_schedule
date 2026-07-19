@@ -4,7 +4,6 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentMember, isManagerOrAbove } from "@/lib/auth-helpers";
 import { emitToOrg, emitToSchedule } from "@/lib/emit";
-import { getShiftTemplate } from "@/lib/schedule/shift-pool";
 
 const assignmentSchema = z.object({
   scheduleId: z.string().min(1),
@@ -19,6 +18,16 @@ const removeSchema = assignmentSchema.pick({
   userId: true,
   dayOfWeek: true,
 });
+
+type ShiftPoolRow = {
+  code: string;
+  name: string;
+  shiftFrom: string;
+  shiftTo: string;
+  color: string;
+  textColor: string;
+  description: string | null;
+};
 
 async function requireManager() {
   const member = await getCurrentMember();
@@ -103,7 +112,23 @@ export async function POST(request: NextRequest) {
 
   const { member } = access;
   const { scheduleId, userId, dayOfWeek, templateId, overtimeHours } = parsed.data;
-  const template = getShiftTemplate(templateId);
+
+  const templates = await db.$queryRaw<ShiftPoolRow[]>`
+    SELECT
+      "code",
+      "name",
+      "shiftFrom",
+      "shiftTo",
+      "color",
+      "textColor",
+      "description"
+    FROM "shift_pool_templates"
+    WHERE "organizationId" = ${member.organizationId}
+      AND "code" = ${templateId}
+      AND "isActive" = true
+    LIMIT 1
+  `;
+  const template = templates[0];
 
   if (!template) {
     return NextResponse.json({ error: "Смена отсутствует в пуле" }, { status: 400 });
@@ -123,6 +148,7 @@ export async function POST(request: NextRequest) {
         organizationId: member.organizationId,
         userId,
         isActive: true,
+        role: { not: "OWNER" },
       },
       select: { id: true },
     }),
@@ -141,7 +167,7 @@ export async function POST(request: NextRequest) {
   const result = await db.$transaction(async (tx) => {
     await removeExistingAssignment(tx, scheduleId, userId, dayOfWeek);
 
-    const title = `pool:${template.id}`;
+    const title = `pool:${template.code}`;
     let shift = await tx.shift.findFirst({
       where: {
         scheduleId,
@@ -165,9 +191,20 @@ export async function POST(request: NextRequest) {
           pauseOption: "PER_SHIFT",
           pauseValue: 0,
           title,
-          description: "Назначено из фиксированного пула смен",
+          description: template.description,
         },
       });
+
+      await tx.$executeRaw`
+        UPDATE "shifts"
+        SET
+          "poolTemplateCode" = ${template.code},
+          "poolLabel" = ${template.name},
+          "poolColor" = ${template.color},
+          "poolTextColor" = ${template.textColor},
+          "poolDescription" = ${template.description}
+        WHERE "id" = ${shift.id}
+      `;
     }
 
     const booking = await tx.booking.create({
