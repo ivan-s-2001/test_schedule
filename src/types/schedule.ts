@@ -7,6 +7,7 @@ export type BookingUser = {
   id: string;
   firstName: string;
   lastName: string;
+  patronymic?: string | null;
   nickname: string | null;
   profileImage: string | null;
 };
