@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Radio,
@@ -20,10 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useSocket, useSocketEvent } from "@/lib/socket";
 import { dayNames } from "@/lib/utils/calendar";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 type LiveDayData = {
   id: string;
@@ -61,170 +57,149 @@ type LiveSessionData = {
   logs: LiveLogData[];
 };
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface LiveModeProps {
   scheduleId: string;
   isManager: boolean;
 }
-
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
 
 export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
   const queryClient = useQueryClient();
   const { joinSchedule, leaveSchedule } = useSocket();
   const [expanded, setExpanded] = useState(false);
 
-  // Join schedule room for real-time updates
   useEffect(() => {
-    if (scheduleId) {
-      joinSchedule(scheduleId);
-      return () => leaveSchedule(scheduleId);
-    }
+    if (!scheduleId) return;
+    joinSchedule(scheduleId);
+    return () => leaveSchedule(scheduleId);
   }, [scheduleId, joinSchedule, leaveSchedule]);
 
-  // Fetch live session
   const { data, isLoading } = useQuery<{ session: LiveSessionData | null }>({
     queryKey: ["live-session", scheduleId],
     queryFn: async () => {
-      const res = await fetch(`/api/live?scheduleId=${scheduleId}`);
-      if (!res.ok) throw new Error("Ошибка загрузки der Live-Session");
-      return res.json();
+      const response = await fetch(`/api/live?scheduleId=${scheduleId}`);
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить состояние самозаписи");
+      }
+      return response.json();
     },
-    enabled: !!scheduleId,
+    enabled: Boolean(scheduleId),
   });
 
   const session = data?.session ?? null;
   const isActive = session?.isActive ?? false;
 
-  // Listen for live socket events and refresh data
-  const handleLiveEvent = useCallback(() => {
+  const refresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["live-session", scheduleId] });
     queryClient.invalidateQueries({ queryKey: ["schedule"] });
   }, [queryClient, scheduleId]);
 
-  useSocketEvent("live:started", handleLiveEvent);
-  useSocketEvent("live:stopped", handleLiveEvent);
-  useSocketEvent("live:updated", handleLiveEvent);
-  useSocketEvent("live:booking", handleLiveEvent);
+  useSocketEvent("live:started", refresh);
+  useSocketEvent("live:stopped", refresh);
+  useSocketEvent("live:updated", refresh);
+  useSocketEvent("live:booking", refresh);
 
-  // Start live mode mutation
   const startMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/live", {
+      const response = await fetch("/api/live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scheduleId }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Fehler beim Starten");
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Не удалось открыть самозапись");
       }
-      return res.json();
+
+      return response.json();
     },
     onSuccess: () => {
-      toast.success("Live-Modus gestartet");
-      queryClient.invalidateQueries({ queryKey: ["live-session", scheduleId] });
+      toast.success("Самозапись открыта");
+      refresh();
       setExpanded(true);
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
-  // Stop live mode mutation
   const stopMutation = useMutation({
     mutationFn: async () => {
       if (!session) return;
-      const res = await fetch(`/api/live?id=${session.id}`, {
+      const response = await fetch(`/api/live?id=${session.id}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Fehler beim Stoppen");
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Не удалось закрыть самозапись");
       }
-      return res.json();
+
+      return response.json();
     },
     onSuccess: () => {
-      toast.success("Live-Modus gestoppt");
-      queryClient.invalidateQueries({ queryKey: ["live-session", scheduleId] });
+      toast.success("Самозапись закрыта");
+      refresh();
       setExpanded(false);
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
+
+  if (isLoading) return null;
 
   const isPending = startMutation.isPending || stopMutation.isPending;
 
-  if (isLoading) {
-    return null; // Don't flash anything while loading
-  }
-
   return (
     <div className="flex flex-col">
-      {/* Live Mode Toggle Button */}
       <div className="flex items-center gap-2">
-        {isManager && (
-          <>
-            {!isActive ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700"
-                onClick={() => startMutation.mutate()}
-                disabled={isPending}
-              >
-                {startMutation.isPending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Radio className="size-3.5" />
-                )}
-                Запустить
-              </Button>
+        {isManager && !isActive && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-50"
+            onClick={() => startMutation.mutate()}
+            disabled={isPending}
+          >
+            {startMutation.isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  if (confirm("Live-Modus wirklich stoppen?")) {
-                    stopMutation.mutate();
-                  }
-                }}
-                disabled={isPending}
-              >
-                {stopMutation.isPending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Square className="size-3.5" />
-                )}
-                Остановить
-              </Button>
+              <Radio className="size-3.5" />
             )}
-          </>
+            Открыть самозапись
+          </Button>
         )}
 
-        {/* Live indicator badge */}
+        {isManager && isActive && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
+            onClick={() => {
+              if (confirm("Закрыть самостоятельную запись на смены?")) {
+                stopMutation.mutate();
+              }
+            }}
+            disabled={isPending}
+          >
+            {stopMutation.isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Square className="size-3.5" />
+            )}
+            Закрыть самозапись
+          </Button>
+        )}
+
         {isActive && (
           <button
             type="button"
             className="flex items-center gap-1.5"
-            onClick={() => setExpanded((prev) => !prev)}
+            onClick={() => setExpanded((value) => !value)}
           >
-            <Badge
-              variant="default"
-              className="gap-1.5 bg-purple-600 hover:bg-purple-700 cursor-pointer"
-            >
+            <Badge className="cursor-pointer gap-1.5 bg-purple-600 hover:bg-purple-700">
               <span className="relative flex size-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-300 opacity-75" />
-                <span className="relative inline-flex rounded-full size-2 bg-white" />
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-purple-300 opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-white" />
               </span>
-              LIVE
+              Самозапись открыта
               {expanded ? (
                 <ChevronUp className="size-3" />
               ) : (
@@ -235,7 +210,6 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
         )}
       </div>
 
-      {/* Expanded Live Panel */}
       {isActive && expanded && session && (
         <LivePanel
           session={session}
@@ -247,10 +221,6 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Live Panel (expanded details)
-// ---------------------------------------------------------------------------
-
 function LivePanel({
   session,
   isManager,
@@ -260,54 +230,43 @@ function LivePanel({
   isManager: boolean;
   scheduleId: string;
 }) {
-  const queryClient = useQueryClient();
-
   return (
-    <div className="mt-3 rounded-lg border-2 border-purple-200 bg-purple-50/50 p-4 space-y-4">
-      {/* Timer */}
+    <div className="mt-3 space-y-4 rounded-lg border-2 border-purple-200 bg-purple-50/50 p-4">
       <LiveTimer startedAt={session.startedAt} />
 
-      {/* Day toggles - manager only */}
-      {isManager && (
+      {isManager ? (
         <DayToggles
           sessionId={session.id}
           days={session.days}
           scheduleId={scheduleId}
         />
-      )}
-
-      {/* Day status - employee view */}
-      {!isManager && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground font-medium">
-            Offen:
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">
+            Можно записаться на:
           </span>
-          {session.days.map((day) => (
-            <Badge
-              key={day.id}
-              variant={day.enabled ? "default" : "secondary"}
-              className={cn(
-                "text-xs",
-                day.enabled
-                  ? "bg-purple-600 hover:bg-purple-600"
-                  : "opacity-50"
-              )}
-            >
-              {dayNames[day.dayOfWeek - 1]}
-            </Badge>
-          ))}
+          {session.days
+            .filter((day) => day.enabled)
+            .map((day) => (
+              <Badge
+                key={day.id}
+                className="bg-purple-600 text-xs hover:bg-purple-600"
+              >
+                {dayNames[day.dayOfWeek - 1]}
+              </Badge>
+            ))}
+          {!session.days.some((day) => day.enabled) && (
+            <span className="text-xs text-muted-foreground">
+              доступных дней нет
+            </span>
+          )}
         </div>
       )}
 
-      {/* Live Log */}
       <LiveLogFeed logs={session.logs} />
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Live Timer
-// ---------------------------------------------------------------------------
 
 function LiveTimer({ startedAt }: { startedAt: string }) {
   const [elapsed, setElapsed] = useState("");
@@ -316,35 +275,30 @@ function LiveTimer({ startedAt }: { startedAt: string }) {
     const start = new Date(startedAt).getTime();
 
     function update() {
-      const diff = Date.now() - start;
-      const hours = Math.floor(diff / 3600000);
-      const minutes = Math.floor((diff % 3600000) / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-
+      const difference = Date.now() - start;
+      const hours = Math.floor(difference / 3_600_000);
+      const minutes = Math.floor((difference % 3_600_000) / 60_000);
+      const seconds = Math.floor((difference % 60_000) / 1000);
       const parts: string[] = [];
-      if (hours > 0) parts.push(`${hours}h`);
-      parts.push(`${String(minutes).padStart(2, "0")}m`);
-      parts.push(`${String(seconds).padStart(2, "0")}s`);
+
+      if (hours > 0) parts.push(`${hours} ч`);
+      parts.push(`${String(minutes).padStart(2, "0")} мин`);
+      parts.push(`${String(seconds).padStart(2, "0")} с`);
       setElapsed(parts.join(" "));
     }
 
     update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
   }, [startedAt]);
 
   return (
     <div className="flex items-center gap-2 text-sm text-purple-700">
       <Clock className="size-4" />
-      <span className="font-mono font-medium">{elapsed}</span>
-      <span className="text-xs text-muted-foreground">aktiv</span>
+      <span className="font-medium">Открыта: {elapsed}</span>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Day Toggles (Manager only)
-// ---------------------------------------------------------------------------
 
 function DayToggles({
   sessionId,
@@ -365,33 +319,33 @@ function DayToggles({
       dayOfWeek: number;
       enabled: boolean;
     }) => {
-      const res = await fetch(`/api/live?id=${sessionId}`, {
+      const response = await fetch(`/api/live?id=${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          days: [{ dayOfWeek, enabled }],
-        }),
+        body: JSON.stringify({ days: [{ dayOfWeek, enabled }] }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Fehler beim Aendern");
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Не удалось изменить доступный день");
       }
-      return res.json();
+
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["live-session", scheduleId] });
+      queryClient.invalidateQueries({
+        queryKey: ["live-session", scheduleId],
+      });
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium text-purple-700">
-        Tage fuer Self-Booking:
+        Дни, доступные для самостоятельной записи:
       </p>
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex flex-wrap items-center gap-3">
         {days.map((day) => (
           <div key={day.id} className="flex items-center gap-1.5">
             <Switch
@@ -405,7 +359,7 @@ function DayToggles({
               }
               disabled={toggleMutation.isPending}
             />
-            <Label className="text-xs cursor-pointer">
+            <Label className="cursor-pointer text-xs">
               {dayNames[day.dayOfWeek - 1]}
             </Label>
           </div>
@@ -415,39 +369,37 @@ function DayToggles({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Live Log Feed
-// ---------------------------------------------------------------------------
-
 function LiveLogFeed({ logs }: { logs: LiveLogData[] }) {
   if (logs.length === 0) {
     return (
-      <div className="text-xs text-muted-foreground text-center py-2">
-        Noch keine Aktivitaet
+      <div className="py-2 text-center text-xs text-muted-foreground">
+        Действий пока не было
       </div>
     );
   }
 
   return (
-    <div className="space-y-1.5 max-h-48 overflow-y-auto">
-      <p className="text-xs font-medium text-purple-700">Aktivitaet:</p>
+    <div className="max-h-48 space-y-1.5 overflow-y-auto">
+      <p className="text-xs font-medium text-purple-700">Последние действия:</p>
       {logs.map((log) => (
         <div
           key={log.id}
-          className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/60"
+          className="flex items-center gap-2 rounded bg-white/70 px-2 py-1 text-xs"
         >
           {log.action === "BOOK" ? (
-            <UserPlus className="size-3 text-green-600 shrink-0" />
+            <UserPlus className="size-3 shrink-0 text-green-600" />
           ) : (
-            <UserMinus className="size-3 text-red-500 shrink-0" />
+            <UserMinus className="size-3 shrink-0 text-red-500" />
           )}
           <span className="font-medium">
             {log.user.firstName} {log.user.lastName}
           </span>
           <span className="text-muted-foreground">
-            {log.action === "BOOK" ? "eingetragen" : "ausgetragen"}
+            {log.action === "BOOK"
+              ? "записался на смену"
+              : "отменил запись"}
           </span>
-          <span className="ml-auto text-muted-foreground shrink-0">
+          <span className="ml-auto shrink-0 text-muted-foreground">
             {formatTime(log.loggedAt)}
           </span>
         </div>
@@ -456,21 +408,12 @@ function LiveLogFeed({ logs }: { logs: LiveLogData[] }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("ru-RU", {
+function formatTime(value: string): string {
+  return new Date(value).toLocaleTimeString("ru-RU", {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
-
-// ---------------------------------------------------------------------------
-// Live Mode border wrapper for schedule grid
-// ---------------------------------------------------------------------------
 
 export function LiveBorder({
   isActive,
@@ -483,7 +426,7 @@ export function LiveBorder({
 
   return (
     <div className="relative">
-      <div className="absolute inset-0 rounded-lg border-2 border-purple-400 animate-pulse pointer-events-none z-10" />
+      <div className="pointer-events-none absolute inset-0 z-10 animate-pulse rounded-lg border-2 border-purple-400" />
       {children}
     </div>
   );
