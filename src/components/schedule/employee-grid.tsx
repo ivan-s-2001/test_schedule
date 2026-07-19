@@ -42,6 +42,10 @@ type EmployeesResponse = {
   members: EmployeeMember[];
 };
 
+type HolidayCalendarResponse = {
+  nonWorkingDates: string[];
+};
+
 type EmployeeRow = {
   user: EmployeeMember["user"];
   assignments: Record<number, ShiftAssignment | null>;
@@ -83,6 +87,11 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
   const [editorTarget, setEditorTarget] =
     useState<ShiftAssignmentTarget | null>(null);
 
+  const calendarYears = useMemo(
+    () => [...new Set(weekDates.map((date) => date.getFullYear()))],
+    [weekDates]
+  );
+
   const {
     data: scheduleData,
     isLoading: scheduleLoading,
@@ -110,6 +119,30 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
       return response.json();
     },
   });
+
+  const { data: holidayCalendars } = useQuery<HolidayCalendarResponse[]>({
+    queryKey: ["holiday-calendar", ...calendarYears],
+    queryFn: async () =>
+      Promise.all(
+        calendarYears.map(async (calendarYear) => {
+          const response = await fetch(`/api/holidays?year=${calendarYear}`);
+          if (!response.ok) {
+            throw new Error("Не удалось загрузить производственный календарь");
+          }
+          return response.json() as Promise<HolidayCalendarResponse>;
+        })
+      ),
+  });
+
+  const nonWorkingDates = useMemo(
+    () =>
+      new Set(
+        (holidayCalendars ?? []).flatMap((calendar) =>
+          calendar.nonWorkingDates ?? []
+        )
+      ),
+    [holidayCalendars]
+  );
 
   const schedule = scheduleData?.schedule;
   const shifts = schedule?.shifts ?? [];
@@ -217,12 +250,16 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
               {weekDates.map((date, index) => {
                 const dayOfWeek = index + 1;
                 const today = isToday(date);
+                const nonWorking = nonWorkingDates.has(
+                  format(date, "yyyy-MM-dd")
+                );
 
                 return (
                   <th
                     key={date.toISOString()}
                     className={cn(
-                      "min-w-36 border-b border-r border-slate-400 bg-[#0000FF] px-2 py-2 text-center align-top text-white",
+                      "min-w-36 border-b border-r border-slate-400 px-2 py-2 text-center align-top text-white",
+                      nonWorking ? "bg-emerald-700" : "bg-[#0000FF]",
                       today && "ring-2 ring-inset ring-yellow-300"
                     )}
                   >
@@ -270,6 +307,10 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
 
                 {Array.from({ length: 7 }, (_, index) => {
                   const dayOfWeek = index + 1;
+                  const date = weekDates[index];
+                  const nonWorking = nonWorkingDates.has(
+                    format(date, "yyyy-MM-dd")
+                  );
                   const assignment = row.assignments[dayOfWeek];
                   const template = assignment
                     ? getTemplate(assignment.shift)
@@ -285,7 +326,8 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                       key={dayOfWeek}
                       className={cn(
                         "h-14 border-b border-r border-slate-300 p-1 text-center align-middle",
-                        isToday(weekDates[index]) && "bg-yellow-50"
+                        nonWorking && "bg-emerald-50",
+                        isToday(date) && "ring-1 ring-inset ring-yellow-300"
                       )}
                     >
                       <button
@@ -296,7 +338,7 @@ export function EmployeeGrid({ weekNumber, year, weekDates }: EmployeeGridProps)
                           "relative flex min-h-11 w-full items-center justify-center rounded-sm border px-1.5 py-1 text-[11px] font-semibold leading-tight transition",
                           assignment
                             ? "shadow-sm"
-                            : "border-transparent bg-transparent text-slate-300",
+                            : "border-transparent bg-transparent text-slate-400",
                           clickable && "hover:ring-2 hover:ring-indigo-400"
                         )}
                         style={
