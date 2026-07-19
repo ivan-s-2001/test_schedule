@@ -23,9 +23,10 @@
   ],
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run i18n:check && next build",
     "start": "next start",
     "lint": "eslint",
+    "i18n:check": "node scripts/normalize-russian-ui.mjs",
     "dev:server": "tsx watch server.ts",
     "start:server": "node dist/server.js"
   },
