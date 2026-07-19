@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import {
   CalendarDays,
   Clock,
@@ -17,30 +18,29 @@ import { UserMenu } from "./user-menu";
 import { MobileNav } from "./mobile-nav";
 import { ConnectionStatus } from "./connection-status";
 
-const navItems = [
-  { key: "schedule", icon: CalendarDays, href: "/schedule/employee", label: "График" },
-  { key: "time", icon: Clock, href: "/time", label: "Учёт времени" },
-  { key: "employees", icon: Users, href: "/employees", label: "Сотрудники" },
-  { key: "portal", icon: MessageSquare, href: "/portal/inbox", label: "Портал" },
-  { key: "reporting", icon: BarChart3, href: "/reporting", label: "Отчёты" },
-  { key: "settings", icon: Settings, href: "/settings", label: "Настройки" },
+export const navItems = [
+  { key: "schedule", icon: CalendarDays, href: "/schedule/employee" },
+  { key: "time", icon: Clock, href: "/time" },
+  { key: "employees", icon: Users, href: "/employees" },
+  { key: "portal", icon: MessageSquare, href: "/portal/inbox" },
+  { key: "reporting", icon: BarChart3, href: "/reporting" },
+  { key: "settings", icon: Settings, href: "/settings" },
 ] as const;
-
-export { navItems };
 
 export function TopNav() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["messages", "unread-count"],
-    queryFn: () => fetch("/api/messages/unread-count").then((r) => r.json()),
-    refetchInterval: 30000,
+    queryFn: () => fetch("/api/messages/unread-count").then((response) => response.json()),
+    refetchInterval: 30_000,
   });
 
   const unreadCount = unreadData?.count ?? 0;
 
   function isActive(href: string) {
-    const segment = "/" + href.split("/")[1];
+    const segment = `/${href.split("/")[1]}`;
     return pathname.startsWith(segment);
   }
 
@@ -69,10 +69,11 @@ export function TopNav() {
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
+
             return (
               <Link key={item.key} href={item.href} className={itemClass(active)}>
                 <Icon className="size-4" />
-                <span className="hidden lg:inline">{item.label}</span>
+                <span className="hidden lg:inline">{t(item.key)}</span>
                 {item.key === "portal" && unreadCount > 0 && (
                   <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-[#ed2651] text-[10px] font-semibold text-white">
                     {unreadCount > 9 ? "9+" : unreadCount}
@@ -86,7 +87,7 @@ export function TopNav() {
         <div className="ml-auto flex items-center gap-1">
           <Link href="/ai/chat" className={itemClass(pathname.startsWith("/ai"))}>
             <Sparkles className="size-4" />
-            <span className="hidden lg:inline">ИИ</span>
+            <span className="hidden lg:inline">{t("ai")}</span>
           </Link>
 
           <ConnectionStatus />
