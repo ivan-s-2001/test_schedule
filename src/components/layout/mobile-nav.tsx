@@ -3,11 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CalendarIcon,
-  MenuIcon,
-  SparklesIcon,
-} from "@/components/icons/outline-icons";
+import { CalendarIcon, MenuIcon } from "@/components/icons/outline-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,65 +13,97 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { navItems } from "./top-nav";
+import {
+  isNavigationItemActive,
+  navigationGroups,
+  utilityNavigationItems,
+} from "./navigation";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  function isActive(href: string) {
-    const segment = "/" + href.split("/")[1];
-    return pathname.startsWith(segment);
-  }
-
-  const itemClass = (active: boolean) =>
-    cn(
-      "flex min-h-8 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-      active
-        ? "bg-sidebar-primary text-sidebar-primary-foreground"
-        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-    );
-
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
+        <Button variant="ghost" size="icon" aria-label="Открыть навигацию">
           <MenuIcon className="size-5" />
-          <span className="sr-only">Навигация</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
-        <SheetHeader className="border-b border-sidebar-border px-4 py-3">
-          <SheetTitle className="flex items-center gap-2 text-base font-semibold text-sidebar-primary-foreground">
-            <CalendarIcon className="size-5 text-sidebar-foreground" />
-            QuickTickets
+      <SheetContent
+        side="left"
+        className="flex w-[min(86vw,300px)] flex-col border-sidebar-border bg-sidebar p-0"
+      >
+        <SheetHeader className="border-b border-sidebar-border px-3 py-3 text-left">
+          <SheetTitle className="flex items-center gap-2.5 text-sm font-semibold text-sidebar-accent-foreground">
+            <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <CalendarIcon className="size-[18px]" />
+            </span>
+            <span>
+              <span className="block leading-4">QuickTickets</span>
+              <span className="block text-[11px] font-normal leading-4 text-sidebar-foreground">
+                Планирование смен
+              </span>
+            </span>
           </SheetTitle>
         </SheetHeader>
-        <nav className="flex flex-col gap-0.5 p-3">
-          {navItems.map((item) => {
+
+        <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+          {navigationGroups.map((group, groupIndex) => (
+            <section key={group.label} className={cn(groupIndex > 0 && "mt-5")}>
+              <div className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground/65">
+                {group.label}
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isNavigationItemActive(pathname, item.href);
+
+                  return (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "flex h-10 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium",
+                        active
+                          ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                          : "text-sidebar-foreground hover:bg-[var(--accent-subtle)] hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <Icon className="size-[18px]" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </nav>
+
+        <div className="border-t border-sidebar-border p-2">
+          {utilityNavigationItems.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.href);
+            const active = isNavigationItemActive(pathname, item.href);
+
             return (
               <Link
                 key={item.key}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={itemClass(active)}
+                className={cn(
+                  "flex h-10 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium",
+                  active
+                    ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+                    : "text-sidebar-foreground hover:bg-[var(--accent-subtle)] hover:text-sidebar-accent-foreground"
+                )}
               >
-                <Icon className="size-4" />
+                <Icon className="size-[18px]" />
                 {item.label}
               </Link>
             );
           })}
-          <Link
-            href="/ai/chat"
-            onClick={() => setOpen(false)}
-            className={itemClass(pathname.startsWith("/ai"))}
-          >
-            <SparklesIcon className="size-4" />
-            ИИ-ассистент
-          </Link>
-        </nav>
+        </div>
       </SheetContent>
     </Sheet>
   );
