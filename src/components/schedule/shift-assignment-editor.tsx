@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { CalendarRange, Loader2, Pencil, Trash2 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  SHIFT_POOL,
-  findShiftTemplate,
+  DEFAULT_SHIFT_POOL,
+  resolveShiftTemplate,
   type ShiftTemplate,
 } from "@/lib/schedule/shift-pool";
 import { cn } from "@/lib/utils";
@@ -56,16 +56,17 @@ interface ShiftAssignmentEditorProps {
 type EditorMode = "view" | "edit";
 type CellKind = "SHIFT" | "DAY_OFF" | "VACATION" | "SICK";
 
+type ShiftPoolResponse = {
+  templates: ShiftTemplate[];
+  canEdit: boolean;
+};
+
 const CELL_KIND_OPTIONS: Array<{ value: CellKind; label: string }> = [
   { value: "SHIFT", label: "Смена" },
   { value: "DAY_OFF", label: "Выходной" },
   { value: "VACATION", label: "Отпуск" },
   { value: "SICK", label: "Больничный" },
 ];
-
-function getTemplate(shift: ShiftData): ShiftTemplate | undefined {
-  return findShiftTemplate(shift.shiftFrom, shift.shiftTo, shift.title);
-}
 
 function formatHours(value: number): string {
   return value.toLocaleString("ru-RU", {
@@ -109,8 +110,22 @@ export function ShiftAssignmentEditor({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  const { data: poolData, isLoading: poolLoading } = useQuery<ShiftPoolResponse>({
+    queryKey: ["shift-pool"],
+    queryFn: async () => {
+      const response = await fetch("/api/shift-pool");
+      if (!response.ok) throw new Error("Не удалось загрузить пул смен");
+      return response.json();
+    },
+    enabled: target !== null,
+  });
+
+  const templates = poolData?.templates ?? [...DEFAULT_SHIFT_POOL];
   const currentTemplate = useMemo(
-    () => (target?.assignment ? getTemplate(target.assignment.shift) : undefined),
+    () =>
+      target?.assignment
+        ? resolveShiftTemplate(target.assignment.shift)
+        : undefined,
     [target]
   );
 
@@ -173,9 +188,7 @@ export function ShiftAssignmentEditor({
           absenceId: target.absence?.id,
         }),
       });
-      if (!response.ok) {
-        await readError(response, "Не удалось очистить ячейку");
-      }
+      if (!response.ok) await readError(response, "Не удалось очистить ячейку");
     }
   }
 
@@ -186,9 +199,7 @@ export function ShiftAssignmentEditor({
       if (kind === "SHIFT") {
         if (!selectedTemplateId) throw new Error("Смена не выбрана");
 
-        if (target.dayOff || target.absence) {
-          await clearCurrentValue();
-        }
+        if (target.dayOff || target.absence) await clearCurrentValue();
 
         const parsedOvertime = Number(overtimeHours.replace(",", "."));
         const response = await fetch("/api/schedule-assignments", {
@@ -206,9 +217,7 @@ export function ShiftAssignmentEditor({
         return;
       }
 
-      if (target.absence && kind === "DAY_OFF") {
-        await clearCurrentValue();
-      }
+      if (target.absence && kind === "DAY_OFF") await clearCurrentValue();
 
       const response = await fetch("/api/schedule-cell-status", {
         method: "POST",
@@ -254,18 +263,17 @@ export function ShiftAssignmentEditor({
   const assignment = target?.assignment ?? null;
   const absence = target?.absence ?? null;
   const overtimeMinutes = assignment?.booking.overtimeMinutes ?? 0;
-  const displayTemplate = assignment ? currentTemplate : undefined;
   const displayedKind = currentKind(target);
 
   return (
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{hasValue ? "Ячейка графика" : "Заполнить ячейку"}</DialogTitle>
           <DialogDescription>
             {target && (
               <>
-                {target.user.nickname || target.user.firstName} ·{" "}
+                {target.user.firstName} ·{" "}
                 {format(target.date, "EEEE, d MMMM yyyy", { locale: ru })}
               </>
             )}
@@ -305,28 +313,33 @@ export function ShiftAssignmentEditor({
 
         {mode === "view" && hasValue ? (
           <div className="space-y-4 py-2">
-            {displayedKind === "SHIFT" && assignment ? (
+            {displayedKind === "SHIFT" && assignment && currentTemplate ? (
               <div
                 className="rounded-lg border-2 p-6 text-center"
                 style={{
-                  backgroundColor: displayTemplate?.color ?? "#E5E7EB",
-                  color: displayTemplate?.textColor ?? "#111827",
+                  backgroundColor: currentTemplate.color,
+                  color: currentTemplate.textColor,
                   borderColor:
-                    displayTemplate?.color === "#FFFFFF"
+                    currentTemplate.color === "#FFFFFF"
                       ? "#94A3B8"
-                      : displayTemplate?.color ?? "#CBD5E1",
+                      : currentTemplate.color,
                 }}
               >
-                <div className="text-xl font-bold">
-                  {displayTemplate?.label ??
-                    `${assignment.shift.shiftFrom}–${assignment.shift.shiftTo}`}
+                <div className="text-xl font-bold">{currentTemplate.name}</div>
+                <div className="mt-1 text-base font-semibold">
+                  {currentTemplate.label}
                 </div>
+                {currentTemplate.description && (
+                  <div className="mt-3 text-sm font-medium opacity-90">
+                    {currentTemplate.description}
+                  </div>
+                )}
                 {overtimeMinutes > 0 ? (
-                  <div className="mt-2 text-sm font-bold">
+                  <div className="mt-3 text-sm font-bold">
                     Переработка: +{formatHours(overtimeMinutes / 60)} ч
                   </div>
                 ) : isLegacyOvertime(assignment.shift) ? (
-                  <div className="mt-2 text-sm font-bold">Переработка</div>
+                  <div className="mt-3 text-sm font-bold">Переработка</div>
                 ) : null}
               </div>
             ) : displayedKind === "DAY_OFF" ? (
@@ -377,38 +390,53 @@ export function ShiftAssignmentEditor({
 
             {kind === "SHIFT" ? (
               <>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {SHIFT_POOL.map((template) => {
-                    const selected = selectedTemplateId === template.id;
+                {poolLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Загрузка пула смен…
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {templates.map((template) => {
+                      const selected = selectedTemplateId === template.id;
 
-                    return (
-                      <button
-                        type="button"
-                        key={template.id}
-                        onClick={() => setSelectedTemplateId(template.id)}
-                        className={cn(
-                          "min-h-12 rounded-md border-2 px-2 py-2 text-sm font-bold transition",
-                          selected
-                            ? "ring-2 ring-indigo-500 ring-offset-2"
-                            : "hover:scale-[1.02]"
-                        )}
-                        style={{
-                          backgroundColor: template.color,
-                          color: template.textColor,
-                          borderColor:
-                            template.color === "#FFFFFF"
-                              ? "#94A3B8"
-                              : template.color,
-                        }}
-                      >
-                        {template.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                      return (
+                        <button
+                          type="button"
+                          key={template.id}
+                          onClick={() => setSelectedTemplateId(template.id)}
+                          className={cn(
+                            "min-h-20 rounded-md border-2 px-3 py-2 text-left transition",
+                            selected
+                              ? "ring-2 ring-indigo-500 ring-offset-2"
+                              : "hover:scale-[1.01]"
+                          )}
+                          style={{
+                            backgroundColor: template.color,
+                            color: template.textColor,
+                            borderColor:
+                              template.color === "#FFFFFF"
+                                ? "#94A3B8"
+                                : template.color,
+                          }}
+                        >
+                          <span className="block font-bold">{template.name}</span>
+                          <span className="block text-sm font-semibold">
+                            {template.label}
+                          </span>
+                          {template.description && (
+                            <span className="mt-1 block text-xs opacity-85">
+                              {template.description}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="overtime-hours">Переработка, часов</Label>
+                  <Label htmlFor="overtime-hours">Переработка сверх смены, часов</Label>
                   <Input
                     id="overtime-hours"
                     type="number"
