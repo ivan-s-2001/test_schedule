@@ -28,16 +28,18 @@ export default async function EmployeeKWPage({ params }: EmployeeKWPageProps) {
   const weekDateStrings = weekDates.map((date) => date.toISOString());
 
   return (
-    <div className="schedule-equal-day-columns space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="schedule-equal-day-columns space-y-5">
+      <header className="space-y-3">
         <div>
-          <h1 className="text-2xl font-bold">График службы заботы</h1>
-          <p className="text-sm text-muted-foreground">
-            Недельная таблица сотрудников и смен из управляемого пула
+          <h1 className="text-[26px] font-medium leading-tight text-[#111319]">
+            График службы заботы
+          </h1>
+          <p className="mt-1 text-sm text-[#66778f]">
+            Недельная таблица сотрудников и смен
           </p>
         </div>
         <ViewSwitcher kw={kw} />
-      </div>
+      </header>
 
       <WeekNav
         weekNumber={weekNumber}
