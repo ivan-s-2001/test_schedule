@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useFormatter, useTranslations } from "next-intl";
 import { isToday } from "date-fns";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { dayNames, formatDateShort } from "@/lib/utils/calendar";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import { cn } from "@/lib/utils";
 import { ShiftCard } from "./shift-card";
@@ -24,18 +24,11 @@ interface ScheduleGridProps {
   weekDates: Date[];
 }
 
-function shiftWord(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return "смена";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-    return "смены";
-  }
-  return "смен";
-}
-
 export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps) {
   const { data: member } = useCurrentMember();
+  const t = useTranslations("schedule.grid");
+  const tErrors = useTranslations("errors");
+  const format = useFormatter();
   const isManager =
     member?.role === "OWNER" ||
     member?.role === "ADMIN" ||
@@ -54,7 +47,7 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
       const response = await fetch(
         `/api/schedules?kw=${weekNumber}&year=${year}`
       );
-      if (!response.ok) throw new Error("Не удалось загрузить график");
+      if (!response.ok) throw new Error(tErrors("loadSchedule"));
       return response.json();
     },
   });
@@ -156,6 +149,11 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
     const dayOfWeek = index + 1;
     const dayShifts = shiftsByDay[dayOfWeek] ?? [];
     const today = isToday(date);
+    const weekday = format.dateTime(date, { weekday: "short" });
+    const shortDate = format.dateTime(date, {
+      day: "2-digit",
+      month: "2-digit",
+    });
 
     return (
       <div
@@ -174,20 +172,18 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
           )}
         >
           <div>
-            <div className="text-sm font-semibold">{dayNames[index]}</div>
-            <div className="text-xs text-muted-foreground">
-              {formatDateShort(date)}
-            </div>
+            <div className="text-sm font-semibold capitalize">{weekday}</div>
+            <div className="text-xs text-muted-foreground">{shortDate}</div>
           </div>
           <div className="flex items-center gap-2">
             {today && (
               <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                Сегодня
+                {t("officialDayOff").includes("Official") ? "Today" : "Сегодня"}
               </span>
             )}
             {mobile && dayShifts.length > 0 && (
               <span className="text-xs text-muted-foreground">
-                {dayShifts.length} {shiftWord(dayShifts.length)}
+                {t("shiftCount", { count: dayShifts.length })}
               </span>
             )}
           </div>
@@ -196,7 +192,7 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
         <div className={cn("space-y-2 p-2", mobile && "p-3", !mobile && "flex-1")}>
           {dayShifts.length === 0 && (
             <div className="py-4 text-center text-xs text-muted-foreground">
-              Смен нет
+              {t("noShiftsDay")}
             </div>
           )}
 
@@ -223,7 +219,7 @@ export function ScheduleGrid({ weekNumber, year, weekDates }: ScheduleGridProps)
               onClick={() => openCreateForm(dayOfWeek)}
             >
               <Plus className="size-3.5" />
-              Добавить смену
+              {t("addShift")}
             </Button>
           )}
         </div>
