@@ -7,6 +7,8 @@ export type OvertimeBreakdown = {
   totalMinutes: number;
 };
 
+const EXCEL_MINUTE_TOLERANCE = 1;
+
 function minutes(value: string): number {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
   if (!match) throw new Error(`Некорректное время: ${value}`);
@@ -66,10 +68,15 @@ export function resolveOvertimeAgainstPool(
       const baseStart = base.start + offset;
       const baseEnd = base.end + offset;
 
-      if (actual.start > baseStart || actual.end < baseEnd) continue;
+      if (
+        actual.start - EXCEL_MINUTE_TOLERANCE > baseStart ||
+        actual.end + EXCEL_MINUTE_TOLERANCE < baseEnd
+      ) {
+        continue;
+      }
 
-      const rawBeforeMinutes = baseStart - actual.start;
-      const rawAfterMinutes = actual.end - baseEnd;
+      const rawBeforeMinutes = Math.max(0, baseStart - actual.start);
+      const rawAfterMinutes = Math.max(0, actual.end - baseEnd);
       const rawTotalMinutes = rawBeforeMinutes + rawAfterMinutes;
       const beforeMinutes = roundToHalfHour(rawBeforeMinutes);
       const afterMinutes = roundToHalfHour(rawAfterMinutes);
