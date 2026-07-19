@@ -40,6 +40,11 @@ export type ShiftData = {
   pauseValue: number;
   title: string | null;
   description: string | null;
+  poolTemplateCode: string | null;
+  poolLabel: string | null;
+  poolColor: string | null;
+  poolTextColor: string | null;
+  poolDescription: string | null;
   createdAt: string;
   deletedAt: string | null;
   division: ShiftDivision | null;
