@@ -1,4 +1,4 @@
-import type { ShiftTemplate } from "@/lib/schedule/shift-pool";
+import type { ShiftTemplate } from "./shift-pool";
 
 export type OvertimeBreakdown = {
   template: ShiftTemplate;
