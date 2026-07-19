@@ -106,7 +106,8 @@ export function ShiftAssignmentEditor({
   const [mode, setMode] = useState<EditorMode>("edit");
   const [kind, setKind] = useState<CellKind>("SHIFT");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [overtimeHours, setOvertimeHours] = useState("0");
+  const [overtimeBeforeHours, setOvertimeBeforeHours] = useState("0");
+  const [overtimeAfterHours, setOvertimeAfterHours] = useState("0");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -142,9 +143,18 @@ export function ShiftAssignmentEditor({
     setMode(hasValue ? "view" : "edit");
     setKind(targetKind);
     setSelectedTemplateId(currentTemplate?.id ?? "");
-    setOvertimeHours(
+    setOvertimeBeforeHours(
       target.assignment
-        ? String(target.assignment.booking.overtimeMinutes / 60)
+        ? String((target.assignment.booking.overtimeBeforeMinutes ?? 0) / 60)
+        : "0"
+    );
+    setOvertimeAfterHours(
+      target.assignment
+        ? String(
+            (target.assignment.booking.overtimeAfterMinutes ??
+              target.assignment.booking.overtimeMinutes ??
+              0) / 60
+          )
         : "0"
     );
     setDateFrom(
@@ -201,7 +211,8 @@ export function ShiftAssignmentEditor({
 
         if (target.dayOff || target.absence) await clearCurrentValue();
 
-        const parsedOvertime = Number(overtimeHours.replace(",", "."));
+        const parsedBefore = Number(overtimeBeforeHours.replace(",", "."));
+        const parsedAfter = Number(overtimeAfterHours.replace(",", "."));
         const response = await fetch("/api/schedule-assignments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -210,7 +221,8 @@ export function ShiftAssignmentEditor({
             userId: target.user.id,
             dayOfWeek: target.dayOfWeek,
             templateId: selectedTemplateId,
-            overtimeHours: Number.isFinite(parsedOvertime) ? parsedOvertime : 0,
+            overtimeBeforeHours: Number.isFinite(parsedBefore) ? parsedBefore : 0,
+            overtimeAfterHours: Number.isFinite(parsedAfter) ? parsedAfter : 0,
           }),
         });
         if (!response.ok) await readError(response, "Не удалось сохранить смену");
@@ -262,7 +274,12 @@ export function ShiftAssignmentEditor({
 
   const assignment = target?.assignment ?? null;
   const absence = target?.absence ?? null;
-  const overtimeMinutes = assignment?.booking.overtimeMinutes ?? 0;
+  const overtimeBeforeMinutes = assignment?.booking.overtimeBeforeMinutes ?? 0;
+  const overtimeAfterMinutes =
+    assignment?.booking.overtimeAfterMinutes ??
+    assignment?.booking.overtimeMinutes ??
+    0;
+  const overtimeMinutes = overtimeBeforeMinutes + overtimeAfterMinutes;
   const displayedKind = currentKind(target);
 
   return (
@@ -335,8 +352,12 @@ export function ShiftAssignmentEditor({
                   </div>
                 )}
                 {overtimeMinutes > 0 ? (
-                  <div className="mt-3 text-sm font-bold">
-                    Переработка: +{formatHours(overtimeMinutes / 60)} ч
+                  <div className="mt-3 space-y-1 text-sm font-bold">
+                    <div>Переработка: +{formatHours(overtimeMinutes / 60)} ч</div>
+                    <div className="text-xs font-semibold opacity-80">
+                      До смены: +{formatHours(overtimeBeforeMinutes / 60)} ч · После
+                      смены: +{formatHours(overtimeAfterMinutes / 60)} ч
+                    </div>
                   </div>
                 ) : isLegacyOvertime(assignment.shift) ? (
                   <div className="mt-3 text-sm font-bold">Переработка</div>
@@ -435,18 +456,45 @@ export function ShiftAssignmentEditor({
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="overtime-hours">Переработка сверх смены, часов</Label>
-                  <Input
-                    id="overtime-hours"
-                    type="number"
-                    min="0"
-                    max="24"
-                    step="0.5"
-                    value={overtimeHours}
-                    onChange={(event) => setOvertimeHours(event.target.value)}
-                    placeholder="0"
-                  />
+                <div className="grid grid-cols-1 gap-3 rounded-lg border bg-slate-50 p-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="overtime-before-hours">
+                      Переработка до смены, часов
+                    </Label>
+                    <Input
+                      id="overtime-before-hours"
+                      type="number"
+                      min="0"
+                      max="24"
+                      step="0.5"
+                      value={overtimeBeforeHours}
+                      onChange={(event) => setOvertimeBeforeHours(event.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="overtime-after-hours">
+                      Переработка после смены, часов
+                    </Label>
+                    <Input
+                      id="overtime-after-hours"
+                      type="number"
+                      min="0"
+                      max="24"
+                      step="0.5"
+                      value={overtimeAfterHours}
+                      onChange={(event) => setOvertimeAfterHours(event.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="text-xs font-semibold text-slate-600 sm:col-span-2">
+                    Итого: +
+                    {formatHours(
+                      (Number(overtimeBeforeHours.replace(",", ".")) || 0) +
+                        (Number(overtimeAfterHours.replace(",", ".")) || 0)
+                    )}{" "}
+                    ч
+                  </div>
                 </div>
               </>
             ) : kind === "DAY_OFF" ? (
