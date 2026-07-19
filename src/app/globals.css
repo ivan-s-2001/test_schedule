@@ -75,7 +75,7 @@
   --outline-sidebar-background: #eef2f6;
   --outline-sidebar-hover: #dee5ed;
   --outline-sidebar-active: #cdd8e5;
-  --outline-sidebar-text: #4e5c6e;
+  --outline-sidebar-text: #394351;
 
   --radius: 0.5rem;
   --background: #ffffff;
@@ -87,14 +87,14 @@
   --primary: #0366d6;
   --primary-foreground: #ffffff;
   --secondary: #eef2f6;
-  --secondary-foreground: #394351;
+  --secondary-foreground: #2f3336;
   --muted: #f4f7fa;
-  --muted-foreground: #66778f;
+  --muted-foreground: #4e5c6e;
   --accent: #dee5ed;
   --accent-foreground: #111319;
   --destructive: #ed2651;
   --border: #dae1e9;
-  --input: #dae1e9;
+  --input: #c6d3e1;
   --ring: #0366d6;
   --chart-1: #0366d6;
   --chart-2: #3ad984;
@@ -102,7 +102,7 @@
   --chart-4: #9e5cf7;
   --chart-5: #2bc2ff;
   --sidebar: #eef2f6;
-  --sidebar-foreground: #4e5c6e;
+  --sidebar-foreground: #394351;
   --sidebar-primary: #cdd8e5;
   --sidebar-primary-foreground: #111319;
   --sidebar-accent: #dee5ed;
@@ -139,7 +139,7 @@
   h5,
   h6 {
     color: var(--outline-almost-black);
-    font-weight: 500;
+    font-weight: 600;
     line-height: 1.25;
   }
 
@@ -157,7 +157,7 @@
   }
 }
 
-/* Outline surfaces: flat by default, shadow only for floating content. */
+/* Floating surfaces only. Ordinary cards and tables stay flat. */
 [data-slot="dialog-overlay"] {
   background: rgb(0 0 0 / 25%) !important;
 }
@@ -174,51 +174,19 @@
   color: #ffffff;
 }
 
-/* Legacy screens that still use Tailwind indigo utilities inherit Outline blue. */
-.bg-indigo-50 {
-  background-color: #eef2f6 !important;
-}
-
-.bg-indigo-100 {
-  background-color: #dee5ed !important;
-}
-
-.bg-indigo-500,
-.bg-indigo-600 {
-  background-color: #0366d6 !important;
-}
-
-.text-indigo-300,
-.text-indigo-400,
-.text-indigo-600,
-.text-indigo-700 {
-  color: #0366d6 !important;
-}
-
-.border-indigo-500,
-.border-indigo-600 {
-  border-color: #0366d6 !important;
-}
-
-.ring-indigo-400,
-.ring-indigo-500,
-.ring-indigo-600 {
-  --tw-ring-color: #0366d6 !important;
-}
-
-.hover\:bg-indigo-700:hover {
-  background-color: #035abd !important;
-}
-
-/* Keep Excel shift colors; only their surrounding interface follows Outline. */
+/* Schedule keeps the Excel colors but uses clear, high-contrast UI text. */
 .schedule-equal-day-columns {
-  color: var(--outline-almost-black);
+  color: #111319;
 }
 
 .schedule-equal-day-columns > div,
 .schedule-equal-day-columns details,
 .schedule-equal-day-columns [data-slot="card"] {
   box-shadow: none;
+}
+
+.schedule-equal-day-columns .text-muted-foreground {
+  color: #4e5c6e !important;
 }
 
 .schedule-equal-day-columns table {
@@ -241,13 +209,15 @@
 }
 
 .schedule-equal-day-columns table th {
-  border-color: rgb(218 225 233 / 70%);
-  color: var(--outline-slate-dark);
-  font-weight: 500;
+  border-color: rgb(218 225 233 / 90%);
+  color: #2f3336;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .schedule-equal-day-columns table td {
-  border-color: rgb(218 225 233 / 70%);
+  border-color: rgb(218 225 233 / 90%);
+  color: #111319;
 }
 
 /* Weekly schedule overtime badge. */
@@ -268,7 +238,7 @@ table[class*="min-w-[1080px]"] button.relative > span > span:nth-child(2) {
   border-radius: 999px;
   background: rgb(17 19 25 / 92%);
   color: #ffffff;
-  font-size: 0.55rem;
+  font-size: 0.625rem;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
