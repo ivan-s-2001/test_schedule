@@ -25,37 +25,37 @@ if /I not "%CONFIRM%"=="DELETE" (
 )
 
 echo.
-echo [1/11] Переключение на develop...
+echo [1/12] Переключение на develop...
 git switch develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [2/11] Получение изменений...
+echo [2/12] Получение изменений...
 git pull --ff-only origin develop
 if errorlevel 1 goto :fail
 
 echo.
-echo [3/11] Установка зависимостей...
+echo [3/12] Установка зависимостей...
 call npm install
 if errorlevel 1 goto :fail
 
 echo.
-echo [4/11] Полное удаление данных и повтор всех миграций...
+echo [4/12] Полное удаление данных и повтор всех миграций...
 call npx prisma migrate reset --force
 if errorlevel 1 goto :fail
 
 echo.
-echo [5/11] Обновление Prisma Client...
+echo [5/12] Обновление Prisma Client...
 call npx prisma generate
 if errorlevel 1 goto :fail
 
 echo.
-echo [6/11] Первоначальное заполнение базы...
+echo [6/12] Первоначальное заполнение базы...
 call npx prisma db seed
 if errorlevel 1 goto :fail
 
 echo.
-echo [7/11] Повторный импорт графика службы заботы...
+echo [7/12] Повторный импорт графика службы заботы...
 if exist "scripts\migration\care-schedule-2026-01-07.json" (
   call npx tsx --env-file=.env scripts/migration/import-care-schedule.ts --apply
   if errorlevel 1 goto :fail
@@ -65,7 +65,7 @@ if exist "scripts\migration\care-schedule-2026-01-07.json" (
 )
 
 echo.
-echo [8/11] Импорт пометок и статусов из Excel...
+echo [8/12] Импорт пометок и статусов из Excel...
 if exist "scripts\migration\care-day-notes-2026.json" (
   call npx tsx --env-file=.env scripts/migration/import-care-day-notes.ts --apply
   if errorlevel 1 goto :fail
@@ -75,7 +75,17 @@ if exist "scripts\migration\care-day-notes-2026.json" (
 )
 
 echo.
-echo [9/11] Остановка предыдущего сервера на порту %APP_PORT%...
+echo [9/12] Импорт выходных и отсутствий из Excel...
+if exist "scripts\migration\care-cell-statuses-2026.json" (
+  call npx tsx --env-file=.env scripts/migration/import-care-cell-statuses.ts --apply
+  if errorlevel 1 goto :fail
+) else (
+  echo Файл scripts\migration\care-cell-statuses-2026.json не найден.
+  echo Выходные и отсутствия Excel не импортированы.
+)
+
+echo.
+echo [10/12] Остановка предыдущего сервера на порту %APP_PORT%...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ids = Get-NetTCPConnection -LocalPort %APP_PORT% -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($id in $ids) { if ($id) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } }"
 if errorlevel 1 goto :fail
 
@@ -96,12 +106,12 @@ if not "%PORT_FREE%"=="1" (
 )
 
 echo.
-echo [10/11] Пересборка приложения на порту %APP_PORT%...
+echo [11/12] Пересборка приложения на порту %APP_PORT%...
 call npm run build
 if errorlevel 1 goto :fail
 
 echo.
-echo [11/11] Запуск собранного приложения...
+echo [12/12] Запуск собранного приложения...
 start "Schichtplaner" cmd /k "set NODE_ENV=production&& set PORT=%APP_PORT%&& set APP_URL=%APP_URL%&& set NEXTAUTH_URL=%NEXTAUTH_URL%&& npx tsx --env-file=.env server.ts"
 if errorlevel 1 goto :fail
 
