@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Loader2, Pencil, Plus, PowerOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,9 @@ async function readError(response: Response, fallback: string): Promise<never> {
 
 export function ShiftPoolManager() {
   const queryClient = useQueryClient();
+  const t = useTranslations("schedule.pool");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
   const [editing, setEditing] = useState<ShiftTemplate | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -58,7 +62,7 @@ export function ShiftPoolManager() {
     queryKey: ["shift-pool", "management"],
     queryFn: async () => {
       const response = await fetch("/api/shift-pool?includeInactive=1");
-      if (!response.ok) throw new Error("Не удалось загрузить пул смен");
+      if (!response.ok) throw new Error(tErrors("loadSchedule"));
       return response.json();
     },
   });
@@ -108,24 +112,15 @@ export function ShiftPoolManager() {
         }),
       });
 
-      if (!response.ok) await readError(response, "Не удалось сохранить смену");
+      if (!response.ok) await readError(response, tErrors("save"));
       return response.json();
     },
-    onSuccess: async (result) => {
+    onSuccess: async () => {
       const wasEditing = Boolean(editing);
       await refreshPool();
       setDialogOpen(false);
       setEditing(null);
-
-      if (wasEditing) {
-        toast.success(
-          `Смена обновлена. Назначений обновлено: ${Number(
-            result?.updatedAssignments ?? 0
-          )}`
-        );
-      } else {
-        toast.success("Смена добавлена в пул");
-      }
+      toast.success(wasEditing ? t("updated") : t("created"));
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
@@ -137,11 +132,11 @@ export function ShiftPoolManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: template.id }),
       });
-      if (!response.ok) await readError(response, "Не удалось отключить смену");
+      if (!response.ok) await readError(response, tErrors("delete"));
     },
     onSuccess: async () => {
       await refreshPool();
-      toast.success("Смена отключена. История сохранена.");
+      toast.success(t("disabled"));
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
@@ -160,7 +155,7 @@ export function ShiftPoolManager() {
     return (
       <div className="flex items-center justify-center gap-2 rounded-md border bg-white p-10 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
-        Загрузка пула смен…
+        {tCommon("loading")}
       </div>
     );
   }
@@ -168,7 +163,7 @@ export function ShiftPoolManager() {
   if (error || !data) {
     return (
       <div className="rounded-md border p-8 text-center text-destructive">
-        Не удалось загрузить пул смен.
+        {tErrors("loadSchedule")}
       </div>
     );
   }
@@ -177,15 +172,15 @@ export function ShiftPoolManager() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Пул смен</h2>
+          <h2 className="text-lg font-semibold">{t("title")}</h2>
           <p className="text-xs text-muted-foreground">
-            Без галочки прошлые даты сохраняют прежние параметры.
+            {t("applyPreviousHint")}
           </p>
         </div>
         {data.canEdit && (
           <Button size="sm" onClick={openCreate}>
             <Plus className="size-4" />
-            Добавить
+            {t("add")}
           </Button>
         )}
       </div>
@@ -194,11 +189,19 @@ export function ShiftPoolManager() {
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-600">
             <tr>
-              <th className="w-14 px-3 py-2 font-medium">Цвет</th>
-              <th className="px-3 py-2 font-medium">Тип смены</th>
-              <th className="w-36 px-3 py-2 font-medium">Время</th>
-              <th className="w-24 px-3 py-2 font-medium">Статус</th>
-              <th className="w-24 px-3 py-2 text-right font-medium">Действия</th>
+              <th className="w-14 px-3 py-2 font-medium">
+                {tCommon("color")}
+              </th>
+              <th className="px-3 py-2 font-medium">
+                {tCommon("name")}
+              </th>
+              <th className="w-36 px-3 py-2 font-medium">{t("time")}</th>
+              <th className="w-24 px-3 py-2 font-medium">
+                {tCommon("status")}
+              </th>
+              <th className="w-24 px-3 py-2 text-right font-medium">
+                {tCommon("actions")}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -218,7 +221,9 @@ export function ShiftPoolManager() {
                   />
                 </td>
                 <td className="px-3 py-2">
-                  <div className="font-semibold text-slate-900">{template.name}</div>
+                  <div className="font-semibold text-slate-900">
+                    {template.name}
+                  </div>
                   {template.description && (
                     <div className="mt-0.5 max-w-2xl text-xs leading-tight text-slate-500">
                       {template.description}
@@ -229,7 +234,9 @@ export function ShiftPoolManager() {
                   {template.label}
                 </td>
                 <td className="px-3 py-2 text-xs">
-                  {template.isActive ? "Активна" : "Отключена"}
+                  {template.isActive
+                    ? tCommon("active")
+                    : tCommon("disabled")}
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex justify-end gap-1">
@@ -237,7 +244,7 @@ export function ShiftPoolManager() {
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      title={template.isActive ? "Изменить" : "Восстановить"}
+                      title={template.isActive ? t("edit") : t("enable")}
                       onClick={() => openEdit(template)}
                     >
                       <Pencil className="size-4" />
@@ -247,14 +254,10 @@ export function ShiftPoolManager() {
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        title="Отключить"
+                        title={t("disable")}
                         disabled={disableMutation.isPending}
                         onClick={() => {
-                          if (
-                            window.confirm(
-                              `Отключить «${template.name} ${template.label}»? История сохранится.`
-                            )
-                          ) {
+                          if (window.confirm(t("deleteConfirm"))) {
                             disableMutation.mutate(template);
                           }
                         }}
@@ -279,31 +282,29 @@ export function ShiftPoolManager() {
       >
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Изменить смену" : "Добавить смену"}</DialogTitle>
-            <DialogDescription>
-              Основные параметры типа смены: цвет, пояснение и время.
-            </DialogDescription>
+            <DialogTitle>{editing ? t("edit") : t("add")}</DialogTitle>
+            <DialogDescription>{t("subtitle")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3 py-1">
             <div className="space-y-1.5">
-              <Label htmlFor="pool-name">Название</Label>
+              <Label htmlFor="pool-name">{tCommon("name")}</Label>
               <Input
                 id="pool-name"
                 value={form.name}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, name: event.target.value }))
                 }
-                placeholder="Утренняя смена"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="pool-from">Начало</Label>
+                <Label htmlFor="pool-from">{tCommon("from")}</Label>
                 <Input
                   id="pool-from"
                   type="time"
+                  step="1800"
                   value={form.shiftFrom}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -314,10 +315,11 @@ export function ShiftPoolManager() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pool-to">Окончание</Label>
+                <Label htmlFor="pool-to">{tCommon("to")}</Label>
                 <Input
                   id="pool-to"
                   type="time"
+                  step="1800"
                   value={form.shiftTo}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -331,7 +333,7 @@ export function ShiftPoolManager() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="pool-color">Цвет ячейки</Label>
+                <Label htmlFor="pool-color">{t("backgroundColor")}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="pool-color"
@@ -357,7 +359,7 @@ export function ShiftPoolManager() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pool-text-color">Цвет текста</Label>
+                <Label htmlFor="pool-text-color">{t("textColor")}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="pool-text-color"
@@ -385,7 +387,9 @@ export function ShiftPoolManager() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="pool-description">Пояснение</Label>
+              <Label htmlFor="pool-description">
+                {tCommon("description")}
+              </Label>
               <textarea
                 id="pool-description"
                 value={form.description}
@@ -397,7 +401,6 @@ export function ShiftPoolManager() {
                 }
                 rows={2}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="Ответственный за почту и Verbox в указанное время"
               />
             </div>
 
@@ -406,30 +409,38 @@ export function ShiftPoolManager() {
               style={{
                 backgroundColor: form.color,
                 color: form.textColor,
-                borderColor: form.color === "#FFFFFF" ? "#94A3B8" : form.color,
+                borderColor:
+                  form.color === "#FFFFFF" ? "#94A3B8" : form.color,
               }}
             >
-              <span className="font-semibold">{form.name || "Название смены"}</span>
+              <span className="font-semibold">
+                {form.name || tCommon("name")}
+              </span>
               <span className="font-medium tabular-nums">
                 {form.shiftFrom}–{form.shiftTo}
               </span>
             </div>
 
             {editing && (
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.applyToPreviousDates}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      applyToPreviousDates: event.target.checked,
-                    }))
-                  }
-                  className="size-4"
-                />
-                Применить изменения к предыдущим датам
-              </label>
+              <div className="space-y-1">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.applyToPreviousDates}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        applyToPreviousDates: event.target.checked,
+                      }))
+                    }
+                    className="size-4"
+                  />
+                  {t("applyPrevious")}
+                </label>
+                <p className="pl-6 text-xs text-muted-foreground">
+                  {t("applyPreviousHint")}
+                </p>
+              </div>
             )}
           </div>
 
@@ -439,7 +450,7 @@ export function ShiftPoolManager() {
               variant="outline"
               onClick={() => setDialogOpen(false)}
             >
-              Отмена
+              {tCommon("cancel")}
             </Button>
             <Button
               type="button"
@@ -456,7 +467,7 @@ export function ShiftPoolManager() {
               {saveMutation.isPending && (
                 <Loader2 className="size-4 animate-spin" />
               )}
-              Сохранить
+              {tCommon("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
