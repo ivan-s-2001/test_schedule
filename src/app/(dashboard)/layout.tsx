@@ -23,9 +23,9 @@ export default function DashboardLayout({
           <SocketProvider>
             <div className="min-h-screen bg-background text-foreground">
               <TopNav />
-              <main className="mx-auto w-full max-w-[1600px] px-4 py-5 md:px-6 md:py-6 lg:px-8">
-                {children}
-              </main>
+              <div className="lg:pl-[260px]">
+                <main className="app-content min-h-screen">{children}</main>
+              </div>
             </div>
             <ChatWidget />
             <Toaster
@@ -33,8 +33,12 @@ export default function DashboardLayout({
               richColors={false}
               toastOptions={{
                 classNames: {
-                  toast: "border-border bg-popover text-popover-foreground",
+                  toast:
+                    "border-border bg-popover text-popover-foreground shadow-[var(--outline-menu-shadow)]",
+                  title: "text-foreground",
                   description: "text-muted-foreground",
+                  actionButton: "bg-primary text-primary-foreground",
+                  cancelButton: "bg-secondary text-secondary-foreground",
                 },
               }}
             />
