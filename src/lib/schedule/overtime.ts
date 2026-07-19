@@ -51,6 +51,10 @@ function isOvertimeTemplate(template: ShiftTemplate): boolean {
   return template.name.trim().toLocaleLowerCase("ru-RU") === "переработка";
 }
 
+function timeCode(value: string): string {
+  return value.replace(":", "-");
+}
+
 type Candidate = OvertimeBreakdown & { score: number };
 
 /**
@@ -59,7 +63,7 @@ type Candidate = OvertimeBreakdown & { score: number };
  * - exact interval: use the pool shift as-is;
  * - longer interval: use the pool shift and split overtime before/after;
  * - shorter interval: keep the actual interval as a one-off shortened
- *   assignment, inheriting the nearest pool type's name, color and description.
+ *   snapshot inheriting the nearest pool type's name, color and description.
  */
 export function resolveOvertimeAgainstPool(
   actualFrom: string,
@@ -145,9 +149,16 @@ export function resolveOvertimeAgainstPool(
       const endsTogether =
         Math.abs(actual.end - baseEnd) <= EXCEL_MINUTE_TOLERANCE;
       const boundaryRank = startsTogether ? 0 : endsTogether ? 1 : 2;
+      const shortenedTemplate: ShiftTemplate = {
+        ...template,
+        id: `${template.id}__short_${timeCode(actualFrom)}_${timeCode(actualTo)}`,
+        label: `${actualFrom}–${actualTo}`,
+        shiftFrom: actualFrom,
+        shiftTo: actualTo,
+      };
 
       shortenedCandidates.push({
-        template,
+        template: shortenedTemplate,
         shiftFrom: actualFrom,
         shiftTo: actualTo,
         beforeMinutes: 0,
