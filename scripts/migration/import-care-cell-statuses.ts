@@ -46,6 +46,7 @@ const IMPORT_MARKER = "[CARE_EXCEL_CELL_STATUS_2026]";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const dataPath = path.join(scriptDir, "care-cell-statuses-2026.json");
 const apply = process.argv.includes("--apply");
+const force = process.argv.includes("--force");
 
 function fail(message: string): never {
   throw new Error(message);
@@ -114,16 +115,22 @@ function loadSource(): MigrationSource {
     dayOffKeys.add(key);
   }
 
+  const absenceKeys = new Set<string>();
   for (const absence of source.absences) {
     if (!absence.employeeNickname.trim()) fail("У отсутствия отсутствует сотрудник");
     if (absence.type !== "VACATION" && absence.type !== "SICK") {
       fail(`Неизвестный тип отсутствия: ${absence.type}`);
     }
+
     const from = parseDate(absence.dateFrom);
     const to = parseDate(absence.dateTo);
     if (from > to) {
       fail(`Некорректный период: ${absence.dateFrom} — ${absence.dateTo}`);
     }
+
+    const key = `${normalizeName(absence.employeeNickname)}|${absence.type}|${absence.dateFrom}|${absence.dateTo}`;
+    if (absenceKeys.has(key)) fail(`Повторяется период отсутствия: ${key}`);
+    absenceKeys.add(key);
   }
 
   return source;
@@ -221,6 +228,27 @@ async function main() {
 
   const actor = await findOrganization();
   const organizationId = actor.organizationId;
+
+  const existingImportedAbsences = await db.absence.count({
+    where: {
+      note: { startsWith: IMPORT_MARKER },
+      user: {
+        memberships: {
+          some: { organizationId, isActive: true },
+        },
+      },
+    },
+  });
+
+  if (existingImportedAbsences > 0 && !force) {
+    console.log("");
+    console.log(
+      `Импорт уже выполнен: найдено периодов ${existingImportedAbsences}. Повторный импорт пропущен.`
+    );
+    console.log("Для принудительной замены добавьте параметр --force.");
+    return;
+  }
+
   const members = await db.organizationMember.findMany({
     where: {
       organizationId,
@@ -236,6 +264,7 @@ async function main() {
       member.user.nickname,
       member.user.firstName,
       `${member.user.firstName} ${member.user.lastName}`,
+      `${member.user.lastName} ${member.user.firstName}`,
     ].filter((value): value is string => Boolean(value?.trim()));
 
     for (const candidate of candidates) {
@@ -287,6 +316,19 @@ async function main() {
     return schedule.id;
   }
 
+  if (force) {
+    await db.absence.deleteMany({
+      where: {
+        note: { startsWith: IMPORT_MARKER },
+        user: {
+          memberships: {
+            some: { organizationId, isActive: true },
+          },
+        },
+      },
+    });
+  }
+
   let dayOffUpserts = 0;
   for (const dayOff of source.dayOffs) {
     const userId = resolveUserId(dayOff.employeeNickname);
@@ -316,17 +358,6 @@ async function main() {
     where: {
       organizationId,
       name: { equals: "Больничный", mode: "insensitive" },
-    },
-  });
-
-  await db.absence.deleteMany({
-    where: {
-      note: { startsWith: IMPORT_MARKER },
-      user: {
-        memberships: {
-          some: { organizationId, isActive: true },
-        },
-      },
     },
   });
 
