@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
   Radio,
@@ -17,9 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { useSocket, useSocketEvent } from "@/lib/socket";
-import { dayNames } from "@/lib/utils/calendar";
 
 type LiveDayData = {
   id: string;
@@ -62,9 +61,15 @@ interface LiveModeProps {
   isManager: boolean;
 }
 
+function dayDate(dayOfWeek: number): Date {
+  return new Date(2024, 0, dayOfWeek);
+}
+
 export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
   const queryClient = useQueryClient();
   const { joinSchedule, leaveSchedule } = useSocket();
+  const t = useTranslations("schedule.live");
+  const tErrors = useTranslations("errors");
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -77,9 +82,7 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
     queryKey: ["live-session", scheduleId],
     queryFn: async () => {
       const response = await fetch(`/api/live?scheduleId=${scheduleId}`);
-      if (!response.ok) {
-        throw new Error("Не удалось загрузить состояние самозаписи");
-      }
+      if (!response.ok) throw new Error(tErrors("loadSchedule"));
       return response.json();
     },
     enabled: Boolean(scheduleId),
@@ -108,13 +111,13 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
 
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || "Не удалось открыть самозапись");
+        throw new Error(result.error || tErrors("save"));
       }
 
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Самозапись открыта");
+      toast.success(t("opened"));
       refresh();
       setExpanded(true);
     },
@@ -130,13 +133,13 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
 
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || "Не удалось закрыть самозапись");
+        throw new Error(result.error || tErrors("save"));
       }
 
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Самозапись закрыта");
+      toast.success(t("closed"));
       refresh();
       setExpanded(false);
     },
@@ -163,7 +166,7 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
             ) : (
               <Radio className="size-3.5" />
             )}
-            Открыть самозапись
+            {t("open")}
           </Button>
         )}
 
@@ -173,9 +176,7 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
             size="sm"
             className="gap-1.5 border-red-300 text-red-700 hover:bg-red-50"
             onClick={() => {
-              if (confirm("Закрыть самостоятельную запись на смены?")) {
-                stopMutation.mutate();
-              }
+              if (confirm(t("confirmClose"))) stopMutation.mutate();
             }}
             disabled={isPending}
           >
@@ -184,7 +185,7 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
             ) : (
               <Square className="size-3.5" />
             )}
-            Закрыть самозапись
+            {t("close")}
           </Button>
         )}
 
@@ -199,7 +200,7 @@ export function LiveMode({ scheduleId, isManager }: LiveModeProps) {
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-purple-300 opacity-75" />
                 <span className="relative inline-flex size-2 rounded-full bg-white" />
               </span>
-              Самозапись открыта
+              {t("opened")}
               {expanded ? (
                 <ChevronUp className="size-3" />
               ) : (
@@ -230,6 +231,9 @@ function LivePanel({
   isManager: boolean;
   scheduleId: string;
 }) {
+  const t = useTranslations("schedule.live");
+  const format = useFormatter();
+
   return (
     <div className="mt-3 space-y-4 rounded-lg border-2 border-purple-200 bg-purple-50/50 p-4">
       <LiveTimer startedAt={session.startedAt} />
@@ -243,21 +247,21 @@ function LivePanel({
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">
-            Можно записаться на:
+            {t("canBook")}
           </span>
           {session.days
             .filter((day) => day.enabled)
             .map((day) => (
               <Badge
                 key={day.id}
-                className="bg-purple-600 text-xs hover:bg-purple-600"
+                className="bg-purple-600 text-xs capitalize hover:bg-purple-600"
               >
-                {dayNames[day.dayOfWeek - 1]}
+                {format.dateTime(dayDate(day.dayOfWeek), { weekday: "short" })}
               </Badge>
             ))}
           {!session.days.some((day) => day.enabled) && (
             <span className="text-xs text-muted-foreground">
-              доступных дней нет
+              {t("noAvailableDays")}
             </span>
           )}
         </div>
@@ -269,6 +273,7 @@ function LivePanel({
 }
 
 function LiveTimer({ startedAt }: { startedAt: string }) {
+  const t = useTranslations("schedule.live");
   const [elapsed, setElapsed] = useState("");
 
   useEffect(() => {
@@ -279,12 +284,9 @@ function LiveTimer({ startedAt }: { startedAt: string }) {
       const hours = Math.floor(difference / 3_600_000);
       const minutes = Math.floor((difference % 3_600_000) / 60_000);
       const seconds = Math.floor((difference % 60_000) / 1000);
-      const parts: string[] = [];
-
-      if (hours > 0) parts.push(`${hours} ч`);
-      parts.push(`${String(minutes).padStart(2, "0")} мин`);
-      parts.push(`${String(seconds).padStart(2, "0")} с`);
-      setElapsed(parts.join(" "));
+      setElapsed(
+        `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+      );
     }
 
     update();
@@ -295,7 +297,7 @@ function LiveTimer({ startedAt }: { startedAt: string }) {
   return (
     <div className="flex items-center gap-2 text-sm text-purple-700">
       <Clock className="size-4" />
-      <span className="font-medium">Открыта: {elapsed}</span>
+      <span className="font-medium">{t("openedFor", { duration: elapsed })}</span>
     </div>
   );
 }
@@ -310,6 +312,9 @@ function DayToggles({
   scheduleId: string;
 }) {
   const queryClient = useQueryClient();
+  const t = useTranslations("schedule.live");
+  const tErrors = useTranslations("errors");
+  const format = useFormatter();
 
   const toggleMutation = useMutation({
     mutationFn: async ({
@@ -327,7 +332,7 @@ function DayToggles({
 
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || "Не удалось изменить доступный день");
+        throw new Error(result.error || tErrors("save"));
       }
 
       return response.json();
@@ -343,7 +348,7 @@ function DayToggles({
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium text-purple-700">
-        Дни, доступные для самостоятельной записи:
+        {t("availableDays")}
       </p>
       <div className="flex flex-wrap items-center gap-3">
         {days.map((day) => (
@@ -359,8 +364,8 @@ function DayToggles({
               }
               disabled={toggleMutation.isPending}
             />
-            <Label className="cursor-pointer text-xs">
-              {dayNames[day.dayOfWeek - 1]}
+            <Label className="cursor-pointer text-xs capitalize">
+              {format.dateTime(dayDate(day.dayOfWeek), { weekday: "short" })}
             </Label>
           </div>
         ))}
@@ -370,17 +375,22 @@ function DayToggles({
 }
 
 function LiveLogFeed({ logs }: { logs: LiveLogData[] }) {
+  const t = useTranslations("schedule.live");
+  const format = useFormatter();
+
   if (logs.length === 0) {
     return (
       <div className="py-2 text-center text-xs text-muted-foreground">
-        Действий пока не было
+        {t("noActions")}
       </div>
     );
   }
 
   return (
     <div className="max-h-48 space-y-1.5 overflow-y-auto">
-      <p className="text-xs font-medium text-purple-700">Последние действия:</p>
+      <p className="text-xs font-medium text-purple-700">
+        {t("recentActions")}
+      </p>
       {logs.map((log) => (
         <div
           key={log.id}
@@ -395,24 +405,18 @@ function LiveLogFeed({ logs }: { logs: LiveLogData[] }) {
             {log.user.firstName} {log.user.lastName}
           </span>
           <span className="text-muted-foreground">
-            {log.action === "BOOK"
-              ? "записался на смену"
-              : "отменил запись"}
+            {log.action === "BOOK" ? t("booked") : t("unbooked")}
           </span>
           <span className="ml-auto shrink-0 text-muted-foreground">
-            {formatTime(log.loggedAt)}
+            {format.dateTime(new Date(log.loggedAt), {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </span>
         </div>
       ))}
     </div>
   );
-}
-
-function formatTime(value: string): string {
-  return new Date(value).toLocaleTimeString("ru-RU", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export function LiveBorder({
