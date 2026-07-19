@@ -11,7 +11,25 @@ const cellStatusSchema = z.object({
   userId: z.string().min(1),
   dayOfWeek: z.number().int().min(1).max(7),
   type: z.enum(["DAY_OFF", "VACATION", "SICK", "CLEAR"]),
+  dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  absenceId: z.string().min(1).optional(),
 });
+
+type DateSlot = {
+  date: Date;
+  year: number;
+  weekNumber: number;
+  dayOfWeek: number;
+};
+
+function parseDate(value: string): Date {
+  const result = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(result.getTime())) {
+    throw new Error("Некорректная дата");
+  }
+  return result;
+}
 
 function getDateForSchedule(
   year: number,
@@ -32,8 +50,29 @@ function getDateForSchedule(
   return result;
 }
 
-function isSameDate(left: Date, right: Date): boolean {
-  return left.toISOString().slice(0, 10) === right.toISOString().slice(0, 10);
+function getDateSlot(date: Date): DateSlot {
+  const dayOfWeek = date.getUTCDay() || 7;
+  const thursday = new Date(date);
+  thursday.setUTCDate(date.getUTCDate() + 4 - dayOfWeek);
+  const year = thursday.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const weekNumber = Math.ceil(
+    ((thursday.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+  );
+
+  return { date, year, weekNumber, dayOfWeek };
+}
+
+function eachDate(from: Date, to: Date): DateSlot[] {
+  const result: DateSlot[] = [];
+  const current = new Date(from);
+
+  while (current <= to) {
+    result.push(getDateSlot(new Date(current)));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return result;
 }
 
 async function removeExistingAssignment(
@@ -117,7 +156,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { member } = access;
-  const { scheduleId, userId, dayOfWeek, type } = parsed.data;
+  const {
+    scheduleId,
+    userId,
+    dayOfWeek,
+    type,
+    dateFrom,
+    dateTo,
+    absenceId,
+  } = parsed.data;
 
   const [schedule, targetMember] = await Promise.all([
     db.schedule.findFirst({
@@ -142,7 +189,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Ячейка графика не найдена" }, { status: 404 });
   }
 
-  const date = getDateForSchedule(
+  const selectedDate = getDateForSchedule(
     schedule.year,
     schedule.weekNumber,
     dayOfWeek
@@ -150,67 +197,58 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const existingAbsence = await tx.absence.findFirst({
-        where: {
-          userId,
-          status: "APPROVED",
-          dateFrom: { lte: date },
-          dateTo: { gte: date },
-        },
-        include: { category: true },
-        orderBy: { dateFrom: "asc" },
-      });
+      if (type === "CLEAR") {
+        await removeExistingAssignment(tx, scheduleId, userId, dayOfWeek);
+        await tx.$executeRaw`
+          DELETE FROM "schedule_day_offs"
+          WHERE "scheduleId" = ${scheduleId}
+            AND "userId" = ${userId}
+            AND "dayOfWeek" = ${dayOfWeek}
+        `;
 
-      const exactOneDayAbsence =
-        existingAbsence &&
-        isSameDate(existingAbsence.dateFrom, date) &&
-        isSameDate(existingAbsence.dateTo, date);
+        if (absenceId) {
+          const absence = await tx.absence.findFirst({
+            where: {
+              id: absenceId,
+              userId,
+              user: {
+                memberships: {
+                  some: {
+                    organizationId: member.organizationId,
+                    isActive: true,
+                  },
+                },
+              },
+            },
+            select: { id: true },
+          });
 
-      if (existingAbsence && !exactOneDayAbsence) {
-        const expectedCategory =
-          type === "VACATION"
-            ? "Отпуск"
-            : type === "SICK"
-              ? "Больничный"
-              : null;
-
-        if (
-          expectedCategory &&
-          existingAbsence.category.name.toLowerCase() ===
-            expectedCategory.toLowerCase()
-        ) {
-          await removeExistingAssignment(tx, scheduleId, userId, dayOfWeek);
-          await tx.$executeRaw`
-            DELETE FROM "schedule_day_offs"
-            WHERE "scheduleId" = ${scheduleId}
-              AND "userId" = ${userId}
-              AND "dayOfWeek" = ${dayOfWeek}
-          `;
-          return { type, absenceId: existingAbsence.id };
+          if (absence) {
+            await tx.absence.delete({ where: { id: absence.id } });
+          }
         }
 
-        throw new Error(
-          "Этот день входит в многодневное отсутствие. Измените период в разделе отсутствий."
-        );
-      }
-
-      await removeExistingAssignment(tx, scheduleId, userId, dayOfWeek);
-      await tx.$executeRaw`
-        DELETE FROM "schedule_day_offs"
-        WHERE "scheduleId" = ${scheduleId}
-          AND "userId" = ${userId}
-          AND "dayOfWeek" = ${dayOfWeek}
-      `;
-
-      if (exactOneDayAbsence) {
-        await tx.absence.delete({ where: { id: existingAbsence.id } });
-      }
-
-      if (type === "CLEAR") {
         return { type };
       }
 
       if (type === "DAY_OFF") {
+        const overlappingAbsence = await tx.absence.findFirst({
+          where: {
+            userId,
+            status: "APPROVED",
+            dateFrom: { lte: selectedDate },
+            dateTo: { gte: selectedDate },
+          },
+          select: { id: true },
+        });
+
+        if (overlappingAbsence) {
+          throw new Error(
+            "На этот день уже задан отпуск или больничный. Сначала измените период отсутствия."
+          );
+        }
+
+        await removeExistingAssignment(tx, scheduleId, userId, dayOfWeek);
         await tx.$executeRaw`
           INSERT INTO "schedule_day_offs"
             ("id", "scheduleId", "userId", "dayOfWeek", "createdAt", "updatedAt")
@@ -221,6 +259,62 @@ export async function POST(request: NextRequest) {
         `;
 
         return { type };
+      }
+
+      if (!dateFrom || !dateTo) {
+        throw new Error("Для отсутствия укажите период с и по");
+      }
+
+      const from = parseDate(dateFrom);
+      const to = parseDate(dateTo);
+      if (from > to) {
+        throw new Error("Дата начала не может быть позже даты окончания");
+      }
+
+      const slots = eachDate(from, to);
+      const weekKeys = [
+        ...new Map(
+          slots.map((slot) => [
+            `${slot.year}-${slot.weekNumber}`,
+            { year: slot.year, weekNumber: slot.weekNumber },
+          ])
+        ).values(),
+      ];
+
+      const schedules = await tx.schedule.findMany({
+        where: {
+          organizationId: member.organizationId,
+          branchId: null,
+          deletedAt: null,
+          OR: weekKeys,
+        },
+        select: { id: true, year: true, weekNumber: true },
+      });
+      const scheduleByWeek = new Map(
+        schedules.map((item) => [
+          `${item.year}-${item.weekNumber}`,
+          item.id,
+        ])
+      );
+
+      for (const slot of slots) {
+        const targetScheduleId = scheduleByWeek.get(
+          `${slot.year}-${slot.weekNumber}`
+        );
+        if (!targetScheduleId) continue;
+
+        await removeExistingAssignment(
+          tx,
+          targetScheduleId,
+          userId,
+          slot.dayOfWeek
+        );
+        await tx.$executeRaw`
+          DELETE FROM "schedule_day_offs"
+          WHERE "scheduleId" = ${targetScheduleId}
+            AND "userId" = ${userId}
+            AND "dayOfWeek" = ${slot.dayOfWeek}
+        `;
       }
 
       const categoryName = type === "VACATION" ? "Отпуск" : "Больничный";
@@ -243,12 +337,46 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      if (absenceId) {
+        const existing = await tx.absence.findFirst({
+          where: {
+            id: absenceId,
+            userId,
+            user: {
+              memberships: {
+                some: {
+                  organizationId: member.organizationId,
+                  isActive: true,
+                },
+              },
+            },
+          },
+          select: { id: true },
+        });
+
+        if (!existing) {
+          throw new Error("Период отсутствия не найден");
+        }
+
+        const absence = await tx.absence.update({
+          where: { id: existing.id },
+          data: {
+            categoryId: category.id,
+            dateFrom: from,
+            dateTo: to,
+            status: "APPROVED",
+          },
+        });
+
+        return { type, absenceId: absence.id };
+      }
+
       const absence = await tx.absence.create({
         data: {
           userId,
           categoryId: category.id,
-          dateFrom: date,
-          dateTo: date,
+          dateFrom: from,
+          dateTo: to,
           status: "APPROVED",
           note: "Добавлено из графика",
         },
