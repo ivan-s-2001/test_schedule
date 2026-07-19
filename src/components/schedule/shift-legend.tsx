@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import type { ShiftTemplate } from "@/lib/schedule/shift-pool";
 
@@ -64,11 +65,17 @@ function SystemLegendItem({
 }
 
 export function ShiftLegend() {
+  const t = useTranslations("schedule.legend");
+  const tGrid = useTranslations("schedule.grid");
+  const tEditor = useTranslations("schedule.editor");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
+
   const { data, isLoading } = useQuery<ShiftPoolResponse>({
     queryKey: ["shift-pool"],
     queryFn: async () => {
       const response = await fetch("/api/shift-pool");
-      if (!response.ok) throw new Error("Не удалось загрузить обозначения");
+      if (!response.ok) throw new Error(tErrors("loadSchedule"));
       return response.json();
     },
   });
@@ -97,14 +104,14 @@ export function ShiftLegend() {
   return (
     <details className="rounded-lg border border-[#DAE1E9] bg-white" open>
       <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-[#111319]">
-        Обозначения
+        {t("title")}
       </summary>
 
       <div className="space-y-3 border-t border-[#DAE1E9] px-4 py-4">
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-[#4E5C6E]">
             <Loader2 className="size-4 animate-spin" />
-            Загрузка…
+            {tCommon("loading")}
           </div>
         ) : (
           <>
@@ -131,7 +138,7 @@ export function ShiftLegend() {
                     —
                   </span>
                   <span className="min-w-0 text-sm leading-5 text-[#2F3336]">
-                    {group.description ?? "Обычная рабочая смена"}
+                    {group.description ?? tEditor("shift")}
                   </span>
                 </div>
               ))}
@@ -144,39 +151,39 @@ export function ShiftLegend() {
                     −
                   </span>
                 }
-                description="Выходной сотрудника"
+                description={t("dayOff")}
               />
               <SystemLegendItem
                 badge={
                   <span className="inline-flex min-h-7 items-center rounded-md border border-[#A2B2C3] bg-white px-2.5 text-sm font-semibold text-[#111319]">
-                    Отпуск
+                    {tGrid("vacation")}
                   </span>
                 }
-                description="Период отпуска"
+                description={t("vacation")}
               />
               <SystemLegendItem
                 badge={
                   <span className="inline-flex min-h-7 items-center rounded-md border border-[#F5A3B5] bg-[#FFF1F4] px-2.5 text-sm font-semibold text-[#A40E32]">
-                    Больничный
+                    {tGrid("sickLeave")}
                   </span>
                 }
-                description="Период больничного"
+                description={t("sickLeave")}
               />
               <SystemLegendItem
                 badge={
                   <span className="inline-flex min-h-7 items-center rounded-md bg-[#111319] px-2.5 text-sm font-semibold text-white">
-                    П +N ч
+                    {tGrid("overtimeBadge", { hours: "N" })}
                   </span>
                 }
-                description="Сумма переработки до и после смены"
+                description={t("overtime")}
               />
               <SystemLegendItem
                 badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md border border-[#9BC9A9] bg-[#E8F5EC] px-2.5 text-sm font-semibold text-[#216E39]">
-                    Зелёный фон
+                  <span className="inline-flex size-7 items-center justify-center rounded-md border border-[#9BC9A9] bg-[#E8F5EC] text-sm font-semibold text-[#216E39]">
+                    ■
                   </span>
                 }
-                description="Суббота, воскресенье или официальный нерабочий день РФ"
+                description={t("calendarDayOff")}
               />
             </div>
           </>
