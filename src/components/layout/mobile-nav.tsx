@@ -3,7 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, CalendarDays, Sparkles } from "lucide-react";
+import {
+  CalendarIcon,
+  MenuIcon,
+  SparklesIcon,
+} from "@/components/icons/outline-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,14 +40,14 @@ export function MobileNav() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="size-5" />
+          <MenuIcon className="size-5" />
           <span className="sr-only">Навигация</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
         <SheetHeader className="border-b border-sidebar-border px-4 py-3">
           <SheetTitle className="flex items-center gap-2 text-base font-semibold text-sidebar-primary-foreground">
-            <CalendarDays className="size-5 text-sidebar-foreground" />
+            <CalendarIcon className="size-5 text-sidebar-foreground" />
             QuickTickets
           </SheetTitle>
         </SheetHeader>
@@ -68,7 +72,7 @@ export function MobileNav() {
             onClick={() => setOpen(false)}
             className={itemClass(pathname.startsWith("/ai"))}
           >
-            <Sparkles className="size-4" />
+            <SparklesIcon className="size-4" />
             ИИ-ассистент
           </Link>
         </nav>
