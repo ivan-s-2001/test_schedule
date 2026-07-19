@@ -36,6 +36,7 @@ type MigrationSource = {
 };
 
 type DateSlot = {
+  date: Date;
   year: number;
   weekNumber: number;
   dayOfWeek: number;
@@ -68,8 +69,8 @@ function parseDate(value: string): Date {
   return date;
 }
 
-function getDateSlot(value: string): DateSlot {
-  const date = parseDate(value);
+function getDateSlot(value: string | Date): DateSlot {
+  const date = typeof value === "string" ? parseDate(value) : new Date(value);
   const dayOfWeek = date.getUTCDay() || 7;
   const thursday = new Date(date);
   thursday.setUTCDate(date.getUTCDate() + 4 - dayOfWeek);
@@ -79,7 +80,19 @@ function getDateSlot(value: string): DateSlot {
     ((thursday.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
   );
 
-  return { year, weekNumber, dayOfWeek };
+  return { date, year, weekNumber, dayOfWeek };
+}
+
+function eachDate(from: Date, to: Date): DateSlot[] {
+  const result: DateSlot[] = [];
+  const current = new Date(from);
+
+  while (current <= to) {
+    result.push(getDateSlot(current));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return result;
 }
 
 function loadSource(): MigrationSource {
@@ -320,6 +333,21 @@ async function main() {
   let absenceCreates = 0;
   for (const absence of source.absences) {
     const userId = resolveUserId(absence.employeeNickname);
+    const from = parseDate(absence.dateFrom);
+    const to = parseDate(absence.dateTo);
+
+    for (const slot of eachDate(from, to)) {
+      const scheduleId = await findOrCreateSchedule(slot.year, slot.weekNumber);
+      await db.$transaction(async (tx) => {
+        await removeExistingAssignment(tx, scheduleId, userId, slot.dayOfWeek);
+        await tx.$executeRaw`
+          DELETE FROM "schedule_day_offs"
+          WHERE "scheduleId" = ${scheduleId}
+            AND "userId" = ${userId}
+            AND "dayOfWeek" = ${slot.dayOfWeek}
+        `;
+      });
+    }
 
     if (absence.type === "SICK" && !sickCategory) {
       sickCategory = await getOrCreateCategory(
@@ -337,8 +365,8 @@ async function main() {
       data: {
         userId,
         categoryId: category.id,
-        dateFrom: parseDate(absence.dateFrom),
-        dateTo: parseDate(absence.dateTo),
+        dateFrom: from,
+        dateTo: to,
         status: "APPROVED",
         note: `${IMPORT_MARKER}; ${absence.sourceCells.join(", ")}`,
       },
