@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
-import { routing, type AppLocale } from "./routing";
-
-export const LOCALE_COOKIE = "APP_LOCALE";
+import {
+  LOCALE_COOKIE,
+  routing,
+  type AppLocale,
+} from "./routing";
 
 function isAppLocale(value: string | undefined): value is AppLocale {
   return Boolean(value && routing.locales.includes(value as AppLocale));
