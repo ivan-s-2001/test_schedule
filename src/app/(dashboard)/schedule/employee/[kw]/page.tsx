@@ -29,31 +29,39 @@ export default async function EmployeeKWPage({ params }: EmployeeKWPageProps) {
 
   return (
     <div className="schedule-equal-day-columns space-y-5">
-      <header className="space-y-3">
-        <div>
-          <h1 className="text-[26px] font-medium leading-tight text-foreground">
-            График службы заботы
-          </h1>
+      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1>График службы заботы</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Недельная таблица сотрудников и смен
+            Недельное планирование сотрудников и смен
           </p>
         </div>
-        <ViewSwitcher kw={kw} />
+        <div className="shrink-0">
+          <ViewSwitcher kw={kw} />
+        </div>
       </header>
 
-      <WeekNav
-        weekNumber={weekNumber}
-        year={year}
-        baseUrl="/schedule/employee"
-      />
+      <section className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="border-b border-border p-3 sm:p-4">
+          <WeekNav
+            weekNumber={weekNumber}
+            year={year}
+            baseUrl="/schedule/employee"
+          />
+        </div>
 
-      <ShiftLegend />
+        <div className="border-b border-border bg-[var(--outline-smoke-light)] px-3 py-2.5 dark:bg-[var(--outline-smoke)] sm:px-4">
+          <ShiftLegend />
+        </div>
 
-      <EmployeeGridWrapper
-        weekNumber={weekNumber}
-        year={year}
-        weekDateStrings={weekDateStrings}
-      />
+        <div className="p-2 sm:p-3">
+          <EmployeeGridWrapper
+            weekNumber={weekNumber}
+            year={year}
+            weekDateStrings={weekDateStrings}
+          />
+        </div>
+      </section>
     </div>
   );
 }
