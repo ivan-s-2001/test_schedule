@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentMember } from "@/lib/auth-helpers";
+import { serializeShiftTemplate } from "@/lib/schedule/shift-pool";
 
 type DayNoteRow = {
   id: string;
@@ -216,8 +217,30 @@ export async function GET(request: NextRequest) {
 
   const shifts = schedule.shifts.map((shift) => {
     const snapshot = snapshotByShift.get(shift.id);
+    const hasSnapshot = Boolean(
+      snapshot?.poolTemplateCode &&
+        snapshot.poolLabel &&
+        snapshot.poolColor &&
+        snapshot.poolTextColor
+    );
+    const serializedTitle = hasSnapshot
+      ? serializeShiftTemplate({
+          id: snapshot!.poolTemplateCode!,
+          name: snapshot!.poolLabel!,
+          label: `${shift.shiftFrom}–${shift.shiftTo}`,
+          shiftFrom: shift.shiftFrom,
+          shiftTo: shift.shiftTo,
+          color: snapshot!.poolColor!,
+          textColor: snapshot!.poolTextColor!,
+          description: snapshot!.poolDescription,
+          sortOrder: 999,
+          isActive: true,
+        })
+      : shift.title;
+
     return {
       ...shift,
+      title: serializedTitle,
       poolTemplateCode: snapshot?.poolTemplateCode ?? null,
       poolLabel: snapshot?.poolLabel ?? null,
       poolColor: snapshot?.poolColor ?? null,
