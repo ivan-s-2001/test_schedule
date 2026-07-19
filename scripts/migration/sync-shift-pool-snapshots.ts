@@ -91,8 +91,13 @@ async function normalizeImportedOvertime(
     INNER JOIN "schedules" schedule ON schedule."id" = shift."scheduleId"
     WHERE schedule."organizationId" = ${organizationId}
       AND shift."deletedAt" IS NULL
-      AND shift."description" LIKE ${`${IMPORT_MARKER}%`}
-      AND (shift."title" IS NULL OR shift."title" NOT LIKE 'pool:%')
+      AND (
+        (
+          shift."description" LIKE ${`${IMPORT_MARKER}%`}
+          AND (shift."title" IS NULL OR shift."title" NOT LIKE 'pool:%')
+        )
+        OR LOWER(TRIM(COALESCE(shift."poolLabel", ''))) = LOWER('Переработка')
+      )
   `;
 
   let normalized = 0;
