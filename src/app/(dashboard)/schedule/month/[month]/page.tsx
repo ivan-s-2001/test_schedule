@@ -36,7 +36,7 @@ export default async function MonthViewPage({ params }: MonthPageProps) {
   const kw = formatKW(getISOWeek(firstDay), getISOWeekYear(firstDay));
 
   return (
-    <div className="space-y-6">
+    <div className="schedule-equal-day-columns space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <ViewSwitcher kw={kw} month={monthParam} />
       </div>
