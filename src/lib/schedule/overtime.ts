@@ -35,6 +35,10 @@ function interval(from: string, to: string): { start: number; end: number } {
   return { start, end };
 }
 
+function roundToHalfHour(value: number): number {
+  return Math.max(0, Math.round(value / 30) * 30);
+}
+
 function isOvertimeTemplate(template: ShiftTemplate): boolean {
   return template.name.trim().toLocaleLowerCase("ru-RU") === "переработка";
 }
@@ -45,7 +49,13 @@ export function resolveOvertimeAgainstPool(
   templates: readonly ShiftTemplate[]
 ): OvertimeBreakdown {
   const actual = interval(actualFrom, actualTo);
-  const candidates: Array<OvertimeBreakdown & { score: number }> = [];
+  const candidates: Array<
+    OvertimeBreakdown & {
+      rawBeforeMinutes: number;
+      rawAfterMinutes: number;
+      score: number;
+    }
+  > = [];
 
   for (const template of templates) {
     if (!template.isActive || isOvertimeTemplate(template)) continue;
@@ -58,20 +68,25 @@ export function resolveOvertimeAgainstPool(
 
       if (actual.start > baseStart || actual.end < baseEnd) continue;
 
-      const beforeMinutes = baseStart - actual.start;
-      const afterMinutes = actual.end - baseEnd;
+      const rawBeforeMinutes = baseStart - actual.start;
+      const rawAfterMinutes = actual.end - baseEnd;
+      const rawTotalMinutes = rawBeforeMinutes + rawAfterMinutes;
+      const beforeMinutes = roundToHalfHour(rawBeforeMinutes);
+      const afterMinutes = roundToHalfHour(rawAfterMinutes);
       const totalMinutes = beforeMinutes + afterMinutes;
       const boundaryRank =
-        beforeMinutes === 0 ? 0 : afterMinutes === 0 ? 1 : 2;
+        rawBeforeMinutes === 0 ? 0 : rawAfterMinutes === 0 ? 1 : 2;
 
       candidates.push({
         template,
+        rawBeforeMinutes,
+        rawAfterMinutes,
         beforeMinutes,
         afterMinutes,
         totalMinutes,
         score:
           boundaryRank * 1_000_000_000 +
-          totalMinutes * 1000 +
+          rawTotalMinutes * 1000 +
           template.sortOrder,
       });
     }
