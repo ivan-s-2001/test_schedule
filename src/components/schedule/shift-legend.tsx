@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import type { ShiftTemplate } from "@/lib/schedule/shift-pool";
+import { getThemeColorStyle } from "@/lib/utils/theme-color";
 
 type ShiftPoolResponse = {
   templates: ShiftTemplate[];
@@ -23,16 +24,10 @@ function ShiftBadge({
   name: string;
   variant: ShiftTemplate;
 }) {
-  const whiteBackground = variant.color.toUpperCase() === "#FFFFFF";
-
   return (
     <span
-      className="inline-flex min-h-7 items-center gap-2 rounded-md border px-2.5 py-1 text-sm font-semibold leading-none shadow-[0_1px_1px_rgba(0,0,0,0.08)]"
-      style={{
-        backgroundColor: variant.color,
-        color: variant.textColor,
-        borderColor: whiteBackground ? "#A2B2C3" : "rgba(17, 19, 25, 0.28)",
-      }}
+      className="inline-flex min-h-7 items-center gap-2 rounded-md border px-2.5 py-1 text-sm font-semibold leading-none shadow-none [background-color:var(--user-color-light-bg)] [border-color:var(--user-color-light-border)] [color:var(--user-color-light-text)] dark:[background-color:var(--user-color-dark-bg)] dark:[border-color:var(--user-color-dark-border)] dark:[color:var(--user-color-dark-text)]"
+      style={getThemeColorStyle(variant.color, variant.textColor)}
     >
       <span>{name}</span>
       <span
@@ -55,10 +50,10 @@ function SystemLegendItem({
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
       {badge}
-      <span className="font-medium text-[#66778F]" aria-hidden="true">
+      <span className="font-medium text-muted-foreground" aria-hidden="true">
         —
       </span>
-      <span className="text-[#2F3336]">{description}</span>
+      <span className="text-secondary-foreground">{description}</span>
     </div>
   );
 }
@@ -95,14 +90,14 @@ export function ShiftLegend() {
   }, [data?.templates]);
 
   return (
-    <details className="rounded-lg border border-[#DAE1E9] bg-white" open>
-      <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-[#111319]">
+    <details className="rounded-lg border border-border bg-card" open>
+      <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-foreground">
         Обозначения
       </summary>
 
-      <div className="space-y-3 border-t border-[#DAE1E9] px-4 py-4">
+      <div className="space-y-3 border-t border-border px-4 py-4">
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-[#4E5C6E]">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
             Загрузка…
           </div>
@@ -125,22 +120,22 @@ export function ShiftLegend() {
                   </div>
 
                   <span
-                    className="font-medium text-[#66778F]"
+                    className="font-medium text-muted-foreground"
                     aria-hidden="true"
                   >
                     —
                   </span>
-                  <span className="min-w-0 text-sm leading-5 text-[#2F3336]">
+                  <span className="min-w-0 text-sm leading-5 text-secondary-foreground">
                     {group.description ?? "Обычная рабочая смена"}
                   </span>
                 </div>
               ))}
             </div>
 
-            <div className="grid gap-2 border-t border-[#DAE1E9] pt-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-2 border-t border-border pt-3 md:grid-cols-2 xl:grid-cols-3">
               <SystemLegendItem
                 badge={
-                  <span className="inline-flex min-h-7 min-w-9 items-center justify-center rounded-md border border-[#A2B2C3] bg-white px-2 text-sm font-semibold text-[#111319]">
+                  <span className="inline-flex min-h-7 min-w-9 items-center justify-center rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground">
                     −
                   </span>
                 }
@@ -148,7 +143,7 @@ export function ShiftLegend() {
               />
               <SystemLegendItem
                 badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md border border-[#A2B2C3] bg-white px-2.5 text-sm font-semibold text-[#111319]">
+                  <span className="inline-flex min-h-7 items-center rounded-md border border-input bg-background px-2.5 text-sm font-semibold text-foreground">
                     Отпуск
                   </span>
                 }
@@ -156,7 +151,7 @@ export function ShiftLegend() {
               />
               <SystemLegendItem
                 badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md border border-[#F5A3B5] bg-[#FFF1F4] px-2.5 text-sm font-semibold text-[#A40E32]">
+                  <span className="inline-flex min-h-7 items-center rounded-md border border-destructive/35 bg-destructive/10 px-2.5 text-sm font-semibold text-destructive">
                     Больничный
                   </span>
                 }
@@ -164,7 +159,7 @@ export function ShiftLegend() {
               />
               <SystemLegendItem
                 badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md bg-[#111319] px-2.5 text-sm font-semibold text-white">
+                  <span className="inline-flex min-h-7 items-center rounded-md bg-foreground px-2.5 text-sm font-semibold text-background">
                     П +N ч
                   </span>
                 }
@@ -172,7 +167,7 @@ export function ShiftLegend() {
               />
               <SystemLegendItem
                 badge={
-                  <span className="inline-flex min-h-7 items-center rounded-md border border-[#9BC9A9] bg-[#E8F5EC] px-2.5 text-sm font-semibold text-[#216E39]">
+                  <span className="inline-flex min-h-7 items-center rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                     Зелёный фон
                   </span>
                 }
