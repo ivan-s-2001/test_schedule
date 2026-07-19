@@ -1,5 +1,5 @@
 /**
- * Shared types for schedule, shift, booking and day-note data
+ * Shared types for schedule, shift, booking, cell-status and day-note data
  * as returned by the API.
  */
 
@@ -74,6 +74,30 @@ export type ScheduleDayNote = {
   updatedAt: string;
 };
 
+export type ScheduleDayOff = {
+  id: string;
+  scheduleId: string;
+  userId: string;
+  dayOfWeek: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScheduleAbsence = {
+  id: string;
+  userId: string;
+  dateFrom: string;
+  dateTo: string;
+  note: string | null;
+  status: "PENDING" | "APPROVED" | "DECLINED";
+  category: {
+    id: string;
+    name: string;
+    color: string;
+    isPaid: boolean;
+  };
+};
+
 export type ScheduleData = {
   id: string;
   organizationId: string;
@@ -85,6 +109,8 @@ export type ScheduleData = {
   showPauses: boolean;
   shifts: ShiftData[];
   dayNotes: ScheduleDayNote[];
+  dayOffs: ScheduleDayOff[];
+  absences: ScheduleAbsence[];
 };
 
 export type DivisionOption = {
