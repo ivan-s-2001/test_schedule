@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CalendarDays, Layers3, Table2 } from "lucide-react";
 import { useCurrentMember } from "@/lib/hooks/use-current-member";
 import { formatKW, getCurrentKW } from "@/lib/utils/calendar";
@@ -33,6 +34,7 @@ function kwToMonth(kw: string): string {
 
 export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
   const pathname = usePathname();
+  const t = useTranslations("schedule.views");
   const { data: currentMember } = useCurrentMember();
   const now = new Date();
   const currentKW = getCurrentKW();
@@ -51,24 +53,21 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
 
   const views = [
     {
-      key: "week",
-      label: "Неделя",
+      key: "week" as const,
       icon: Table2,
       href: `/schedule/employee/${effectiveKW}`,
       active: !monthActive && !poolActive,
       visible: true,
     },
     {
-      key: "month",
-      label: "Месяц",
+      key: "month" as const,
       icon: CalendarDays,
       href: `/schedule/month/${effectiveMonth}`,
       active: monthActive,
       visible: true,
     },
     {
-      key: "pool",
-      label: "Пул смен",
+      key: "pool" as const,
       icon: Layers3,
       href: "/schedule/pool",
       active: poolActive,
@@ -89,11 +88,12 @@ export function ViewSwitcher({ kw, month }: ViewSwitcherProps) {
               href={view.href}
               className={cn(
                 "relative flex items-center gap-1.5 px-0.5 py-2 text-sm font-medium text-[#66778f] transition-colors hover:text-[#394351]",
-                view.active && "text-[#394351] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:rounded-t after:bg-[#394351]"
+                view.active &&
+                  "text-[#394351] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:rounded-t after:bg-[#394351]"
               )}
             >
               <Icon className="size-3.5" />
-              <span>{view.label}</span>
+              <span>{t(view.key)}</span>
             </Link>
           );
         })}
