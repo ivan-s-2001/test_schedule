@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Calendar, ArrowRight } from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { getISOWeek } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  getCurrentKW,
-  getWeekDates,
-  getMonthKWs,
-  formatKW,
-  formatDateShort,
   formatDateLong,
+  formatDateShort,
+  formatKW,
+  getCurrentKW,
+  getMonthKWs,
+  getWeekDates,
   monthNames,
 } from "@/lib/utils/calendar";
 import { cn } from "@/lib/utils";
@@ -20,246 +20,249 @@ import { cn } from "@/lib/utils";
 interface WeekNavProps {
   weekNumber: number;
   year: number;
-  /** Base URL for navigation, defaults to "/schedule/flexible" */
   baseUrl?: string;
 }
 
-/**
- * Get the number of ISO weeks in a given year.
- * Dec 28 is always in the last ISO week of the year.
- */
-function getMaxISOWeek(y: number): number {
-  return getISOWeek(new Date(y, 11, 28));
+function getMaxISOWeek(year: number): number {
+  return getISOWeek(new Date(year, 11, 28));
 }
 
-export function WeekNav({ weekNumber, year, baseUrl = "/schedule/flexible" }: WeekNavProps) {
+export function WeekNav({
+  weekNumber,
+  year,
+  baseUrl = "/schedule/flexible",
+}: WeekNavProps) {
   const router = useRouter();
   const currentKW = useMemo(() => getCurrentKW(), []);
   const weekDates = useMemo(
     () => getWeekDates(weekNumber, year),
     [weekNumber, year]
   );
-
   const [expandedMonth, setExpandedMonth] = useState<{
     month: number;
     year: number;
   } | null>(null);
   const [jumpKW, setJumpKW] = useState("");
 
-  // Determine which months to show (5 months centered around current week)
   const visibleMonths = useMemo(() => {
     const months: { month: number; year: number }[] = [];
-    const midDate = weekDates[3]; // Thursday of the week (defines the ISO week's month)
-    const midMonth = midDate.getMonth(); // 0-indexed
-    const midYear = midDate.getFullYear();
+    const middleDate = weekDates[3];
+    const middleMonth = middleDate.getMonth();
+    const middleYear = middleDate.getFullYear();
 
-    for (let offset = -2; offset <= 2; offset++) {
-      let m = midMonth + offset;
-      let y = midYear;
-      if (m < 0) {
-        m += 12;
-        y -= 1;
-      } else if (m > 11) {
-        m -= 12;
-        y += 1;
+    for (let offset = -2; offset <= 2; offset += 1) {
+      let month = middleMonth + offset;
+      let monthYear = middleYear;
+
+      if (month < 0) {
+        month += 12;
+        monthYear -= 1;
+      } else if (month > 11) {
+        month -= 12;
+        monthYear += 1;
       }
-      months.push({ month: m + 1, year: y }); // 1-indexed for our utils
+
+      months.push({ month: month + 1, year: monthYear });
     }
+
     return months;
   }, [weekDates]);
 
   const navigateToKW = useCallback(
-    (kw: number, kwYear: number) => {
-      router.push(`${baseUrl}/${formatKW(kw, kwYear)}`);
+    (targetWeek: number, targetYear: number) => {
+      router.push(`${baseUrl}/${formatKW(targetWeek, targetYear)}`);
     },
-    [router, baseUrl]
+    [baseUrl, router]
   );
 
   const navigatePrev = useCallback(() => {
-    let newKW = weekNumber - 1;
-    let newYear = year;
-    if (newKW < 1) {
-      newYear -= 1;
-      newKW = getMaxISOWeek(newYear);
+    let targetWeek = weekNumber - 1;
+    let targetYear = year;
+
+    if (targetWeek < 1) {
+      targetYear -= 1;
+      targetWeek = getMaxISOWeek(targetYear);
     }
-    navigateToKW(newKW, newYear);
-  }, [weekNumber, year, navigateToKW]);
+
+    navigateToKW(targetWeek, targetYear);
+  }, [navigateToKW, weekNumber, year]);
 
   const navigateNext = useCallback(() => {
-    let newKW = weekNumber + 1;
-    let newYear = year;
-    const maxWeek = getMaxISOWeek(year);
-    if (newKW > maxWeek) {
-      newKW = 1;
-      newYear += 1;
+    let targetWeek = weekNumber + 1;
+    let targetYear = year;
+
+    if (targetWeek > getMaxISOWeek(year)) {
+      targetWeek = 1;
+      targetYear += 1;
     }
-    navigateToKW(newKW, newYear);
-  }, [weekNumber, year, navigateToKW]);
+
+    navigateToKW(targetWeek, targetYear);
+  }, [navigateToKW, weekNumber, year]);
 
   const handleJumpKW = useCallback(() => {
-    const num = parseInt(jumpKW, 10);
-    if (!isNaN(num) && num >= 1 && num <= 53) {
-      navigateToKW(num, year);
-      setJumpKW("");
-    }
-  }, [jumpKW, year, navigateToKW]);
+    const value = Number.parseInt(jumpKW, 10);
+    if (Number.isNaN(value) || value < 1 || value > 53) return;
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        handleJumpKW();
-      }
-    },
-    [handleJumpKW]
-  );
-
-  const toggleMonth = useCallback(
-    (month: number, monthYear: number) => {
-      if (
-        expandedMonth &&
-        expandedMonth.month === month &&
-        expandedMonth.year === monthYear
-      ) {
-        setExpandedMonth(null);
-      } else {
-        setExpandedMonth({ month, year: monthYear });
-      }
-    },
-    [expandedMonth]
-  );
+    navigateToKW(value, year);
+    setJumpKW("");
+  }, [jumpKW, navigateToKW, year]);
 
   const isCurrentWeek =
     weekNumber === currentKW.weekNumber && year === currentKW.year;
-
-  // Week date range display
-  const mondayStr = formatDateShort(weekDates[0]);
-  const sundayStr = formatDateLong(weekDates[6]);
+  const monday = formatDateShort(weekDates[0]);
+  const sunday = formatDateLong(weekDates[6]);
 
   return (
     <div className="space-y-3">
-      {/* Month buttons row */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {visibleMonths.map(({ month, year: mYear }) => {
-          const monthKWs = getMonthKWs(month, mYear);
-          const containsCurrentWeek = monthKWs.some(
-            (kw) => kw.weekNumber === weekNumber && kw.year === year
-          );
-          const containsToday = monthKWs.some(
-            (kw) =>
-              kw.weekNumber === currentKW.weekNumber &&
-              kw.year === currentKW.year
-          );
-          const isExpanded =
-            expandedMonth?.month === month && expandedMonth?.year === mYear;
-
-          return (
-            <Button
-              key={`${month}-${mYear}`}
-              variant={containsCurrentWeek ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleMonth(month, mYear)}
-              className={cn(
-                "relative",
-                containsToday &&
-                  !containsCurrentWeek &&
-                  "ring-2 ring-primary/30",
-                isExpanded && !containsCurrentWeek && "bg-accent"
-              )}
-            >
-              {monthNames[month - 1]}
-              {mYear !== year && (
-                <span className="ml-1 text-xs opacity-60">{mYear}</span>
-              )}
-              {containsToday && (
-                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
-              )}
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Expanded KW list for selected month */}
-      {expandedMonth && (
-        <div className="flex items-center gap-1 flex-wrap rounded-md border bg-card p-2">
-          {getMonthKWs(expandedMonth.month, expandedMonth.year).map((kw) => {
-            const isSelected =
-              kw.weekNumber === weekNumber && kw.year === year;
-            const isCurrent =
-              kw.weekNumber === currentKW.weekNumber &&
-              kw.year === currentKW.year;
-            return (
-              <Button
-                key={`${kw.weekNumber}-${kw.year}`}
-                variant={isSelected ? "default" : "ghost"}
-                size="xs"
-                onClick={() => {
-                  navigateToKW(kw.weekNumber, kw.year);
-                  setExpandedMonth(null);
-                }}
-                className={cn(
-                  isCurrent && !isSelected && "ring-1 ring-primary/40"
-                )}
-              >
-                KW {kw.weekNumber}
-              </Button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Main navigation row */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon-sm" onClick={navigatePrev}>
-            <ChevronLeft className="h-4 w-4" />
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={navigatePrev}
+            aria-label="Предыдущая неделя"
+          >
+            <ChevronLeft className="size-4" />
           </Button>
 
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-lg font-semibold">
-              KW {String(weekNumber).padStart(2, "0")}
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+              <CalendarDays className="size-4" />
             </span>
-            <span className="text-muted-foreground">|</span>
-            <span className="text-sm text-muted-foreground">
-              {mondayStr} - {sundayStr}
-            </span>
-            {isCurrentWeek && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                Heute
-              </span>
-            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold tabular-nums">
+                  Неделя {String(weekNumber).padStart(2, "0")}
+                </span>
+                {isCurrentWeek && (
+                  <span className="rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-strong)]">
+                    Текущая
+                  </span>
+                )}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
+                {monday} — {sunday}
+              </div>
+            </div>
           </div>
 
-          <Button variant="outline" size="icon-sm" onClick={navigateNext}>
-            <ChevronRight className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={navigateNext}
+            aria-label="Следующая неделя"
+          >
+            <ChevronRight className="size-4" />
           </Button>
         </div>
 
-        {/* Jump to KW */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground hidden sm:inline">
-            Springe zu:
-          </span>
+          {!isCurrentWeek && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                navigateToKW(currentKW.weekNumber, currentKW.year)
+              }
+            >
+              Сегодня
+            </Button>
+          )}
           <Input
             type="number"
             min={1}
             max={53}
-            placeholder="KW"
+            inputMode="numeric"
+            aria-label="Номер недели"
+            placeholder="№ недели"
             value={jumpKW}
-            onChange={(e) => setJumpKW(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="h-8 w-16 text-center text-sm"
+            onChange={(event) => setJumpKW(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") handleJumpKW();
+            }}
+            className="w-24 text-center text-sm"
           />
           <Button
             variant="outline"
             size="icon-sm"
             onClick={handleJumpKW}
             disabled={!jumpKW}
+            aria-label="Перейти к неделе"
           >
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="size-3.5" />
           </Button>
         </div>
       </div>
+
+      <div className="flex gap-1 overflow-x-auto pb-0.5">
+        {visibleMonths.map(({ month, year: monthYear }) => {
+          const weeks = getMonthKWs(month, monthYear);
+          const containsSelectedWeek = weeks.some(
+            (week) => week.weekNumber === weekNumber && week.year === year
+          );
+          const containsCurrentWeek = weeks.some(
+            (week) =>
+              week.weekNumber === currentKW.weekNumber &&
+              week.year === currentKW.year
+          );
+          const expanded =
+            expandedMonth?.month === month && expandedMonth.year === monthYear;
+
+          return (
+            <Button
+              key={`${month}-${monthYear}`}
+              variant={containsSelectedWeek ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() =>
+                setExpandedMonth(
+                  expanded ? null : { month, year: monthYear }
+                )
+              }
+              className={cn(
+                "relative shrink-0",
+                expanded && !containsSelectedWeek && "bg-[var(--accent-subtle)]"
+              )}
+            >
+              {monthNames[month - 1]}
+              {monthYear !== year && (
+                <span className="text-xs opacity-60">{monthYear}</span>
+              )}
+              {containsCurrentWeek && !containsSelectedWeek && (
+                <span className="absolute right-1 top-1 size-1.5 rounded-full bg-primary" />
+              )}
+            </Button>
+          );
+        })}
+      </div>
+
+      {expandedMonth && (
+        <div className="flex flex-wrap gap-1 rounded-md border border-[var(--accent-border)] bg-[var(--accent-subtle)] p-2">
+          {getMonthKWs(expandedMonth.month, expandedMonth.year).map((week) => {
+            const selected =
+              week.weekNumber === weekNumber && week.year === year;
+            const current =
+              week.weekNumber === currentKW.weekNumber &&
+              week.year === currentKW.year;
+
+            return (
+              <Button
+                key={`${week.weekNumber}-${week.year}`}
+                variant={selected ? "default" : "ghost"}
+                size="xs"
+                onClick={() => {
+                  navigateToKW(week.weekNumber, week.year);
+                  setExpandedMonth(null);
+                }}
+                className={cn(
+                  current && !selected && "text-[var(--accent-strong)]"
+                )}
+              >
+                {week.weekNumber}
+              </Button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
