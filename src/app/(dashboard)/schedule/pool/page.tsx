@@ -10,16 +10,18 @@ export default async function ShiftPoolPage() {
   if (!isManagerOrAbove(member.role)) redirect("/schedule/employee");
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="space-y-5">
+      <header className="space-y-3">
         <div>
-          <h1 className="text-2xl font-bold">Пул смен</h1>
-          <p className="text-sm text-muted-foreground">
-            Управление обозначениями графика службы заботы
+          <h1 className="text-[26px] font-medium leading-tight text-[#111319]">
+            Пул смен
+          </h1>
+          <p className="mt-1 text-sm text-[#66778f]">
+            Цвета, время и пояснения обозначений графика
           </p>
         </div>
         <ViewSwitcher />
-      </div>
+      </header>
 
       <ShiftPoolManager />
     </div>
