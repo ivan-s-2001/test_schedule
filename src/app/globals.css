@@ -38,8 +38,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 2px);
   --radius-2xl: calc(var(--radius) + 4px);
@@ -56,25 +56,38 @@
   --outline-font-mono:
     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
 
+  /* Outline neutral palette. */
   --outline-almost-black: #111319;
   --outline-light-black: #2f3336;
+  --outline-almost-white: #e6e6e6;
   --outline-white: #ffffff;
-  --outline-accent: #0366d6;
-  --outline-accent-hover: #035abd;
+  --outline-very-dark-blue: #08090c;
   --outline-slate: #66778f;
   --outline-slate-light: #dae1e9;
   --outline-slate-dark: #394351;
   --outline-smoke: #f4f7fa;
   --outline-smoke-light: #f9fbfc;
   --outline-smoke-dark: #e8ebed;
+  --outline-warm-grey: hsl(212 31% 95%);
   --outline-danger: #ed2651;
   --outline-warning: #f08a24;
-  --outline-success: #3ad984;
-  --outline-info: #a0d3e8;
+  --outline-success: #28a869;
+  --outline-info: #2b8dbd;
+
+  /* One accent hue, used through a restrained scale. */
+  --outline-accent: #5967d8;
+  --outline-accent-hover: #4d59c3;
+  --accent-strong: #4652b4;
+  --accent-soft: #e7eaff;
+  --accent-subtle: #f3f4ff;
+  --accent-border: #cbd1ff;
+  --accent-muted: #7f89d8;
+
   --outline-sidebar-background: hsl(212 31% 95%);
   --outline-sidebar-hover: hsl(212 31% 90%);
-  --outline-sidebar-active: hsl(212 31% 85%);
+  --outline-sidebar-active: var(--accent-soft);
   --outline-sidebar-text: #4e5c6e;
+  --outline-input-background: hsl(212 31% 95%);
   --outline-menu-shadow:
     0 0 0 1px rgb(0 0 0 / 2%), 0 4px 8px rgb(0 0 0 / 8%),
     0 30px 40px rgb(0 0 0 / 8%);
@@ -86,31 +99,31 @@
   --card-foreground: #111319;
   --popover: #ffffff;
   --popover-foreground: #111319;
-  --primary: #0366d6;
+  --primary: var(--outline-accent);
   --primary-foreground: #ffffff;
-  --secondary: hsl(212 31% 95%);
+  --secondary: var(--outline-warm-grey);
   --secondary-foreground: #2f3336;
   --muted: #f4f7fa;
   --muted-foreground: #4e5c6e;
-  --accent: hsl(212 31% 90%);
-  --accent-foreground: #111319;
+  --accent: var(--accent-soft);
+  --accent-foreground: var(--accent-strong);
   --destructive: #ed2651;
   --border: #dae1e9;
-  --input: #dae1e9;
-  --ring: #66778f;
-  --chart-1: #0366d6;
-  --chart-2: #3ad984;
-  --chart-3: #f08a24;
-  --chart-4: #9e5cf7;
-  --chart-5: #2bc2ff;
-  --sidebar: hsl(212 31% 95%);
-  --sidebar-foreground: #4e5c6e;
-  --sidebar-primary: hsl(212 31% 85%);
-  --sidebar-primary-foreground: #111319;
-  --sidebar-accent: hsl(212 31% 90%);
+  --input: #cbd4de;
+  --ring: var(--outline-accent);
+  --chart-1: var(--outline-accent);
+  --chart-2: #28a869;
+  --chart-3: #d97706;
+  --chart-4: #8b5cf6;
+  --chart-5: #2b8dbd;
+  --sidebar: var(--outline-sidebar-background);
+  --sidebar-foreground: var(--outline-sidebar-text);
+  --sidebar-primary: var(--accent-soft);
+  --sidebar-primary-foreground: var(--accent-strong);
+  --sidebar-accent: var(--outline-sidebar-hover);
   --sidebar-accent-foreground: #111319;
   --sidebar-border: #dae1e9;
-  --sidebar-ring: #66778f;
+  --sidebar-ring: var(--outline-accent);
 }
 
 .dark {
@@ -118,23 +131,34 @@
 
   --outline-almost-black: #e6e6e6;
   --outline-light-black: #d7d9dd;
+  --outline-almost-white: #e6e6e6;
   --outline-white: #ffffff;
-  --outline-accent: #137ffb;
-  --outline-accent-hover: #2b8cff;
+  --outline-very-dark-blue: #08090c;
   --outline-slate: #66778f;
   --outline-slate-light: #394351;
   --outline-slate-dark: #9aa7b8;
   --outline-smoke: #1d202a;
   --outline-smoke-light: #1f232e;
   --outline-smoke-dark: #2a2f3e;
-  --outline-danger: #ed2651;
-  --outline-warning: #f08a24;
-  --outline-success: #3ad984;
-  --outline-info: #a0d3e8;
+  --outline-warm-grey: #1f232e;
+  --outline-danger: #ff6686;
+  --outline-warning: #f3a24d;
+  --outline-success: #48cf8d;
+  --outline-info: #69b9df;
+
+  --outline-accent: #8090ff;
+  --outline-accent-hover: #93a0ff;
+  --accent-strong: #aab4ff;
+  --accent-soft: rgb(128 144 255 / 16%);
+  --accent-subtle: rgb(128 144 255 / 8%);
+  --accent-border: rgb(128 144 255 / 36%);
+  --accent-muted: #8e9af0;
+
   --outline-sidebar-background: #08090c;
   --outline-sidebar-hover: #12151c;
-  --outline-sidebar-active: #1b202a;
+  --outline-sidebar-active: var(--accent-soft);
   --outline-sidebar-text: #8291a5;
+  --outline-input-background: #262d36;
   --outline-menu-shadow:
     0 0 0 1px rgb(34 40 52), 0 8px 16px rgb(0 0 0 / 30%),
     0 2px 4px rgb(0 0 0 / 8%);
@@ -145,31 +169,31 @@
   --card-foreground: #e6e6e6;
   --popover: #181c25;
   --popover-foreground: #e6e6e6;
-  --primary: #137ffb;
-  --primary-foreground: #ffffff;
+  --primary: var(--outline-accent);
+  --primary-foreground: #08090c;
   --secondary: #1f232e;
   --secondary-foreground: #e6e6e6;
   --muted: #1d202a;
   --muted-foreground: #9aa7b8;
-  --accent: #252b36;
-  --accent-foreground: #e6e6e6;
+  --accent: var(--accent-soft);
+  --accent-foreground: var(--accent-strong);
   --destructive: #ed2651;
   --border: #2b303b;
   --input: #394351;
-  --ring: #66778f;
-  --chart-1: #137ffb;
-  --chart-2: #3ad984;
-  --chart-3: #f08a24;
-  --chart-4: #9e5cf7;
-  --chart-5: #2bc2ff;
+  --ring: var(--outline-accent);
+  --chart-1: var(--outline-accent);
+  --chart-2: #48cf8d;
+  --chart-3: #f3a24d;
+  --chart-4: #b28cff;
+  --chart-5: #69b9df;
   --sidebar: #08090c;
   --sidebar-foreground: #8291a5;
-  --sidebar-primary: #1b202a;
-  --sidebar-primary-foreground: #e6e6e6;
+  --sidebar-primary: var(--accent-soft);
+  --sidebar-primary-foreground: var(--accent-strong);
   --sidebar-accent: #12151c;
   --sidebar-accent-foreground: #e6e6e6;
   --sidebar-border: #252a34;
-  --sidebar-ring: #66778f;
+  --sidebar-ring: var(--outline-accent);
 }
 
 @layer base {
@@ -186,10 +210,11 @@
 
   body {
     min-height: 100vh;
+    overflow-x: hidden;
     background: var(--background);
     color: var(--foreground);
     font-family: var(--outline-font-sans);
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.5;
   }
 
@@ -202,6 +227,15 @@
     color: var(--foreground);
     font-weight: 600;
     line-height: 1.25;
+    letter-spacing: -0.012em;
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, 1.35rem + 0.5vw, 1.8rem);
+  }
+
+  h2 {
+    font-size: 1.25rem;
   }
 
   label {
@@ -219,38 +253,90 @@
     transition-timing-function: ease-out;
   }
 
+  button,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   ::selection {
-    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    background: var(--accent-soft);
+    color: var(--foreground);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 42%, transparent)
+      transparent;
   }
 }
 
-/* Outline forms: compact controls, restrained focus, no decorative depth. */
+/* Application composition follows Outline: fixed navigation and one calm content plane. */
+.app-content {
+  width: 100%;
+  padding: 28px 32px 56px;
+}
+
+.app-content > * {
+  width: min(100%, 1560px);
+  margin-inline: auto;
+}
+
+@media (max-width: 1279px) {
+  .app-content {
+    padding: 24px 24px 48px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-content {
+    min-height: calc(100vh - 52px);
+    padding: 20px 18px 40px;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-content {
+    padding: 16px 12px 32px;
+  }
+}
+
+/* Outline controls: compact, readable, and nearly flat. */
 [data-slot="input"],
 [data-slot="textarea"],
 [data-slot="select-trigger"] {
   border-color: var(--input);
-  background: var(--background);
+  background: var(--outline-input-background);
   color: var(--foreground);
   box-shadow: none;
+}
+
+[data-slot="input"]:hover,
+[data-slot="textarea"]:hover,
+[data-slot="select-trigger"]:hover {
+  border-color: color-mix(in srgb, var(--muted-foreground) 55%, var(--border));
 }
 
 [data-slot="input"]:focus-visible,
 [data-slot="textarea"]:focus-visible,
 [data-slot="select-trigger"]:focus-visible {
-  border-color: var(--outline-slate);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--outline-slate) 18%, transparent);
+  border-color: var(--outline-accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 [data-slot="input"]::placeholder,
 [data-slot="textarea"]::placeholder {
   color: var(--muted-foreground);
-  opacity: 0.72;
+  opacity: 0.78;
 }
 
 [data-slot="button"] {
   min-height: 2rem;
   border-radius: 0.375rem;
   box-shadow: none;
+}
+
+[data-slot="button"][data-variant="default"]:hover {
+  background: var(--outline-accent-hover);
 }
 
 [data-slot="button"][data-variant="outline"] {
@@ -261,25 +347,30 @@
 [data-slot="button"][data-variant="outline"]:hover,
 [data-slot="button"][data-variant="secondary"]:hover,
 [data-slot="button"][data-variant="ghost"]:hover {
-  background: var(--secondary);
+  background: var(--accent-subtle);
+  color: var(--foreground);
 }
 
-/* Ordinary content stays flat. Menus and dialogs are the floating layer. */
-[data-slot="card"],
-[data-slot="table-container"] {
+/* Content surfaces stay flat. Floating surfaces carry depth. */
+[data-slot="card"] {
+  border-color: var(--border);
+  background: var(--card);
   box-shadow: none;
 }
 
 [data-slot="dialog-overlay"] {
   background: rgb(0 0 0 / 25%) !important;
+  backdrop-filter: blur(1px);
 }
 
 .dark [data-slot="dialog-overlay"] {
-  background: rgb(0 0 0 / 50%) !important;
+  background: rgb(0 0 0 / 55%) !important;
 }
 
 [data-slot="dialog-content"],
+[data-slot="sheet-content"],
 [data-slot="dropdown-menu-content"],
+[data-slot="popover-content"],
 [data-slot="select-content"],
 [data-radix-popper-content-wrapper] > * {
   border-color: var(--border);
@@ -290,6 +381,7 @@
 
 [data-slot="dropdown-menu-item"],
 [data-slot="select-item"] {
+  min-height: 2rem;
   color: var(--secondary-foreground);
 }
 
@@ -297,16 +389,74 @@
 [data-slot="select-item"]:focus,
 [data-slot="dropdown-menu-item"][data-highlighted],
 [data-slot="select-item"][data-highlighted] {
-  background: var(--secondary);
+  background: var(--accent-subtle);
   color: var(--foreground);
 }
 
 [data-slot="tooltip-content"] {
+  border: 0;
   background: var(--foreground);
   color: var(--background);
+  box-shadow: var(--outline-menu-shadow);
 }
 
-/* Schedule keeps the Excel shift colors while its structure follows Outline. */
+[data-slot="badge"] {
+  border-radius: 0.375rem;
+  letter-spacing: 0;
+}
+
+[data-slot="badge"][data-variant="secondary"] {
+  background: var(--accent-subtle);
+  color: var(--accent-strong);
+}
+
+/* Lists and tables use accent shades only for interaction and selection. */
+[data-slot="table-container"] {
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+
+[data-slot="table-header"] {
+  background: var(--outline-input-background);
+}
+
+[data-slot="table-row"] {
+  border-color: var(--border);
+}
+
+[data-slot="table-body"] [data-slot="table-row"]:hover {
+  background: var(--accent-subtle);
+}
+
+[data-slot="table-row"][data-state="selected"] {
+  background: var(--accent-soft);
+}
+
+[data-slot="table-head"] {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+[data-slot="tabs-list"] {
+  border: 1px solid var(--border);
+  background: var(--outline-input-background);
+}
+
+[data-slot="tabs-trigger"][data-state="active"] {
+  background: var(--background);
+  color: var(--accent-strong);
+  box-shadow: 0 0 0 1px var(--accent-border);
+}
+
+[data-slot="checkbox"][data-state="checked"],
+[data-slot="switch"][data-state="checked"] {
+  border-color: var(--outline-accent);
+  background: var(--outline-accent);
+}
+
+/* Schedule keeps user-configured shift colors while its structure follows Outline. */
 .schedule-equal-day-columns {
   color: var(--foreground);
 }
@@ -342,14 +492,18 @@
 
 .schedule-equal-day-columns table th {
   border-color: var(--border);
-  color: var(--secondary-foreground);
-  font-size: 13px;
+  color: var(--muted-foreground);
+  font-size: 12px;
   font-weight: 600;
 }
 
 .schedule-equal-day-columns table td {
   border-color: var(--border);
   color: var(--foreground);
+}
+
+.schedule-equal-day-columns table tbody tr:hover > td {
+  background-color: var(--accent-subtle);
 }
 
 /* Weekly schedule overtime badge. */
@@ -366,13 +520,13 @@ table[class*="min-w-[1080px]"] button.relative > span > span:nth-child(2) {
   min-height: 1rem;
   margin: 0;
   padding: 0.1rem 0.3rem;
-  border: 1px solid rgb(255 255 255 / 75%);
+  border: 1px solid rgb(255 255 255 / 65%);
   border-radius: 999px;
-  background: rgb(17 19 25 / 92%);
+  background: rgb(17 19 25 / 88%);
   color: #ffffff;
   font-size: 0.625rem;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 18%);
 }
