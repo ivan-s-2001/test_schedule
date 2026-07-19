@@ -26,6 +26,8 @@ type DayOffRow = {
 type OvertimeRow = {
   bookingId: string;
   overtimeMinutes: number;
+  overtimeBeforeMinutes: number;
+  overtimeAfterMinutes: number;
 };
 
 type ShiftSnapshotRow = {
@@ -107,6 +109,7 @@ export async function GET(request: NextRequest) {
                 id: true,
                 firstName: true,
                 lastName: true,
+                patronymic: true,
                 nickname: true,
                 profileImage: true,
               },
@@ -188,7 +191,9 @@ export async function GET(request: NextRequest) {
       db.$queryRaw<OvertimeRow[]>`
         SELECT
           b."id" AS "bookingId",
-          b."overtimeMinutes" AS "overtimeMinutes"
+          b."overtimeMinutes" AS "overtimeMinutes",
+          b."overtimeBeforeMinutes" AS "overtimeBeforeMinutes",
+          b."overtimeAfterMinutes" AS "overtimeAfterMinutes"
         FROM "bookings" b
         INNER JOIN "shifts" s ON s."id" = b."shiftId"
         WHERE s."scheduleId" = ${schedule.id}
@@ -209,7 +214,7 @@ export async function GET(request: NextRequest) {
     ]);
 
   const overtimeByBooking = new Map(
-    overtimeRows.map((row) => [row.bookingId, row.overtimeMinutes])
+    overtimeRows.map((row) => [row.bookingId, row])
   );
   const snapshotByShift = new Map(
     snapshotRows.map((row) => [row.shiftId, row])
@@ -246,10 +251,15 @@ export async function GET(request: NextRequest) {
       poolColor: snapshot?.poolColor ?? null,
       poolTextColor: snapshot?.poolTextColor ?? null,
       poolDescription: snapshot?.poolDescription ?? null,
-      bookings: shift.bookings.map((booking) => ({
-        ...booking,
-        overtimeMinutes: overtimeByBooking.get(booking.id) ?? 0,
-      })),
+      bookings: shift.bookings.map((booking) => {
+        const overtime = overtimeByBooking.get(booking.id);
+        return {
+          ...booking,
+          overtimeMinutes: overtime?.overtimeMinutes ?? 0,
+          overtimeBeforeMinutes: overtime?.overtimeBeforeMinutes ?? 0,
+          overtimeAfterMinutes: overtime?.overtimeAfterMinutes ?? 0,
+        };
+      }),
     };
   });
 
