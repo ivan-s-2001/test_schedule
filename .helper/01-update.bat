@@ -50,8 +50,7 @@ if errorlevel 1 goto :fail
 
 echo.
 echo [7/9] Остановка предыдущего сервера на порту %APP_PORT%...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ids = Get-NetTCPConnection -LocalPort %APP_PORT% -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($id in $ids) { if ($id) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } }"
-if errorlevel 1 goto :fail
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$connections = @(Get-NetTCPConnection -LocalPort %APP_PORT% -State Listen -ErrorAction SilentlyContinue); foreach ($connection in $connections) { try { Stop-Process -Id $connection.OwningProcess -Force -ErrorAction Stop } catch { Write-Host ('Не удалось остановить PID ' + $connection.OwningProcess + ': ' + $_.Exception.Message) } }; exit 0"
 
 set "PORT_FREE=0"
 for /L %%I in (1,1,15) do (
@@ -66,6 +65,7 @@ for /L %%I in (1,1,15) do (
 :port_free
 if not "%PORT_FREE%"=="1" (
   echo Порт %APP_PORT% не освободился.
+  powershell -NoProfile -Command "$connections = @(Get-NetTCPConnection -LocalPort %APP_PORT% -State Listen -ErrorAction SilentlyContinue); foreach ($connection in $connections) { Write-Host ('Порт занят процессом PID ' + $connection.OwningProcess) }"
   goto :fail
 )
 
