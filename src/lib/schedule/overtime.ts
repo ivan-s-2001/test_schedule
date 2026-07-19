@@ -61,13 +61,18 @@ export function resolveOvertimeAgainstPool(
       const beforeMinutes = baseStart - actual.start;
       const afterMinutes = actual.end - baseEnd;
       const totalMinutes = beforeMinutes + afterMinutes;
+      const boundaryRank =
+        beforeMinutes === 0 ? 0 : afterMinutes === 0 ? 1 : 2;
 
       candidates.push({
         template,
         beforeMinutes,
         afterMinutes,
         totalMinutes,
-        score: totalMinutes * 1000 + template.sortOrder,
+        score:
+          boundaryRank * 1_000_000_000 +
+          totalMinutes * 1000 +
+          template.sortOrder,
       });
     }
   }
