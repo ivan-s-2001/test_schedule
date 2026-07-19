@@ -1,6 +1,30 @@
 import "dotenv/config";
 import { db } from "../../src/lib/db";
-import { DEFAULT_SHIFT_POOL } from "../../src/lib/schedule/shift-pool";
+import {
+  DEFAULT_SHIFT_POOL,
+  type ShiftTemplate,
+} from "../../src/lib/schedule/shift-pool";
+import { resolveOvertimeAgainstPool } from "../../src/lib/schedule/overtime";
+
+const IMPORT_MARKER = "[CARE_SCHEDULE_2026_01_07]";
+
+type PoolRow = {
+  code: string;
+  name: string;
+  shiftFrom: string;
+  shiftTo: string;
+  color: string;
+  textColor: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+type ImportedShiftRow = {
+  shiftId: string;
+  shiftFrom: string;
+  shiftTo: string;
+};
 
 async function ensurePool(organizationId: string) {
   for (const template of DEFAULT_SHIFT_POOL) {
@@ -21,6 +45,96 @@ async function ensurePool(organizationId: string) {
       ON CONFLICT ("organizationId", "code") DO NOTHING
     `;
   }
+
+  await db.$executeRaw`
+    UPDATE "shift_pool_templates"
+    SET "isActive" = false, "updatedAt" = CURRENT_TIMESTAMP
+    WHERE "organizationId" = ${organizationId}
+      AND LOWER(TRIM("name")) = LOWER('Переработка')
+  `;
+}
+
+async function readPool(organizationId: string): Promise<ShiftTemplate[]> {
+  const rows = await db.$queryRaw<PoolRow[]>`
+    SELECT
+      "code", "name", "shiftFrom", "shiftTo", "color", "textColor",
+      "description", "sortOrder", "isActive"
+    FROM "shift_pool_templates"
+    WHERE "organizationId" = ${organizationId}
+      AND "isActive" = true
+    ORDER BY "sortOrder" ASC, "createdAt" ASC
+  `;
+
+  return rows.map((row) => ({
+    id: row.code,
+    name: row.name,
+    label: `${row.shiftFrom}–${row.shiftTo}`,
+    shiftFrom: row.shiftFrom,
+    shiftTo: row.shiftTo,
+    color: row.color,
+    textColor: row.textColor,
+    description: row.description,
+    sortOrder: row.sortOrder,
+    isActive: row.isActive,
+  }));
+}
+
+async function normalizeImportedOvertime(
+  organizationId: string,
+  pool: ShiftTemplate[]
+): Promise<number> {
+  const imported = await db.$queryRaw<ImportedShiftRow[]>`
+    SELECT
+      shift."id" AS "shiftId",
+      shift."shiftFrom",
+      shift."shiftTo"
+    FROM "shifts" shift
+    INNER JOIN "schedules" schedule ON schedule."id" = shift."scheduleId"
+    WHERE schedule."organizationId" = ${organizationId}
+      AND shift."deletedAt" IS NULL
+      AND shift."description" LIKE ${`${IMPORT_MARKER}%`}
+      AND (shift."title" IS NULL OR shift."title" NOT LIKE 'pool:%')
+  `;
+
+  let normalized = 0;
+
+  for (const shift of imported) {
+    const resolved = resolveOvertimeAgainstPool(
+      shift.shiftFrom,
+      shift.shiftTo,
+      pool
+    );
+    const template = resolved.template;
+
+    await db.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        UPDATE "shifts"
+        SET
+          "shiftFrom" = ${template.shiftFrom},
+          "shiftTo" = ${template.shiftTo},
+          "title" = ${`pool:${template.id}`},
+          "poolTemplateCode" = ${template.id},
+          "poolLabel" = ${template.name},
+          "poolColor" = ${template.color},
+          "poolTextColor" = ${template.textColor},
+          "poolDescription" = ${template.description}
+        WHERE "id" = ${shift.shiftId}
+      `;
+
+      await tx.$executeRaw`
+        UPDATE "bookings"
+        SET
+          "overtimeMinutes" = ${resolved.totalMinutes},
+          "overtimeBeforeMinutes" = ${resolved.beforeMinutes},
+          "overtimeAfterMinutes" = ${resolved.afterMinutes}
+        WHERE "shiftId" = ${shift.shiftId}
+      `;
+    });
+
+    normalized += 1;
+  }
+
+  return normalized;
 }
 
 async function main() {
@@ -29,10 +143,14 @@ async function main() {
     select: { id: true, name: true },
   });
 
-  let updated = 0;
+  let snapshotsUpdated = 0;
+  let importedNormalized = 0;
 
   for (const organization of organizations) {
     await ensurePool(organization.id);
+    const pool = await readPool(organization.id);
+    const normalized = await normalizeImportedOvertime(organization.id, pool);
+    importedNormalized += normalized;
 
     const changed = await db.$executeRaw`
       UPDATE "shifts" AS shift
@@ -53,16 +171,19 @@ async function main() {
         AND shift."deletedAt" IS NULL
         AND (
           shift."poolTemplateCode" IS NULL
-          OR shift."description" LIKE '[CARE_SCHEDULE_2026_01_07]%'
+          OR shift."description" LIKE ${`${IMPORT_MARKER}%`}
           OR shift."title" LIKE 'pool:%'
         )
     `;
 
-    updated += changed;
-    console.log(`${organization.name}: синхронизировано смен — ${changed}`);
+    snapshotsUpdated += changed;
+    console.log(
+      `${organization.name}: нормализовано импортированных смен — ${normalized}, синхронизировано снимков — ${changed}`
+    );
   }
 
-  console.log(`Всего синхронизировано смен с пулом: ${updated}`);
+  console.log(`Всего нормализовано импортированных смен: ${importedNormalized}`);
+  console.log(`Всего синхронизировано смен с пулом: ${snapshotsUpdated}`);
 }
 
 main()
