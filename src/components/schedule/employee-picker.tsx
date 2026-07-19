@@ -54,11 +54,8 @@ type EmployeeScoreData = {
 };
 
 interface EmployeePickerProps {
-  /** IDs of users already booked in this shift */
   bookedUserIds: string[];
-  /** Called when an employee is selected */
   onSelect: (userId: string) => void;
-  /** Optional shift ID for AI recommendation scoring */
   shiftId?: string;
   children: React.ReactNode;
 }
@@ -71,31 +68,29 @@ const ROLE_LABELS: Record<string, string> = {
   OWNER: "Владелец",
   ADMIN: "Администратор",
   MANAGER: "Руководитель",
-  EMPLOYEE: "MA",
+  EMPLOYEE: "Сотрудник",
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  OWNER: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  ADMIN: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  MANAGER: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  EMPLOYEE: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
+  OWNER: "bg-amber-100 text-amber-800",
+  ADMIN: "bg-purple-100 text-purple-800",
+  MANAGER: "bg-blue-100 text-blue-800",
+  EMPLOYEE: "bg-gray-100 text-gray-700",
 };
 
-/** Get the CSS classes for a score badge based on value. */
 function getScoreColor(score: number): string {
-  if (score >= 80) return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-  if (score >= 50) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
-  return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+  if (score >= 80) return "bg-green-100 text-green-800";
+  if (score >= 50) return "bg-yellow-100 text-yellow-800";
+  return "bg-red-100 text-red-800";
 }
 
-/** Format score breakdown for tooltip display. */
 function formatBreakdown(breakdown: ScoreBreakdown): string {
-  const lines: string[] = [];
-  lines.push(`Stunden: ${breakdown.hours}/40`);
-  lines.push(`Verfuegbarkeit: ${breakdown.availability}/30`);
-  lines.push(`Bereich: ${breakdown.division}/20`);
-  lines.push(`Historie: ${breakdown.history}/10`);
-  return lines.join("\n");
+  return [
+    `Нагрузка: ${breakdown.hours}/40`,
+    `Доступность: ${breakdown.availability}/30`,
+    `Подразделение: ${breakdown.division}/20`,
+    `Предыдущие смены: ${breakdown.history}/10`,
+  ].join("\n");
 }
 
 export function EmployeePicker({
@@ -106,50 +101,43 @@ export function EmployeePicker({
 }: EmployeePickerProps) {
   const [open, setOpen] = useState(false);
 
-  // Fetch all active org employees
   const { data } = useQuery<{ members: OrgEmployee[] }>({
     queryKey: ["employees", "active"],
     queryFn: async () => {
-      const res = await fetch("/api/employees?status=active");
-      if (!res.ok) throw new Error("Ошибка загрузки сотрудников");
-      return res.json();
+      const response = await fetch("/api/employees?status=active");
+      if (!response.ok) throw new Error("Не удалось загрузить сотрудников");
+      return response.json();
     },
     enabled: open,
   });
 
-  // Fetch AI recommendation scores (lazy: only when picker opens and shiftId is provided)
   const { data: scoresData, isLoading: scoresLoading } = useQuery<{
     scores: EmployeeScoreData[];
   }>({
     queryKey: ["ai-recommend", shiftId],
     queryFn: async () => {
-      const res = await fetch(`/api/ai/recommend?shiftId=${shiftId}`);
-      if (!res.ok) return { scores: [] };
-      return res.json();
+      const response = await fetch(`/api/ai/recommend?shiftId=${shiftId}`);
+      if (!response.ok) return { scores: [] };
+      return response.json();
     },
-    enabled: open && !!shiftId,
+    enabled: open && Boolean(shiftId),
   });
 
   const employees = data?.members ?? [];
   const scores = scoresData?.scores ?? [];
   const bookedSet = new Set(bookedUserIds);
-
-  // Build a map of userId -> score data for quick lookup
   const scoreMap = new Map<string, EmployeeScoreData>();
-  for (const s of scores) {
-    scoreMap.set(s.employeeId, s);
-  }
 
-  // Sort employees by score if scores are available
-  const sortedEmployees = [...employees].sort((a, b) => {
-    const scoreA = scoreMap.get(a.user.id)?.score ?? -1;
-    const scoreB = scoreMap.get(b.user.id)?.score ?? -1;
-    // Booked users always go last
-    const bookedA = bookedSet.has(a.user.id) ? 1 : 0;
-    const bookedB = bookedSet.has(b.user.id) ? 1 : 0;
-    if (bookedA !== bookedB) return bookedA - bookedB;
-    // Sort by score descending
-    return scoreB - scoreA;
+  for (const score of scores) scoreMap.set(score.employeeId, score);
+
+  const sortedEmployees = [...employees].sort((left, right) => {
+    const leftBooked = bookedSet.has(left.user.id) ? 1 : 0;
+    const rightBooked = bookedSet.has(right.user.id) ? 1 : 0;
+    if (leftBooked !== rightBooked) return leftBooked - rightBooked;
+
+    const leftScore = scoreMap.get(left.user.id)?.score ?? -1;
+    const rightScore = scoreMap.get(right.user.id)?.score ?? -1;
+    return rightScore - leftScore;
   });
 
   function handleSelect(userId: string) {
@@ -163,38 +151,46 @@ export function EmployeePicker({
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start" sideOffset={4}>
         <Command>
-          <CommandInput placeholder="Найти сотрудника..." />
+          <CommandInput placeholder="Найти сотрудника" />
           <CommandList>
             <CommandEmpty>Сотрудники не найдены</CommandEmpty>
             <CommandGroup>
               {shiftId && scoresLoading && (
                 <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" />
-                  Bewertungen laden...
+                  Подбираем сотрудников…
                 </div>
               )}
-              {sortedEmployees.map((emp) => {
-                const isBooked = bookedSet.has(emp.user.id);
-                const scoreData = scoreMap.get(emp.user.id);
+
+              {sortedEmployees.map((employee) => {
+                const isBooked = bookedSet.has(employee.user.id);
+                const scoreData = scoreMap.get(employee.user.id);
 
                 return (
                   <CommandItem
-                    key={emp.id}
-                    value={`${emp.user.firstName} ${emp.user.lastName} ${emp.user.nickname ?? ""}`}
-                    onSelect={() => handleSelect(emp.user.id)}
+                    key={employee.id}
+                    value={`${employee.user.firstName} ${employee.user.lastName} ${employee.user.nickname ?? ""}`}
+                    onSelect={() => handleSelect(employee.user.id)}
                     disabled={isBooked}
                     className={cn(isBooked && "opacity-50")}
                   >
                     <Avatar size="sm">
                       <AvatarFallback className="text-[9px]">
-                        {getInitials(emp.user.firstName, emp.user.lastName)}
+                        {getInitials(
+                          employee.user.firstName,
+                          employee.user.lastName
+                        )}
                       </AvatarFallback>
                     </Avatar>
                     <span className="flex-1 truncate text-sm">
-                      {emp.user.firstName} {emp.user.lastName}
+                      {employee.user.firstName} {employee.user.lastName}
                     </span>
+
                     {isBooked ? (
-                      <Check className="size-3.5 text-green-600" />
+                      <span className="flex items-center gap-1 text-xs text-green-700">
+                        <Check className="size-3.5" />
+                        Уже назначен
+                      </span>
                     ) : scoreData ? (
                       <TooltipProvider>
                         <Tooltip>
@@ -202,7 +198,7 @@ export function EmployeePicker({
                             <Badge
                               variant="secondary"
                               className={cn(
-                                "text-[9px] px-1.5 py-0 gap-0.5 cursor-help",
+                                "cursor-help gap-0.5 px-1.5 py-0 text-[10px]",
                                 getScoreColor(scoreData.score)
                               )}
                             >
@@ -222,11 +218,11 @@ export function EmployeePicker({
                       <Badge
                         variant="secondary"
                         className={cn(
-                          "text-[9px] px-1.5 py-0",
-                          ROLE_COLORS[emp.role]
+                          "px-1.5 py-0 text-[10px]",
+                          ROLE_COLORS[employee.role]
                         )}
                       >
-                        {ROLE_LABELS[emp.role] ?? emp.role}
+                        {ROLE_LABELS[employee.role] ?? "Сотрудник"}
                       </Badge>
                     )}
                   </CommandItem>
