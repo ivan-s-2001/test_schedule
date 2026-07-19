@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { LOCALE_COOKIE } from "@/i18n/request";
-import { routing, type AppLocale } from "@/i18n/routing";
+import {
+  LOCALE_COOKIE,
+  routing,
+  type AppLocale,
+} from "@/i18n/routing";
 
 function isAppLocale(value: unknown): value is AppLocale {
   return (
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
     path: "/",
     sameSite: "lax",
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: new URL(request.url).protocol === "https:",
     maxAge: 60 * 60 * 24 * 365,
   });
 
