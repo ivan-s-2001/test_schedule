@@ -1,11 +1,19 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import type { ShiftTemplate } from "@/lib/schedule/shift-pool";
 
 type ShiftPoolResponse = {
   templates: ShiftTemplate[];
+};
+
+type LegendGroup = {
+  key: string;
+  name: string;
+  description: string | null;
+  variants: ShiftTemplate[];
 };
 
 export function ShiftLegend() {
@@ -18,70 +26,75 @@ export function ShiftLegend() {
     },
   });
 
+  const groups = useMemo<LegendGroup[]>(() => {
+    const result = new Map<string, LegendGroup>();
+
+    for (const template of data?.templates ?? []) {
+      const name = template.name.trim();
+      const description = template.description?.trim() || null;
+      const key = `${name}\u0000${description ?? ""}`;
+      const group = result.get(key) ?? {
+        key,
+        name,
+        description,
+        variants: [],
+      };
+      group.variants.push(template);
+      result.set(key, group);
+    }
+
+    return [...result.values()];
+  }, [data?.templates]);
+
   return (
-    <details className="rounded-lg border bg-white shadow-sm" open>
-      <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-900">
-        Сводка обозначений
+    <details className="rounded-md border bg-white" open>
+      <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-700">
+        Обозначения
       </summary>
 
-      <div className="border-t p-4">
+      <div className="space-y-2 border-t px-3 py-2.5">
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Загрузка пула смен…
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" />
+            Загрузка…
           </div>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {(data?.templates ?? []).map((template) => (
-              <div
-                key={template.id}
-                className="rounded-md border-2 px-3 py-2"
-                style={{
-                  backgroundColor: template.color,
-                  color: template.textColor,
-                  borderColor:
-                    template.color === "#FFFFFF"
-                      ? "#94A3B8"
-                      : template.color,
-                }}
-              >
-                <div className="font-bold">{template.name}</div>
-                <div className="text-sm font-semibold">{template.label}</div>
-                {template.description && (
-                  <div className="mt-1 text-xs opacity-85">
-                    {template.description}
+          <>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              {groups.map((group) => (
+                <div key={group.key} className="min-w-0 text-xs">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-slate-900">{group.name}</span>
+                    {group.variants.map((variant) => (
+                      <span
+                        key={variant.id}
+                        className="inline-flex items-center gap-1 rounded border bg-white px-1.5 py-0.5 font-medium text-slate-700"
+                      >
+                        <span
+                          className="size-2.5 rounded-sm border border-black/20"
+                          style={{ backgroundColor: variant.color }}
+                        />
+                        {variant.label}
+                      </span>
+                    ))}
                   </div>
-                )}
-              </div>
-            ))}
-
-            <div className="rounded-md border-2 border-slate-300 bg-white px-3 py-2 text-slate-800">
-              <div className="font-bold">− Выходной</div>
-              <div className="text-xs">Выходной сотрудника, не отсутствие.</div>
+                  {group.description && (
+                    <div className="mt-0.5 max-w-md text-[10px] leading-tight text-slate-500">
+                      {group.description}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
 
-            <div className="rounded-md border-2 border-slate-400 bg-white px-3 py-2 text-slate-900">
-              <div className="font-bold">Отпуск</div>
-              <div className="text-xs">Объединённый период отсутствия.</div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-2 text-[10px] text-slate-600">
+              <span><b>−</b> выходной</span>
+              <span><b>Отпуск</b> период отсутствия</span>
+              <span><b>Больничный</b> период отсутствия</span>
+              <span><b>П +N ч</b> сумма переработки до и после смены</span>
+              <span><b className="text-emerald-700">Зелёный фон</b> выходной или праздник РФ</span>
             </div>
-
-            <div className="rounded-md border-2 border-red-300 bg-red-50 px-3 py-2 text-red-900">
-              <div className="font-bold">Больничный</div>
-              <div className="text-xs">Объединённый период отсутствия.</div>
-            </div>
-
-            <div className="rounded-md border-2 border-blue-300 bg-blue-50 px-3 py-2 text-blue-900">
-              <div className="font-bold">П +N ч</div>
-              <div className="text-xs">Переработка сверх назначенной смены.</div>
-            </div>
-
-            <div className="rounded-md border-2 border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-900">
-              <div className="font-bold">Зелёный фон дня</div>
-              <div className="text-xs">
-                Суббота, воскресенье или официальный нерабочий день РФ.
-              </div>
-            </div>
-          </div>
+          </>
         )}
       </div>
     </details>
