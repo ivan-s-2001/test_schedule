@@ -7,37 +7,37 @@ import { emitToOrg, emitToSchedule } from "@/lib/emit";
 
 const overtimeHoursSchema = z.number().min(0).max(24).multipleOf(0.5);
 
-const assignmentSchema = z
-  .object({
-    scheduleId: z.string().min(1),
-    userId: z.string().min(1),
-    dayOfWeek: z.number().int().min(1).max(7),
-    templateId: z.string().min(1),
-    overtimeBeforeHours: overtimeHoursSchema.default(0),
-    overtimeAfterHours: overtimeHoursSchema.default(0),
-    overtimeHours: overtimeHoursSchema.optional(),
-  })
-  .superRefine((value, context) => {
-    const legacyAfter =
-      value.overtimeBeforeHours === 0 && value.overtimeAfterHours === 0
-        ? value.overtimeHours ?? 0
-        : 0;
-    const total =
-      value.overtimeBeforeHours + value.overtimeAfterHours + legacyAfter;
+const assignmentBaseSchema = z.object({
+  scheduleId: z.string().min(1),
+  userId: z.string().min(1),
+  dayOfWeek: z.number().int().min(1).max(7),
+  templateId: z.string().min(1),
+  overtimeBeforeHours: overtimeHoursSchema.default(0),
+  overtimeAfterHours: overtimeHoursSchema.default(0),
+  overtimeHours: overtimeHoursSchema.optional(),
+});
 
-    if (total > 24) {
-      context.addIssue({
-        code: "custom",
-        message: "Суммарная переработка не может превышать 24 часа",
-        path: ["overtimeAfterHours"],
-      });
-    }
-  });
+const assignmentSchema = assignmentBaseSchema.superRefine((value, context) => {
+  const legacyAfter =
+    value.overtimeBeforeHours === 0 && value.overtimeAfterHours === 0
+      ? value.overtimeHours ?? 0
+      : 0;
+  const total =
+    value.overtimeBeforeHours + value.overtimeAfterHours + legacyAfter;
 
-const removeSchema = assignmentSchema.pick({
-  scheduleId: true,
-  userId: true,
-  dayOfWeek: true,
+  if (total > 24) {
+    context.addIssue({
+      code: "custom",
+      message: "Суммарная переработка не может превышать 24 часа",
+      path: ["overtimeAfterHours"],
+    });
+  }
+});
+
+const removeSchema = z.object({
+  scheduleId: z.string().min(1),
+  userId: z.string().min(1),
+  dayOfWeek: z.number().int().min(1).max(7),
 });
 
 type ShiftPoolRow = {
