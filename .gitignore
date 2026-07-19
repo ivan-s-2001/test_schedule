@@ -55,3 +55,4 @@ node_modules/
 *.xlsx
 scripts/migration/care-schedule-2026-01-07.json
 scripts/migration/care-day-notes-2026.json
+scripts/migration/care-cell-statuses-2026.json
