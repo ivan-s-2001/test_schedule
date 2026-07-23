@@ -60,13 +60,18 @@ jobs:
 
       - name: Build Workforce Portal image
         run: |
-          docker build \
+          if ! docker build \
             --build-arg FRAPPE_PATH=https://github.com/frappe/frappe \
             --build-arg FRAPPE_BRANCH=version-15 \
             --secret id=apps_json,src=deploy/apps.json \
             --tag qt/workforce:test \
             --file .frappe_docker/images/layered/Containerfile \
-            .frappe_docker
+            .frappe_docker > /tmp/workforce-build.log 2>&1; then
+            echo "Docker build failed. Last 250 lines:"
+            tail -n 250 /tmp/workforce-build.log
+            exit 1
+          fi
+          tail -n 50 /tmp/workforce-build.log
 
       - name: Verify installed application sources
         run: |
