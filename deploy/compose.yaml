@@ -1,5 +1,5 @@
 x-workforce-image: &workforce-image
-  image: ${CUSTOM_IMAGE:-qt/workforce}:${CUSTOM_TAG:-15}
+  image: ${CUSTOM_IMAGE:-qt/workforce}:${CUSTOM_TAG:-16}
   pull_policy: never
 
 x-backend-defaults: &backend-defaults
@@ -13,7 +13,7 @@ x-backend-defaults: &backend-defaults
 
 services:
   db:
-    image: mariadb:10.11
+    image: mariadb:11.8
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -25,8 +25,8 @@ services:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
       timeout: 5s
-      retries: 20
-      start_period: 10s
+      retries: 30
+      start_period: 15s
     volumes:
       - db-data:/var/lib/mysql
     networks:
@@ -34,13 +34,13 @@ services:
     restart: unless-stopped
 
   redis-cache:
-    image: redis:6.2-alpine
+    image: redis:7.4-alpine
     networks:
       - workforce
     restart: unless-stopped
 
   redis-queue:
-    image: redis:6.2-alpine
+    image: redis:7.4-alpine
     volumes:
       - redis-queue-data:/data
     networks:
@@ -78,9 +78,9 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     entrypoint: ["bash", "-c"]
     command: >
-      wait-for-it -t 180 db:3306;
-      wait-for-it -t 180 redis-cache:6379;
-      wait-for-it -t 180 redis-queue:6379;
+      wait-for-it -t 240 db:3306;
+      wait-for-it -t 240 redis-cache:6379;
+      wait-for-it -t 240 redis-queue:6379;
       if [ -d "sites/$$SITE_NAME" ]; then
         echo "Site $$SITE_NAME already exists";
       else

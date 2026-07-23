@@ -5,7 +5,7 @@ app_description = "Employee scheduling and shift change workflows for Frappe HR"
 app_email = "dev@localhost"
 app_license = "MIT"
 
-required_apps = ["erpnext", "hrms"]
+required_apps = ["erpnext", "hrms", "wiki"]
 
 after_install = "workforce_portal.install.after_install"
 

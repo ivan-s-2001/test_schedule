@@ -15,7 +15,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - name: Compile Python sources
         run: python -m compileall -q workforce_portal
@@ -62,7 +62,7 @@ jobs:
         run: |
           if ! docker build \
             --build-arg FRAPPE_PATH=https://github.com/frappe/frappe \
-            --build-arg FRAPPE_BRANCH=version-15 \
+            --build-arg FRAPPE_BRANCH=version-16 \
             --secret id=apps_json,src=deploy/apps.json \
             --tag qt/workforce:test \
             --file .frappe_docker/images/layered/Containerfile \
