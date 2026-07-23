@@ -51,14 +51,15 @@ services:
     <<: *backend-defaults
     restart: "no"
     entrypoint: ["bash", "-c"]
-    command: >
-      ls -1 apps > sites/apps.txt;
-      bench set-config -g db_host db;
-      bench set-config -gp db_port 3306;
-      bench set-config -g redis_cache redis://redis-cache:6379;
-      bench set-config -g redis_queue redis://redis-queue:6379;
-      bench set-config -g redis_socketio redis://redis-queue:6379;
-      bench set-config -gp socketio_port 9000;
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host db;
+        bench set-config -gp db_port 3306;
+        bench set-config -g redis_cache redis://redis-cache:6379;
+        bench set-config -g redis_queue redis://redis-queue:6379;
+        bench set-config -g redis_socketio redis://redis-queue:6379;
+        bench set-config -gp socketio_port 9000;
 
   create-site:
     <<: *backend-defaults
@@ -77,26 +78,27 @@ services:
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     entrypoint: ["bash", "-c"]
-    command: >
-      wait-for-it db:3306 -t 240;
-      wait-for-it redis-cache:6379 -t 240;
-      wait-for-it redis-queue:6379 -t 240;
-      if [ -d "sites/$$SITE_NAME" ]; then
-        echo "Site $$SITE_NAME already exists";
-      else
-        bench new-site $$SITE_NAME
-          --mariadb-user-host-login-scope='%'
-          --admin-password="$$ADMIN_PASSWORD"
-          --db-root-username=root
-          --db-root-password="$$DB_ROOT_PASSWORD";
-        bench --site $$SITE_NAME install-app erpnext;
-        bench --site $$SITE_NAME install-app hrms;
-        bench --site $$SITE_NAME install-app wiki;
-        bench --site $$SITE_NAME install-app workforce_portal;
-        bench --site $$SITE_NAME set-config developer_mode 1;
-        bench --site $$SITE_NAME clear-cache;
-        bench use $$SITE_NAME;
-      fi
+    command:
+      - >
+        wait-for-it -t 240 db:3306;
+        wait-for-it -t 240 redis-cache:6379;
+        wait-for-it -t 240 redis-queue:6379;
+        if [ -d "sites/$$SITE_NAME" ]; then
+          echo "Site $$SITE_NAME already exists";
+        else
+          bench new-site $$SITE_NAME
+            --mariadb-user-host-login-scope='%'
+            --admin-password="$$ADMIN_PASSWORD"
+            --db-root-username=root
+            --db-root-password="$$DB_ROOT_PASSWORD";
+          bench --site $$SITE_NAME install-app erpnext;
+          bench --site $$SITE_NAME install-app hrms;
+          bench --site $$SITE_NAME install-app wiki;
+          bench --site $$SITE_NAME install-app workforce_portal;
+          bench --site $$SITE_NAME set-config developer_mode 1;
+          bench --site $$SITE_NAME clear-cache;
+          bench use $$SITE_NAME;
+        fi
 
   backend:
     <<: *backend-defaults
