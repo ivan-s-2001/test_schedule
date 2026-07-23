@@ -2,7 +2,7 @@ from calendar import monthrange
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, get_first_day, get_last_day, getdate, now_datetime
+from frappe.utils import add_days, cint, get_first_day, get_last_day, getdate, now_datetime
 
 from workforce_portal.permissions import _employee_for_user, _is_manager
 
@@ -54,11 +54,7 @@ def get_month_view(month_start, company=None, department=None):
 	schedule_name = frappe.db.get_value(
 		"Workforce Schedule", _schedule_filters(month_start, company, department), "name"
 	)
-	schedule = (
-		frappe.get_doc("Workforce Schedule", schedule_name).as_dict()
-		if schedule_name
-		else None
-	)
+	schedule = frappe.get_doc("Workforce Schedule", schedule_name).as_dict() if schedule_name else None
 
 	entries = []
 	if schedule_name and employee_names:
@@ -203,7 +199,7 @@ def publish_schedule(schedule, lock=0):
 	_require_roles(PUBLISH_ROLES)
 	doc = frappe.get_doc("Workforce Schedule", schedule)
 	doc.mark_published()
-	if frappe.utils.cint(lock):
+	if cint(lock):
 		doc.status = "Locked"
 	doc.save()
 	return doc.as_dict()

@@ -28,9 +28,14 @@ jobs:
               json.loads(path.read_text(encoding='utf-8'))
               print(path)
           PY
+      - name: Validate JavaScript syntax
+        run: node --check workforce_portal/workforce/page/workforce_schedule/workforce_schedule.js
+      - name: Validate Docker Compose
+        run: docker compose --env-file deploy/.env.example -f deploy/compose.yaml config >/dev/null
       - name: Validate required project files
         run: |
           test -f pyproject.toml
+          test -f MANIFEST.in
           test -f deploy/apps.json
           test -f deploy/compose.yaml
           test -f workforce_portal/api.py

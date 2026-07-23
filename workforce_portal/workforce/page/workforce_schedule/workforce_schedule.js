@@ -39,7 +39,7 @@ class WorkforceSchedulePage {
 			default: frappe.datetime.month_start(),
 			change: () => this.refresh(),
 		});
-		this.page.add_button(__("Обновить"), () => this.refresh(), { icon: "refresh-cw" });
+		this.page.set_secondary_action(__("Обновить"), () => this.refresh(), "refresh");
 	}
 
 	async refresh() {
@@ -290,12 +290,12 @@ class WorkforceSchedulePage {
 	buildLeaveMap(leaves) {
 		const result = new Map();
 		for (const leave of leaves) {
-			let current = frappe.datetime.str_to_obj(leave.from_date);
+			const current = frappe.datetime.str_to_obj(leave.from_date);
 			const end = frappe.datetime.str_to_obj(leave.to_date);
 			while (current <= end) {
 				const date = frappe.datetime.obj_to_str(current);
 				result.set(`${leave.employee}:${date}`, leave);
-				current = frappe.datetime.add_days(current, 1);
+				current.setDate(current.getDate() + 1);
 			}
 		}
 		return result;
