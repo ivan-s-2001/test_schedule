@@ -88,12 +88,24 @@ jobs:
             bench version
           '
 
+      - name: Start integration-test dependencies
+        run: |
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            up -d db redis-cache redis-queue
+
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            run --rm --no-deps configurator
+
       - name: Create a site and install all applications
         run: |
           if ! docker compose \
             --env-file deploy/.env.example \
             -f deploy/compose.yaml \
-            up --abort-on-container-exit --exit-code-from create-site create-site \
+            run --rm --no-deps create-site \
             > /tmp/workforce-site-install.log 2>&1; then
             tail -n 300 /tmp/workforce-site-install.log | tee /tmp/workforce-site-install-tail.log
             exit 1
@@ -108,11 +120,11 @@ jobs:
             run --rm --no-deps backend \
             bench --site "$SITE_NAME" list-apps | tee /tmp/workforce-installed-apps.log
 
-          grep -q '^frappe ' /tmp/workforce-installed-apps.log
-          grep -q '^erpnext ' /tmp/workforce-installed-apps.log
-          grep -q '^hrms ' /tmp/workforce-installed-apps.log
-          grep -q '^wiki ' /tmp/workforce-installed-apps.log
-          grep -q '^workforce_portal ' /tmp/workforce-installed-apps.log
+          grep -Eq '^frappe([[:space:]]|$)' /tmp/workforce-installed-apps.log
+          grep -Eq '^erpnext([[:space:]]|$)' /tmp/workforce-installed-apps.log
+          grep -Eq '^hrms([[:space:]]|$)' /tmp/workforce-installed-apps.log
+          grep -Eq '^wiki([[:space:]]|$)' /tmp/workforce-installed-apps.log
+          grep -Eq '^workforce_portal([[:space:]]|$)' /tmp/workforce-installed-apps.log
 
       - name: Upload failure diagnostics
         if: failure()
