@@ -1,10 +1,8 @@
 name: Validate Workforce Portal
 
 on:
-  push:
-    branches:
-      - agent/frappe-workforce-portal
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,24 +12,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Compile Python sources
         run: python -m compileall -q workforce_portal
+
       - name: Validate JSON files
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          for path in Path('.').rglob('*.json'):
-              json.loads(path.read_text(encoding='utf-8'))
+
+          for path in Path(".").rglob("*.json"):
+              json.loads(path.read_text(encoding="utf-8"))
               print(path)
           PY
+
       - name: Validate JavaScript syntax
         run: node --check workforce_portal/workforce/page/workforce_schedule/workforce_schedule.js
+
       - name: Validate Docker Compose
         run: docker compose --env-file deploy/.env.example -f deploy/compose.yaml config >/dev/null
+
       - name: Validate required project files
         run: |
           test -f pyproject.toml
@@ -40,3 +45,35 @@ jobs:
           test -f deploy/compose.yaml
           test -f workforce_portal/api.py
           test -f workforce_portal/workforce/page/workforce_schedule/workforce_schedule.js
+
+  build-image:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOCKER_BUILDKIT: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout official Frappe Docker tooling
+        run: git clone --depth 1 https://github.com/frappe/frappe_docker.git .frappe_docker
+
+      - name: Build Workforce Portal image
+        run: |
+          docker build \
+            --build-arg FRAPPE_PATH=https://github.com/frappe/frappe \
+            --build-arg FRAPPE_BRANCH=version-15 \
+            --secret id=apps_json,src=deploy/apps.json \
+            --tag qt/workforce:test \
+            --file .frappe_docker/images/layered/Containerfile \
+            .frappe_docker
+
+      - name: Verify installed application sources
+        run: |
+          docker run --rm qt/workforce:test bash -lc '
+            test -d apps/erpnext &&
+            test -d apps/hrms &&
+            test -d apps/wiki &&
+            test -d apps/workforce_portal &&
+            bench version
+          '
