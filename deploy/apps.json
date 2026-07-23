@@ -1,0 +1,18 @@
+[
+  {
+    "url": "https://github.com/frappe/erpnext",
+    "branch": "version-15"
+  },
+  {
+    "url": "https://github.com/frappe/hrms",
+    "branch": "version-15"
+  },
+  {
+    "url": "https://github.com/frappe/wiki",
+    "branch": "v2.0.0"
+  },
+  {
+    "url": "https://github.com/ivan-s-2001/test_schedule",
+    "branch": "agent/frappe-workforce-portal"
+  }
+]

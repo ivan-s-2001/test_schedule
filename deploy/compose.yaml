@@ -1,0 +1,182 @@
+x-workforce-image: &workforce-image
+  image: ${CUSTOM_IMAGE:-qt/workforce}:${CUSTOM_TAG:-15}
+  pull_policy: never
+
+x-backend-defaults: &backend-defaults
+  <<: *workforce-image
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+  networks:
+    - workforce
+  restart: unless-stopped
+
+services:
+  db:
+    image: mariadb:10.11
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - workforce
+    restart: unless-stopped
+
+  redis-cache:
+    image: redis:6.2-alpine
+    networks:
+      - workforce
+    restart: unless-stopped
+
+  redis-queue:
+    image: redis:6.2-alpine
+    volumes:
+      - redis-queue-data:/data
+    networks:
+      - workforce
+    restart: unless-stopped
+
+  configurator:
+    <<: *backend-defaults
+    restart: "no"
+    entrypoint: ["bash", "-c"]
+    command: >
+      ls -1 apps > sites/apps.txt;
+      bench set-config -g db_host db;
+      bench set-config -gp db_port 3306;
+      bench set-config -g redis_cache redis://redis-cache:6379;
+      bench set-config -g redis_queue redis://redis-queue:6379;
+      bench set-config -g redis_socketio redis://redis-queue:6379;
+      bench set-config -gp socketio_port 9000;
+
+  create-site:
+    <<: *backend-defaults
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+      configurator:
+        condition: service_completed_successfully
+    environment:
+      SITE_NAME: ${SITE_NAME:-workforce.localhost}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    entrypoint: ["bash", "-c"]
+    command: >
+      wait-for-it -t 180 db:3306;
+      wait-for-it -t 180 redis-cache:6379;
+      wait-for-it -t 180 redis-queue:6379;
+      if [ -d "sites/$$SITE_NAME" ]; then
+        echo "Site $$SITE_NAME already exists";
+      else
+        bench new-site $$SITE_NAME
+          --mariadb-user-host-login-scope='%'
+          --admin-password="$$ADMIN_PASSWORD"
+          --db-root-username=root
+          --db-root-password="$$DB_ROOT_PASSWORD";
+        bench --site $$SITE_NAME install-app erpnext;
+        bench --site $$SITE_NAME install-app hrms;
+        bench --site $$SITE_NAME install-app wiki;
+        bench --site $$SITE_NAME install-app workforce_portal;
+        bench --site $$SITE_NAME set-config developer_mode 1;
+        bench --site $$SITE_NAME clear-cache;
+        bench use $$SITE_NAME;
+      fi
+
+  backend:
+    <<: *backend-defaults
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+
+  websocket:
+    <<: *backend-defaults
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+    environment:
+      FRAPPE_REDIS_CACHE: redis://redis-cache:6379
+      FRAPPE_REDIS_QUEUE: redis://redis-queue:6379
+
+  queue-short:
+    <<: *backend-defaults
+    command: ["bench", "worker", "--queue", "short,default"]
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+    environment:
+      FRAPPE_REDIS_CACHE: redis://redis-cache:6379
+      FRAPPE_REDIS_QUEUE: redis://redis-queue:6379
+
+  queue-long:
+    <<: *backend-defaults
+    command: ["bench", "worker", "--queue", "long,default,short"]
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+    environment:
+      FRAPPE_REDIS_CACHE: redis://redis-cache:6379
+      FRAPPE_REDIS_QUEUE: redis://redis-queue:6379
+
+  scheduler:
+    <<: *backend-defaults
+    command: ["bench", "schedule"]
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+
+  frontend:
+    <<: *workforce-image
+    command: ["nginx-entrypoint.sh"]
+    depends_on:
+      backend:
+        condition: service_started
+      websocket:
+        condition: service_started
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME:-workforce.localhost}
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 100m
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    networks:
+      - workforce
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  redis-queue-data:
+  sites:
+  logs:
+
+networks:
+  workforce:
+    driver: bridge

@@ -52,4 +52,8 @@ def has_change_request_permission(doc, user: str | None = None, permission_type:
 	employee = _employee_for_user(user)
 	if not employee or doc.employee != employee:
 		return False
-	return permission_type in (None, "read", "select", "create", "write") and doc.status == "Pending"
+	if permission_type in (None, "read", "select", "create"):
+		return True
+	if permission_type == "write":
+		return doc.status == "Pending"
+	return False
