@@ -1,0 +1,120 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "hash",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "company",
+    "department",
+    "month_start",
+    "status",
+    "published_at",
+    "published_by",
+    "notes"
+  ],
+  "fields": [
+    {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Компания",
+      "options": "Company",
+      "reqd": 1
+    },
+    {
+      "fieldname": "department",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Подразделение",
+      "options": "Department"
+    },
+    {
+      "fieldname": "month_start",
+      "fieldtype": "Date",
+      "in_list_view": 1,
+      "label": "Месяц",
+      "reqd": 1
+    },
+    {
+      "default": "Draft",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Статус",
+      "options": "Draft\nPublished\nLocked",
+      "reqd": 1
+    },
+    {
+      "fieldname": "published_at",
+      "fieldtype": "Datetime",
+      "label": "Опубликован",
+      "read_only": 1
+    },
+    {
+      "fieldname": "published_by",
+      "fieldtype": "Link",
+      "label": "Опубликовал",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "notes",
+      "fieldtype": "Small Text",
+      "label": "Комментарий"
+    }
+  ],
+  "links": [],
+  "module": "Workforce",
+  "name": "Workforce Schedule",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "HR Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Workforce Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Workforce Supervisor",
+      "write": 1
+    }
+  ],
+  "sort_field": "month_start",
+  "sort_order": "DESC",
+  "states": [],
+  "title_field": "department",
+  "track_changes": 1
+}

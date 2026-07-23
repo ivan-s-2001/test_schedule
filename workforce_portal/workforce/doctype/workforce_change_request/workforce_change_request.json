@@ -1,0 +1,175 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "autoname": "hash",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "employee",
+    "schedule_entry",
+    "request_type",
+    "requested_date",
+    "proposed_employee",
+    "proposed_shift_type",
+    "requested_start_time",
+    "requested_end_time",
+    "reason",
+    "status",
+    "reviewer",
+    "reviewed_at",
+    "review_comment",
+    "applied"
+  ],
+  "fields": [
+    {
+      "fieldname": "employee",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Сотрудник",
+      "options": "Employee",
+      "reqd": 1
+    },
+    {
+      "fieldname": "schedule_entry",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Запись графика",
+      "options": "Workforce Schedule Entry",
+      "reqd": 1
+    },
+    {
+      "fieldname": "request_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Тип запроса",
+      "options": "Swap\nMove\nDelay\nOvertime\nAbsence",
+      "reqd": 1
+    },
+    {
+      "fieldname": "requested_date",
+      "fieldtype": "Date",
+      "label": "Новая дата"
+    },
+    {
+      "fieldname": "proposed_employee",
+      "fieldtype": "Link",
+      "label": "Сотрудник на замену",
+      "options": "Employee"
+    },
+    {
+      "fieldname": "proposed_shift_type",
+      "fieldtype": "Link",
+      "label": "Новый тип смены",
+      "options": "Shift Type"
+    },
+    {
+      "fieldname": "requested_start_time",
+      "fieldtype": "Time",
+      "label": "Новое начало"
+    },
+    {
+      "fieldname": "requested_end_time",
+      "fieldtype": "Time",
+      "label": "Новое окончание"
+    },
+    {
+      "fieldname": "reason",
+      "fieldtype": "Small Text",
+      "label": "Причина",
+      "reqd": 1
+    },
+    {
+      "default": "Pending",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Статус",
+      "options": "Pending\nApproved\nRejected\nCancelled",
+      "reqd": 1
+    },
+    {
+      "fieldname": "reviewer",
+      "fieldtype": "Link",
+      "label": "Проверил",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "reviewed_at",
+      "fieldtype": "Datetime",
+      "label": "Дата решения",
+      "read_only": 1
+    },
+    {
+      "fieldname": "review_comment",
+      "fieldtype": "Small Text",
+      "label": "Комментарий руководителя"
+    },
+    {
+      "default": "0",
+      "fieldname": "applied",
+      "fieldtype": "Check",
+      "label": "Изменение применено",
+      "read_only": 1
+    }
+  ],
+  "links": [],
+  "module": "Workforce",
+  "name": "Workforce Change Request",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "HR Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Workforce Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Workforce Supervisor",
+      "write": 1
+    },
+    {
+      "create": 1,
+      "read": 1,
+      "role": "Employee",
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "title_field": "employee",
+  "track_changes": 1
+}

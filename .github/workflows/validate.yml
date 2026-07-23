@@ -1,0 +1,172 @@
+name: Validate Workforce Portal
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: workforce-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Compile Python sources
+        run: python -m compileall -q workforce_portal
+
+      - name: Validate JSON files
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in Path(".").rglob("*.json"):
+              json.loads(path.read_text(encoding="utf-8"))
+              print(path)
+          PY
+
+      - name: Validate JavaScript syntax
+        run: node --check workforce_portal/workforce/page/workforce_schedule/workforce_schedule.js
+
+      - name: Validate Docker Compose
+        run: docker compose --env-file deploy/.env.example -f deploy/compose.yaml config >/dev/null
+
+      - name: Validate required project files
+        run: |
+          test -f pyproject.toml
+          test -f MANIFEST.in
+          test -f deploy/apps.json
+          test -f deploy/compose.yaml
+          test -f workforce_portal/api.py
+          test -f workforce_portal/workforce/page/workforce_schedule/workforce_schedule.js
+
+  build-image:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOCKER_BUILDKIT: "1"
+      CUSTOM_IMAGE: qt/workforce
+      CUSTOM_TAG: test
+      SITE_NAME: workforce.test
+      DB_ROOT_PASSWORD: ci-database-password
+      ADMIN_PASSWORD: ci-administrator-password
+      HTTP_PORT: "18080"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout official Frappe Docker tooling
+        run: git clone --depth 1 https://github.com/frappe/frappe_docker.git .frappe_docker
+
+      - name: Build Workforce Portal image
+        run: |
+          if ! docker build \
+            --build-arg FRAPPE_PATH=https://github.com/frappe/frappe \
+            --build-arg FRAPPE_BRANCH=version-16 \
+            --secret id=apps_json,src=deploy/apps.json \
+            --tag qt/workforce:test \
+            --file .frappe_docker/images/layered/Containerfile \
+            .frappe_docker > /tmp/workforce-build.log 2>&1; then
+            tail -n 250 /tmp/workforce-build.log | tee /tmp/workforce-build-tail.log
+            exit 1
+          fi
+          tail -n 50 /tmp/workforce-build.log
+
+      - name: Verify application sources in the image
+        run: |
+          docker run --rm qt/workforce:test bash -lc '
+            test -d apps/erpnext &&
+            test -d apps/hrms &&
+            test -d apps/wiki &&
+            test -d apps/workforce_portal &&
+            bench version
+          '
+
+      - name: Start integration-test dependencies
+        run: |
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            up -d db redis-cache redis-queue
+
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            run --rm --no-deps configurator
+
+      - name: Create a site and install all applications
+        run: |
+          if ! docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            run --rm --no-deps create-site \
+            > /tmp/workforce-site-install.log 2>&1; then
+            tail -n 300 /tmp/workforce-site-install.log | tee /tmp/workforce-site-install-tail.log
+            exit 1
+          fi
+          tail -n 80 /tmp/workforce-site-install.log
+
+      - name: Verify database account scope
+        run: |
+          SITE_DB_USER=$(docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            run --rm --no-deps -e SITE_NAME="$SITE_NAME" backend \
+            bash -lc 'jq -r ".db_user // .db_name" "sites/$SITE_NAME/site_config.json"' \
+            | tail -n 1)
+
+          test -n "$SITE_DB_USER"
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            exec -T db \
+            mariadb -uroot -p"$DB_ROOT_PASSWORD" -N \
+            -e "SELECT User, Host FROM mysql.user WHERE User='$SITE_DB_USER' ORDER BY Host" \
+            | tee /tmp/workforce-database-grants.log
+
+          grep -Eq "^${SITE_DB_USER}[[:space:]]+%$" /tmp/workforce-database-grants.log
+
+      - name: Verify applications installed on the site
+        run: |
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            run --rm --no-deps backend \
+            bench --site "$SITE_NAME" list-apps | tee /tmp/workforce-installed-apps.log
+
+          grep -Eq '^frappe([[:space:]]|$)' /tmp/workforce-installed-apps.log
+          grep -Eq '^erpnext([[:space:]]|$)' /tmp/workforce-installed-apps.log
+          grep -Eq '^hrms([[:space:]]|$)' /tmp/workforce-installed-apps.log
+          grep -Eq '^wiki([[:space:]]|$)' /tmp/workforce-installed-apps.log
+          grep -Eq '^workforce_portal([[:space:]]|$)' /tmp/workforce-installed-apps.log
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workforce-build-log
+          path: |
+            /tmp/workforce-build-tail.log
+            /tmp/workforce-site-install-tail.log
+            /tmp/workforce-database-grants.log
+            /tmp/workforce-installed-apps.log
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Remove integration-test containers and volumes
+        if: always()
+        run: |
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            down --volumes --remove-orphans || true

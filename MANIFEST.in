@@ -1,0 +1,13 @@
+include MANIFEST.in
+include *.md
+include *.txt
+include *.toml
+recursive-include workforce_portal *.css
+recursive-include workforce_portal *.html
+recursive-include workforce_portal *.js
+recursive-include workforce_portal *.json
+recursive-include workforce_portal *.md
+recursive-include workforce_portal *.py
+recursive-include workforce_portal *.svg
+recursive-include workforce_portal *.txt
+recursive-exclude workforce_portal *.pyc

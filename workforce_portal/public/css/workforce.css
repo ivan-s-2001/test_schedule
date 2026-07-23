@@ -1,0 +1,208 @@
+.workforce-page {
+  padding: 18px 0 32px;
+}
+
+.workforce-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.workforce-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.workforce-summary span {
+  color: var(--text-muted);
+}
+
+.workforce-status {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--subtle-accent);
+}
+
+.workforce-status.is-published {
+  color: var(--green-700);
+  background: var(--green-100);
+}
+
+.workforce-status.is-locked {
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
+.workforce-grid-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 245px);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.workforce-grid {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+
+.workforce-grid th,
+.workforce-grid td {
+  height: 58px;
+  min-width: 70px;
+  padding: 6px;
+  text-align: center;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--card-bg);
+}
+
+.workforce-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  height: 48px;
+  background: var(--control-bg);
+}
+
+.workforce-grid .workforce-employee {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  min-width: 220px;
+  max-width: 220px;
+  padding: 8px 12px;
+  text-align: left;
+  background: var(--card-bg);
+  box-shadow: 1px 0 0 var(--border-color);
+}
+
+.workforce-grid thead .workforce-employee {
+  z-index: 6;
+  background: var(--control-bg);
+}
+
+.workforce-employee strong,
+.workforce-employee span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workforce-employee span,
+.workforce-day small,
+.workforce-cell small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.workforce-day span,
+.workforce-day small,
+.workforce-cell span,
+.workforce-cell small {
+  display: block;
+}
+
+.workforce-cell[data-employee] {
+  cursor: pointer;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.workforce-cell[data-employee]:hover {
+  position: relative;
+  z-index: 2;
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.workforce-cell.is-weekend,
+.workforce-day.is-weekend {
+  background: var(--gray-50);
+}
+
+.workforce-cell.is-shift {
+  background: var(--blue-50);
+}
+
+.workforce-cell.is-day-off {
+  background: var(--gray-100);
+}
+
+.workforce-cell.is-leave {
+  color: var(--green-800);
+  background: var(--green-100);
+}
+
+.workforce-cell.is-sick-leave {
+  color: var(--red-800);
+  background: var(--red-100);
+}
+
+.workforce-cell.is-training,
+.workforce-cell.is-business-trip {
+  background: var(--yellow-100);
+}
+
+.workforce-cell.is-unassigned {
+  color: var(--text-muted);
+  background: repeating-linear-gradient(-45deg, transparent, transparent 7px, var(--gray-50) 7px, var(--gray-50) 14px);
+}
+
+.workforce-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.workforce-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workforce-legend i {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
+
+.workforce-legend i.is-shift { background: var(--blue-50); }
+.workforce-legend i.is-day-off { background: var(--gray-100); }
+.workforce-legend i.is-leave { background: var(--green-100); }
+.workforce-legend i.is-unassigned { background: var(--gray-50); }
+
+.workforce-empty {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .workforce-grid .workforce-employee {
+    min-width: 160px;
+    max-width: 160px;
+  }
+
+  .workforce-grid-wrap {
+    max-height: calc(100vh - 210px);
+  }
+}
