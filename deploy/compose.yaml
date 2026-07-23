@@ -88,13 +88,7 @@ services:
         if [ -d "sites/$$SITE_NAME" ]; then
           echo "Site $$SITE_NAME already exists";
         else
-          bench new-site
-            --mariadb-user-host-login-scope='%'
-            --admin-password="$$ADMIN_PASSWORD"
-            --db-root-username=root
-            --db-root-password="$$DB_ROOT_PASSWORD"
-            --verbose
-            "$$SITE_NAME";
+          bench new-site --mariadb-user-host-login-scope='%' --admin-password="$$ADMIN_PASSWORD" --db-root-username=root --db-root-password="$$DB_ROOT_PASSWORD" --verbose "$$SITE_NAME";
           bench --site "$$SITE_NAME" install-app erpnext;
           bench --site "$$SITE_NAME" install-app hrms;
           bench --site "$$SITE_NAME" install-app wiki;
