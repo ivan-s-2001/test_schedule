@@ -1,0 +1,147 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "autoname": "hash",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "schedule",
+    "employee",
+    "work_date",
+    "shift_type",
+    "start_time",
+    "end_time",
+    "status",
+    "source",
+    "leave_application",
+    "note"
+  ],
+  "fields": [
+    {
+      "fieldname": "schedule",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "График",
+      "options": "Workforce Schedule",
+      "reqd": 1
+    },
+    {
+      "fieldname": "employee",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Сотрудник",
+      "options": "Employee",
+      "reqd": 1
+    },
+    {
+      "fieldname": "work_date",
+      "fieldtype": "Date",
+      "in_list_view": 1,
+      "label": "Дата",
+      "reqd": 1
+    },
+    {
+      "fieldname": "shift_type",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Тип смены",
+      "options": "Shift Type"
+    },
+    {
+      "fieldname": "start_time",
+      "fieldtype": "Time",
+      "label": "Начало"
+    },
+    {
+      "fieldname": "end_time",
+      "fieldtype": "Time",
+      "label": "Окончание"
+    },
+    {
+      "default": "Shift",
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Состояние",
+      "options": "Shift\nDay Off\nLeave\nSick Leave\nTraining\nBusiness Trip\nUnassigned",
+      "reqd": 1
+    },
+    {
+      "default": "Manual",
+      "fieldname": "source",
+      "fieldtype": "Select",
+      "label": "Источник",
+      "options": "Manual\nHRMS\nLeave\nChange Request",
+      "read_only": 1
+    },
+    {
+      "fieldname": "leave_application",
+      "fieldtype": "Link",
+      "label": "Заявление на отпуск",
+      "options": "Leave Application",
+      "read_only": 1
+    },
+    {
+      "fieldname": "note",
+      "fieldtype": "Small Text",
+      "label": "Комментарий"
+    }
+  ],
+  "links": [],
+  "module": "Workforce",
+  "name": "Workforce Schedule Entry",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "HR Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Workforce Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Workforce Supervisor",
+      "write": 1
+    },
+    {
+      "read": 1,
+      "role": "Employee"
+    }
+  ],
+  "sort_field": "work_date",
+  "sort_order": "DESC",
+  "states": [],
+  "title_field": "employee",
+  "track_changes": 1
+}
