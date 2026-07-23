@@ -52,6 +52,12 @@ jobs:
     timeout-minutes: 45
     env:
       DOCKER_BUILDKIT: "1"
+      CUSTOM_IMAGE: qt/workforce
+      CUSTOM_TAG: test
+      SITE_NAME: workforce.test
+      DB_ROOT_PASSWORD: ci-database-password
+      ADMIN_PASSWORD: ci-administrator-password
+      HTTP_PORT: "18080"
     steps:
       - uses: actions/checkout@v4
 
@@ -67,22 +73,12 @@ jobs:
             --tag qt/workforce:test \
             --file .frappe_docker/images/layered/Containerfile \
             .frappe_docker > /tmp/workforce-build.log 2>&1; then
-            echo "Docker build failed. Last 250 lines:"
             tail -n 250 /tmp/workforce-build.log | tee /tmp/workforce-build-tail.log
             exit 1
           fi
           tail -n 50 /tmp/workforce-build.log
 
-      - name: Upload Docker build diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: workforce-build-log
-          path: /tmp/workforce-build-tail.log
-          if-no-files-found: error
-          retention-days: 3
-
-      - name: Verify installed application sources
+      - name: Verify application sources in the image
         run: |
           docker run --rm qt/workforce:test bash -lc '
             test -d apps/erpnext &&
@@ -91,3 +87,49 @@ jobs:
             test -d apps/workforce_portal &&
             bench version
           '
+
+      - name: Create a site and install all applications
+        run: |
+          if ! docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            up --abort-on-container-exit --exit-code-from create-site create-site \
+            > /tmp/workforce-site-install.log 2>&1; then
+            tail -n 300 /tmp/workforce-site-install.log | tee /tmp/workforce-site-install-tail.log
+            exit 1
+          fi
+          tail -n 80 /tmp/workforce-site-install.log
+
+      - name: Verify applications installed on the site
+        run: |
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            run --rm --no-deps backend \
+            bench --site "$SITE_NAME" list-apps | tee /tmp/workforce-installed-apps.log
+
+          grep -q '^frappe ' /tmp/workforce-installed-apps.log
+          grep -q '^erpnext ' /tmp/workforce-installed-apps.log
+          grep -q '^hrms ' /tmp/workforce-installed-apps.log
+          grep -q '^wiki ' /tmp/workforce-installed-apps.log
+          grep -q '^workforce_portal ' /tmp/workforce-installed-apps.log
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workforce-build-log
+          path: |
+            /tmp/workforce-build-tail.log
+            /tmp/workforce-site-install-tail.log
+            /tmp/workforce-installed-apps.log
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Remove integration-test containers and volumes
+        if: always()
+        run: |
+          docker compose \
+            --env-file deploy/.env.example \
+            -f deploy/compose.yaml \
+            down --volumes --remove-orphans || true
