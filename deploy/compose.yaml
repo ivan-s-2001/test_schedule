@@ -78,9 +78,9 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     entrypoint: ["bash", "-c"]
     command: >
-      wait-for-it -t 240 db:3306;
-      wait-for-it -t 240 redis-cache:6379;
-      wait-for-it -t 240 redis-queue:6379;
+      wait-for-it db:3306 -t 240;
+      wait-for-it redis-cache:6379 -t 240;
+      wait-for-it redis-queue:6379 -t 240;
       if [ -d "sites/$$SITE_NAME" ]; then
         echo "Site $$SITE_NAME already exists";
       else
